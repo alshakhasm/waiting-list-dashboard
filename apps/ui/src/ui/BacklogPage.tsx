@@ -90,7 +90,9 @@ export function BacklogPage({
                       draggable
                       onDragStart={(e) => {
                         const payload = { itemId: i.id, estDurationMin: i.estDurationMin, surgeonId: i.surgeonId };
-                        e.dataTransfer.setData('application/json', JSON.stringify(payload));
+                        const text = JSON.stringify(payload);
+                        try { e.dataTransfer.setData('application/json', text); } catch {}
+                        try { e.dataTransfer.setData('text/plain', text); } catch {}
                         e.dataTransfer.effectAllowed = 'copyMove';
                       }}
                       onClick={() => onSelect?.(i)}

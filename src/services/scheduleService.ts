@@ -28,7 +28,7 @@ export const ScheduleService = {
       date: input.date,
       startTime: input.startTime,
       endTime: input.endTime,
-      status: 'scheduled',
+  status: 'tentative',
       notes: input.notes,
       updatedAt: new Date().toISOString(),
       version: 1,

@@ -4,9 +4,32 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>OR Waiting & Scheduling</title>
-    <script type="module" crossorigin src="/assets/index-D0qjVnuW.js"></script>
+    <script type="module" crossorigin src="/assets/index-B75phuti.js"></script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div style="padding:12px;font-family:system-ui, Arial, sans-serif;color:#111">Loading UI…</div>
+      <noscript><div style="padding:12px;color:#b91c1c">This app requires JavaScript to run.</div></noscript>
+    </div>
+    <script>
+      // Surface any early script errors before React mounts
+      (function () {
+        function show(msg) {
+          var el = document.getElementById('root');
+          if (!el) return;
+          var box = document.createElement('div');
+          box.style.cssText = 'margin:12px;padding:8px;border:1px solid #ef4444;background:#fee2e2;color:#991b1b;border-radius:6px;font-family:system-ui, Arial, sans-serif;white-space:pre-wrap;';
+          box.textContent = 'Startup error: ' + msg;
+          el.appendChild(box);
+        }
+        window.addEventListener('error', function (e) {
+          show((e && e.message) || String(e));
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          var reason = e && (e.reason && (e.reason.message || String(e.reason))) || 'Promise rejected';
+          show(reason);
+        });
+      })();
+    </script>
   </body>
 </html>

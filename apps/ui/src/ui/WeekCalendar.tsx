@@ -76,9 +76,15 @@ export function WeekCalendar({ date, entries, startHour = 8, endHour = 18, onDro
   function dropToTime(e: React.DragEvent<HTMLDivElement>, dayISO: string, dayIdx: number) {
     if (!onDrop) return;
     e.preventDefault();
-    const payloadStr = e.dataTransfer.getData('application/json');
+    let payloadStr = e.dataTransfer.getData('application/json');
+  if (!payloadStr) payloadStr = e.dataTransfer.getData('text/plain');
     let data: any = null;
     try { data = JSON.parse(payloadStr); } catch {}
+    if (!data || !data.itemId) {
+      console.warn('[DnD] Missing or invalid payload on drop:', payloadStr);
+      window.alert?.('Drag payload missing — try dragging the card again');
+      return;
+    }
     const columnEl = dayRefs.current[dayIdx]!;
     const rect = columnEl.getBoundingClientRect();
     const y = e.clientY - rect.top;
@@ -98,8 +104,16 @@ export function WeekCalendar({ date, entries, startHour = 8, endHour = 18, onDro
     setDragDay(null);
   }
 
+  function handleRootDragOver(e: React.DragEvent<HTMLDivElement>) {
+    // Ensure the browser knows we can drop anywhere in the grid
+    e.preventDefault();
+  }
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: `80px repeat(7, 1fr)`, borderTop: '1px solid #e5e7eb', height: '100%' }}>
+    <div
+      onDragOver={handleRootDragOver}
+      style={{ display: 'grid', gridTemplateColumns: `80px repeat(7, 1fr)`, borderTop: '1px solid #e5e7eb', height: '100%' }}
+    >
       {/* Header */}
       <div />
       {week.map((d) => (
@@ -125,7 +139,15 @@ export function WeekCalendar({ date, entries, startHour = 8, endHour = 18, onDro
         <div
           key={`overlay-${di}`}
           ref={(el) => (dayRefs.current[di] = el)}
-          style={{ gridColumn: di + 2, gridRow: 2, position: 'relative', outline: dragDay === di ? '2px solid #93c5fd' : undefined }}
+          style={{
+            gridColumn: di + 2,
+            gridRow: '2 / -1',
+            position: 'relative',
+            outline: dragDay === di ? '2px solid #93c5fd' : undefined,
+            zIndex: 2,
+            minHeight: '100%',
+            pointerEvents: 'auto',
+          }}
           onDragEnter={() => setDragDay(di)}
           onDragLeave={() => { if (dragDay === di) setDragDay(null); setGhost(null); }}
           onDragOver={(e) => { handleDragOver(e); updateGhost(e, di); }}
@@ -150,8 +172,9 @@ export function WeekCalendar({ date, entries, startHour = 8, endHour = 18, onDro
             key={e.id}
             style={{
               gridColumn: dayIdx + 2,
-              gridRow: 2, // overlay over body rows
+              gridRow: '2 / -1', // overlay over all body rows
               position: 'relative',
+              zIndex: 3,
             }}
           >
             <div

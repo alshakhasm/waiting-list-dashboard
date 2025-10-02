@@ -94,6 +94,8 @@ export function SchedulePage() {
                   if (!pendingIds.includes(itemId)) setPendingIds((ids) => [...ids, itemId]);
                 } catch (e) {
                   console.error('Failed to create schedule from drop', e);
+                  const msg = (e as any)?.message || 'Failed to create schedule (check availability)';
+                  window.alert?.(msg);
                 }
               }}
             />

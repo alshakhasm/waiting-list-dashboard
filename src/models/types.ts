@@ -55,7 +55,7 @@ export type ScheduleEntry = {
   date: string; // YYYY-MM-DD
   startTime: string; // HH:MM
   endTime: string; // HH:MM
-  status: 'scheduled' | 'completed' | 'cancelled';
+  status: 'tentative' | 'scheduled' | 'completed' | 'cancelled';
   notes?: string;
   updatedAt: string;
   version: number;
