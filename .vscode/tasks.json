@@ -1,0 +1,132 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build UI (apps/ui)",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd 'apps/ui' && npm run -s build"
+			],
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build UI (apps/ui)",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd 'apps/ui' && npm run -s build"
+			],
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build UI (apps/ui)",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd 'apps/ui' && npm run -s build"
+			],
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build UI (apps/ui)",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd 'apps/ui' && npm run -s build"
+			],
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build UI (apps/ui)",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd 'apps/ui' && npm run -s build"
+			],
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build UI (apps/ui)",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd 'apps/ui' && npm run -s build"
+			],
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build UI (apps/ui)",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd 'apps/ui' && npm run -s build"
+			],
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Install supabase-js",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd 'apps/ui' && npm install @supabase/supabase-js"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build UI (apps/ui)",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd 'apps/ui' && npm run -s build"
+			],
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build UI (apps/ui)",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd 'apps/ui' && npm run -s build"
+			],
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		}
+	]
+}

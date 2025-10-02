@@ -1,0 +1,13 @@
+/** @type {import('jest').Config} */
+module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  roots: ['<rootDir>/tests'],
+  moduleFileExtensions: ['ts', 'tsx', 'js'],
+  transform: {
+    '^.+\\.(ts|tsx)$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.json' }],
+  },
+  testMatch: ['**/?(*.)+(spec|test).+(ts|tsx)'],
+  verbose: true,
+  collectCoverage: false,
+};
