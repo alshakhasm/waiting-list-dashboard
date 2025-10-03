@@ -58,12 +58,13 @@ When creating this spec from a user prompt:
 As a scheduler, I want a compact calendar view that does not display hourly rows so I can see more days and entries at a glance, prioritize by order and capacity, and move items quickly without the clutter of time slots.
 
 ### Acceptance Scenarios
-1. Given the scheduler opens the app, when the calendar loads, then the compact calendar is the default view and renders without explicit hour lines or time-of-day labels while still showing entries grouped by day.
-2. Given the compact calendar is visible, when the user drags a backlog card into a day, then the entry is added to that day in the compact view without requiring a specific time selection (no time needed).
-3. Given entries exist for a day, when the number exceeds the visible area, then the calendar indicates overflow (e.g., a "+N more" indicator) or allows scrolling within the day block. The chosen approach SHOULD preserve quick scan and performance.
-4. Given the compact calendar is visible, when the user switches between Day, Week, and Month, then the entries are displayed for the appropriate range with no time-of-day rows, and state (e.g., selected day) persists across switches.
-5. Given role-based policies, when a user lacks edit permissions, then the compact view still hides hours but disables drag/add operations while allowing read visibility.
-6. Given the calendar is visible, when the user clicks the full-screen icon in the top bar, then the calendar expands to full-screen and the icon updates to allow exit; clicking again exits full-screen and restores the previous layout.
+1. Given the scheduler opens the app, when the calendar loads, then the compact calendar renders without hour lines or time-of-day labels while still showing entries grouped by day.
+2. Given the compact calendar is visible, when the user drags a backlog card into a day, then the system assigns a sequential time window after the last entry of that day (for internal ordering only), and the entry is added without requiring an explicit time selection.
+3. Given entries exist for a day, when the number exceeds the visible area, then the calendar allows scrolling within the day block. The layout preserves quick scan and performance.
+4. Given the compact calendar is visible, when the user switches between Day, Week, and Month, then the entries are displayed for the appropriate range with no time-of-day rows.
+5. Given permissions, when a user lacks edit rights, then drag/add operations are disabled while read visibility remains.
+6. Given a scheduled entry card, when the user checks the “Confirmed” checkbox on the card, then the entry status toggles between tentative and confirmed and persists.
+7. Given the calendar is visible, when the user clicks the full-screen icon in the top bar, then the calendar expands to full-screen and the icon updates to allow exit; clicking again exits full-screen and restores the previous layout.
 
 ### Edge Cases
 - Days with no entries should render as minimal-height cells without hour markers.
@@ -74,21 +75,18 @@ As a scheduler, I want a compact calendar view that does not display hourly rows
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
-- **FR-001**: The system MUST provide a compact calendar view that omits hour rows and time-of-day labels.
-- **FR-002**: The system MUST display scheduled entries grouped under each day in compact view.
-- **FR-003**: The system MUST allow adding entries to a day without specifying an exact time when using the compact view (time-less entries are valid in compact view).
-- **FR-004**: The system MUST support optional duration for entries; entries without duration default to a standard equal visual size within the day. No time-based view is provided.
-- **FR-005**: The system MUST support reordering or prioritizing entries within a day via drag-and-drop; default ordering is sequential by drop/creation order.
-- **FR-006**: The system MUST treat duration as optional in compact view; when duration is unspecified, entries within a day render with equal visual size.
-- **FR-007**: The system SHOULD display duration (if provided) in a compact way without introducing hour slots.
-- **FR-006**: The system MUST handle overflow for days with many entries through an indicator or internal scrolling.
-- **FR-007**: The system MUST respect permissions; users without edit rights cannot add or reorder entries in compact view.
-- **FR-008**: The system SHOULD optimize for quick scanning and minimal vertical space across Day, Week, and Month compact views.
-- **FR-010**: The system MUST support switching between Day, Week, and Month compact views without losing context or data.
-- **FR-011**: The system MUST display entries for the selected range (day/week/month) without hour slots; duration remains optional and, if absent, entries render at equal size.
-- **FR-012**: The system MUST provide a full-screen toggle control in the top bar for the calendar; activating it MUST expand the calendar to occupy the full viewport and provide a clear means to exit full-screen.
-- **FR-013**: The system SHOULD optionally remember full-screen state during the current session only and MUST NOT persist this state across app restarts.
-- **FR-009**: The system SHOULD provide simple, at-a-glance counts per day (e.g., total entries, total duration if known) without exposing hour slots explicitly.
+- FR-001: The system MUST provide a compact calendar view that omits hour rows and time-of-day labels.
+- FR-002: The system MUST display scheduled entries grouped under each day in compact view.
+- FR-003: The system MUST allow adding entries to a day without specifying an exact time; the system MAY auto-assign internal sequential times for ordering.
+- FR-004: The system MUST support optional duration for entries; entries without duration default to a standard equal visual size within the day.
+- FR-005: The system SHOULD enable reordering/prioritizing entries within a day; default ordering is sequential by drop/creation or auto-assigned time.
+- FR-006: The system SHOULD display duration (if provided) compactly without introducing hour slots.
+- FR-007: The system MUST handle overflow for days with many entries via internal scrolling in the day cell.
+- FR-008: The system MUST respect permissions; users without edit rights cannot add or reorder entries in compact view.
+- FR-009: The system SHOULD optimize for quick scanning and minimal vertical space across Day, Week, and Month compact views.
+- FR-010: The system MUST support switching between Day, Week, and Month compact views without losing context or data.
+- FR-011: The system MUST provide a full-screen toggle control; activating it expands the calendar to occupy the full viewport and provides a clear means to exit full-screen.
+- FR-012: The system SHOULD provide simple at-a-glance counts per day (e.g., total entries) without exposing hour slots.
 
 ### Key Entities *(include if feature involves data)*
 - **Compact Calendar Day**: Container for entries on a given date in compact mode; no hour granularity.

@@ -58,10 +58,10 @@ When creating this spec from a user prompt:
 As a coordinator using the OR dashboard daily, I want the UI to feel like modern coding environments (clean typography, subtle backgrounds, and syntax-inspired accents) so that long sessions are comfortable, legible, and focused.
 
 ### Acceptance Scenarios
-1. Given the dashboard is loaded in default theme, When I scan lists and calendar, Then typography is consistent, spacing is comfortable, and color accents improve scannability without distracting from content.
-2. Given I switch to a high-contrast mode, When viewing cards and calendar entries, Then colors and indicators meet accessibility contrast guidelines and non-color indicators exist for status.
-3. Given I choose a larger font size preset, When I navigate Kanban and calendar, Then line-heights and paddings adapt to prevent crowding or truncation.
-4. Given I view color legend, When I compare card colors, Then legend colors and labels match elements consistently across the app.
+1. Given the dashboard is loaded in Default theme, When I scan lists and calendar, Then typography is consistent, spacing is comfortable, and color accents improve scannability without distracting from content.
+2. Given I switch theme between Default, Warm, High-Contrast, Dark, or Auto, When viewing cards and calendar entries, Then colors and indicators maintain readability and contrast, respecting system preferences in Auto.
+3. Given I return to the app later, When the UI loads, Then my last selected theme is applied automatically (persisted between sessions).
+4. Given I scroll the app, When the header is visible, Then the top header remains sticky with a light tint and shadow that adapts to the theme.
 
 ### Edge Cases
 - Very long names/procedures: truncation with tooltip works without layout shift.
@@ -72,24 +72,21 @@ As a coordinator using the OR dashboard daily, I want the UI to feel like modern
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
-- FR-001: System MUST provide at least two visual themes: Default and High-Contrast.
-- FR-002: System MUST use a professional monospaced-inspired UI font stack appropriate for dense data views, with a readable proportional alternative for body text.
-- FR-003: Users MUST be able to select font size presets (e.g., Small, Medium, Large) that scale typography and spacing consistently.
-- FR-004: System MUST provide a consistent color palette inspired by coding editors (e.g., muted background, syntax-accent colors) applied to cards, calendar blocks, and statuses.
-- FR-005: System MUST ensure color contrast ratios meet Local Team Accessibility Standard for normal and high-contrast modes.
+- FR-001: System MUST provide multiple visual themes: Default, Warm, High-Contrast, Dark, and Auto (follow system).
+- FR-002: System MUST use a professional UI font stack appropriate for dense data views, with a readable proportional alternative for body text.
+- FR-003: Users SHOULD be able to select font size presets (e.g., Small, Medium, Large) that scale typography and spacing consistently. [Deferred]
+- FR-004: System MUST provide a consistent color palette inspired by coding editors (muted backgrounds, syntax-like accents) applied to cards, calendar blocks, and statuses.
+- FR-005: System MUST ensure color contrast ratios meet the team’s accessibility standard for normal and high-contrast modes.
 - FR-006: System MUST provide non-color indicators (icons, patterns, or shapes) for key statuses to avoid color-only signaling.
-- FR-007: System MUST provide a legend that maps categories/statuses to colors and non-color indicators.
-- FR-008: System MUST keep typography and spacing scale consistent across Kanban, calendar, dialogs, and menus.
-- FR-009: System MUST degrade gracefully under font loading failures using a defined fallback stack without layout jank.
-- FR-010: System MUST avoid excessive visual noise (limited shadows, borders, animations) prioritizing clarity and focus.
-- FR-011: System MUST support keyboard focus-visible styles that are clearly perceivable in both themes.
-- FR-012: System MUST persist the user’s theme and font size preference between sessions.
+- FR-007: System MUST keep typography and spacing scale consistent across lists, calendar, dialogs, and menus.
+- FR-008: System MUST degrade gracefully under font loading failures using a defined fallback stack without layout jank.
+- FR-009: System MUST avoid excessive visual noise (limited shadows, borders, animations) prioritizing clarity and focus.
+- FR-010: System MUST support keyboard focus-visible styles that are clearly perceivable in all themes.
+- FR-011: System MUST persist the user’s selected theme (and Auto/system preference) between sessions.
 
 ### Key Entities
-- Theme: name, palette (semantic tokens), contrast_mode, typography_scale, spacing_scale.
-- TypographyPreset: name, base_font_size, line_height, scale_ratio.
-- LegendItem: status/category, color, icon/pattern descriptor, label.
-- Preference: user_id, theme, font_size_preset, updated_at.
+- Theme: name, palette (semantic tokens), contrast_mode.
+- Preference: user_id, theme, updated_at.
 
 ---
 
