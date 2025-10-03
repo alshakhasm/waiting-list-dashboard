@@ -21,6 +21,30 @@ export function BacklogPage({
 }) {
   const [items, setItems] = useState<BacklogItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<{
+    patientName: string;
+    mrn: string;
+    procedure: string;
+    estDurationMin: number;
+    surgeonId?: string;
+    caseTypeId: string;
+  } | null>(null);
+
+  // Real data for dropdowns: collect unique surgeons and case types from loaded backlog
+  const surgeonOptions = useMemo<string[]>(() => {
+    const set = new Set<string>();
+    for (const it of items) if (it.surgeonId) set.add(it.surgeonId);
+    return Array.from(set);
+  }, [items]);
+  const caseTypeOptions = useMemo<string[]>(() => {
+    const set = new Set<string>();
+    for (const it of items) if (it.caseTypeId) set.add(it.caseTypeId);
+    // Ensure some sensible defaults are present
+    ['case:elective', 'case:urgent', 'case:emergency'].forEach((k) => set.add(k));
+    return Array.from(set);
+  }, [items]);
 
   useEffect(() => {
     (async () => {
@@ -48,6 +72,54 @@ export function BacklogPage({
     }
     return map;
   }, [filtered]);
+
+  // Close open menu on outside click
+  useEffect(() => {
+    if (!openMenuId) return;
+    function onDocClick() { setOpenMenuId(null); }
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, [openMenuId]);
+
+  function maskMrn(mrn: string): string {
+    try { return mrn.replace(/.(?=.{2}$)/g, '•'); } catch { return mrn; }
+  }
+
+  function viewDetails(i: BacklogItem) {
+    const lines = [
+      `Patient: ${i.patientName}`,
+      `MRN: ${i.mrn}`,
+      `Procedure: ${i.procedure}`,
+      `Estimated duration: ${i.estDurationMin} min`,
+      i.surgeonId ? `Surgeon: ${i.surgeonId}` : '',
+      `Case type: ${i.caseTypeId}`,
+    ].filter(Boolean);
+    window.alert?.(lines.join('\n'));
+  }
+
+  function editItem(i: BacklogItem) {
+    setEditingId(i.id);
+    setEditDraft({
+      patientName: i.patientName,
+      mrn: i.mrn,
+      procedure: i.procedure,
+      estDurationMin: i.estDurationMin,
+      surgeonId: i.surgeonId,
+      caseTypeId: i.caseTypeId,
+    });
+    setOpenMenuId(null);
+  }
+
+  function removeItem(i: BacklogItem) {
+    if (!hiddenIds.includes(i.id)) {
+      // Hide from dashboard (soft remove)
+      (onConfirm ? onConfirm : (() => {}))(i); // optional hook if provided
+    }
+    // Always hide locally
+    if (!hiddenIds.includes(i.id)) hiddenIds.push(i.id);
+    setItems(prev => prev.filter(it => it.id !== i.id));
+    setOpenMenuId(null);
+  }
 
   if (loading) return <div>Loading backlog…</div>;
   return (
@@ -103,14 +175,38 @@ export function BacklogPage({
                         padding: 8,
                         background: '#fafafa',
                         cursor: onSelect ? 'pointer' : 'default',
+                        position: 'relative',
                       }}
                       title={onSelect ? 'Click to select' : undefined}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <strong>{i.patientName}</strong>
-                        <span style={{ fontVariantNumeric: 'tabular-nums', opacity: 0.7 }}>{i.maskedMrn}</span>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => setOpenMenuId(prev => prev === i.id ? null : i.id)}
+                            title="Edit and options"
+                            aria-label="Edit and options"
+                            aria-haspopup="menu"
+                            aria-expanded={openMenuId === i.id}
+                            style={{
+                              background: 'transparent', border: 'none', padding: 0, margin: 0,
+                              width: 24, height: 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                              cursor: 'pointer', opacity: 0.7,
+                            }}
+                          >
+                            <span aria-hidden="true" style={{ lineHeight: '1', fontSize: 16 }}>⋮</span>
+                          </button>
+                          {openMenuId === i.id && (
+                            <div role="menu" style={{ position: 'absolute', top: 6, right: 6, zIndex: 20, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, boxShadow: '0 4px 10px rgba(0,0,0,0.08)' }}>
+                              <button role="menuitem" onClick={() => viewDetails(i)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', background: 'transparent', border: 'none', cursor: 'pointer' }}>View details</button>
+                              <button role="menuitem" onClick={() => editItem(i)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', background: 'transparent', border: 'none', cursor: 'pointer' }}>Edit…</button>
+                              <button role="menuitem" onClick={() => removeItem(i)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#b91c1c' }}>Remove</button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div style={{ opacity: 0.8 }}>{i.procedure}</div>
+                      <div style={{ fontVariantNumeric: 'tabular-nums', opacity: 0.7, fontSize: 12 }}>{i.maskedMrn}</div>
                       <div style={{ opacity: 0.7, fontSize: 12 }}>{i.estDurationMin} min</div>
                       {pendingIds.includes(i.id) && canConfirm && (
                         <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -128,6 +224,85 @@ export function BacklogPage({
           );
         })}
       </div>
+
+      {/* Edit Modal */}
+      {editingId && editDraft && (
+        <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }} onClick={() => { /* click backdrop closes */ setEditingId(null); setEditDraft(null); }}>
+          <div style={{ background: '#fff', borderRadius: 8, width: 'min(560px, 92vw)', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 10px 24px rgba(0,0,0,0.15)' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <strong>Edit backlog item</strong>
+              <button onClick={() => { setEditingId(null); setEditDraft(null); }} aria-label="Close" style={{ background: 'transparent', border: 'none', fontSize: 18, cursor: 'pointer' }}>×</button>
+            </div>
+            <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <label style={{ display: 'grid', gap: 6 }}>
+                <span style={{ fontSize: 12, opacity: 0.8 }}>Patient name</span>
+                <input value={editDraft.patientName} onChange={(e) => setEditDraft({ ...editDraft, patientName: e.target.value })} style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb' }} />
+              </label>
+              <label style={{ display: 'grid', gap: 6 }}>
+                <span style={{ fontSize: 12, opacity: 0.8 }}>MRN</span>
+                <input value={editDraft.mrn} onChange={(e) => setEditDraft({ ...editDraft, mrn: e.target.value })} style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb' }} />
+              </label>
+              <label style={{ display: 'grid', gap: 6, gridColumn: '1 / -1' }}>
+                <span style={{ fontSize: 12, opacity: 0.8 }}>Procedure / arrangement</span>
+                <input value={editDraft.procedure} onChange={(e) => setEditDraft({ ...editDraft, procedure: e.target.value })} style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb' }} />
+              </label>
+              <label style={{ display: 'grid', gap: 6 }}>
+                <span style={{ fontSize: 12, opacity: 0.8 }}>Estimated duration (min)</span>
+                <input type="number" min={0} value={editDraft.estDurationMin} onChange={(e) => setEditDraft({ ...editDraft, estDurationMin: Math.max(0, parseInt(e.target.value || '0', 10)) })} style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb' }} />
+              </label>
+              <label style={{ display: 'grid', gap: 6 }}>
+                <span style={{ fontSize: 12, opacity: 0.8 }}>Surgeon</span>
+                <select
+                  value={editDraft.surgeonId || ''}
+                  onChange={(e) => setEditDraft({ ...editDraft, surgeonId: e.target.value || undefined })}
+                  style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb' }}
+                >
+                  <option value="">— None —</option>
+                  {surgeonOptions.map((sid) => (
+                    <option key={sid} value={sid}>{sid}</option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ display: 'grid', gap: 6 }}>
+                <span style={{ fontSize: 12, opacity: 0.8 }}>Case type</span>
+                <select
+                  value={editDraft.caseTypeId}
+                  onChange={(e) => setEditDraft({ ...editDraft, caseTypeId: e.target.value })}
+                  style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb' }}
+                >
+                  {caseTypeOptions.map((ct) => (
+                    <option key={ct} value={ct}>{ct}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div style={{ padding: 16, display: 'flex', justifyContent: 'flex-end', gap: 8, borderTop: '1px solid #e5e7eb' }}>
+              <button onClick={() => { setEditingId(null); setEditDraft(null); }} style={{ background: '#fff', border: '1px solid #e5e7eb', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>Cancel</button>
+              <button
+                onClick={() => {
+                  if (!editDraft) return;
+                  const cleanDur = Number.isFinite(editDraft.estDurationMin) ? editDraft.estDurationMin : 0;
+                  setItems(prev => prev.map(it => it.id === editingId ? {
+                    ...it,
+                    patientName: editDraft.patientName.trim() || it.patientName,
+                    mrn: editDraft.mrn.trim() || it.mrn,
+                    maskedMrn: maskMrn(editDraft.mrn.trim() || it.mrn),
+                    procedure: editDraft.procedure.trim() || it.procedure,
+                    estDurationMin: Math.max(0, cleanDur),
+                    surgeonId: editDraft.surgeonId,
+                    caseTypeId: editDraft.caseTypeId,
+                  } : it));
+                  setEditingId(null);
+                  setEditDraft(null);
+                }}
+                style={{ background: '#3b82f6', color: '#fff', border: '1px solid #3b82f6', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
