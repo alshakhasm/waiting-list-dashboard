@@ -1,5 +1,7 @@
 # OR Waiting List & Scheduling
 
+[![CI](https://github.com/alshakhasm/waiting-list-dashboard/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/alshakhasm/waiting-list-dashboard/actions/workflows/ci.yml)
+
 This repository contains the OR waiting list (Kanban) and scheduling calendar MVP. See `specs/001-project-or-waiting/spec.md` for the feature specification.
 
 ## Development
