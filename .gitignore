@@ -1,1 +1,12 @@
 node_modules
+
+# Local env files (never commit secrets)
+.env*
+apps/ui/.env*
+
+# OS/editor junk
+.DS_Store
+.vscode/*.log
+
+# Build outputs
+apps/ui/dist

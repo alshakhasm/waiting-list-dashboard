@@ -1,0 +1,46 @@
+name: Preview Build
+
+on:
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: {}
+
+jobs:
+  build-ui:
+    name: Build UI (with Supabase)
+    runs-on: ubuntu-latest
+    # Use an environment to scope secrets for previews
+    environment: preview
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root deps
+        run: npm ci
+
+      - name: Install UI deps
+        run: npm ci
+        working-directory: apps/ui
+
+      - name: Build UI (Vite)
+        env:
+          # Inject from repository or environment-level secrets
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: npm run build
+        working-directory: apps/ui
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-dist
+          path: apps/ui/dist
+          if-no-files-found: error

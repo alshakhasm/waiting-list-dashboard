@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig({
+  // GitHub Pages: use relative base when building in Actions so main and PR previews work
+  base: process.env.GITHUB_ACTIONS ? './' : '/',
   plugins: [react()],
   resolve: {
     alias: {

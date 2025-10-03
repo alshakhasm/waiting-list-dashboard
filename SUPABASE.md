@@ -20,6 +20,11 @@ create table if not exists backlog (
   est_duration_min int not null,
   surgeon_id text,
   case_type_id text,
+  -- Optional fields used by the UI editor
+  phone1 text,
+  phone2 text,
+  preferred_date date,
+  notes text,
   created_at timestamp with time zone default now()
 );
 
