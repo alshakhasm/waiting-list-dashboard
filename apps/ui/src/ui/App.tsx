@@ -13,6 +13,7 @@ export function App() {
   const [theme, setTheme] = useState<'default' | 'high-contrast'>('default');
   const [legend, setLegend] = useState<LegendEntry[]>([]);
   const [nameQuery, setNameQuery] = useState('');
+  const [scheduleFull, setScheduleFull] = useState(false);
   const { role } = useSupabaseAuth();
   useEffect(() => { (async () => setLegend(await getLegend(theme)))(); }, [theme]);
   return (
@@ -22,6 +23,19 @@ export function App() {
         <nav style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => setTab('backlog')}>Backlog</button>
           <button onClick={() => setTab('schedule')}>Schedule</button>
+          {tab === 'schedule' && (
+            <button
+              title={scheduleFull ? 'Exit full screen calendar' : 'Full screen calendar'}
+              aria-label={scheduleFull ? 'Exit full screen calendar' : 'Full screen calendar'}
+              aria-pressed={scheduleFull}
+              onClick={() => setScheduleFull(v => !v)}
+              style={{ width: 32, height: 32, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <span aria-hidden="true" style={{ fontSize: 16, lineHeight: '1' }}>
+                {scheduleFull ? '⤢' : '⛶'}
+              </span>
+            </button>
+          )}
           <button onClick={() => setTab('mappings')}>Mapping Profiles</button>
         </nav>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -42,7 +56,7 @@ export function App() {
         ))}
       </div>
   {tab === 'backlog' && <BacklogPage search={nameQuery} canConfirm={false} />}
-      {tab === 'schedule' && <SchedulePage />}
+      {tab === 'schedule' && <SchedulePage isFull={scheduleFull} />}
       {tab === 'mappings' && <MappingProfilesPage />}
     </div>
   );

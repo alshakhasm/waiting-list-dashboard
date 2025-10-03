@@ -93,6 +93,7 @@ export function BacklogPage({
                         const text = JSON.stringify(payload);
                         try { e.dataTransfer.setData('application/json', text); } catch {}
                         try { e.dataTransfer.setData('text/plain', text); } catch {}
+                        try { e.dataTransfer.setData('text', text); } catch {}
                         e.dataTransfer.effectAllowed = 'copyMove';
                       }}
                       onClick={() => onSelect?.(i)}

@@ -30,7 +30,7 @@ function toMinutes(hhmm: string) {
 
 export function WeekCalendar({ date, entries, startHour = 8, endHour = 18, onDrop }: Props) {
   const [dragDay, setDragDay] = useState<number | null>(null);
-  const [ghost, setGhost] = useState<{ dayIdx: number; topPct: number; heightPct: number } | null>(null);
+  const [ghost, setGhost] = useState<{ dayIdx: number; topPct: number; heightPct: number; startTime: string; endTime: string } | null>(null);
   const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
   const week = useMemo(() => {
     const d = new Date(date + 'T00:00:00');
@@ -51,6 +51,7 @@ export function WeekCalendar({ date, entries, startHour = 8, endHour = 18, onDro
   }, [startHour, endHour]);
 
   const rangeMinutes = (endHour - startHour) * 60;
+  const rowHeight = 48; // px per hour row
 
   function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
     if (!onDrop) return;
@@ -63,14 +64,21 @@ export function WeekCalendar({ date, entries, startHour = 8, endHour = 18, onDro
     const columnEl = dayRefs.current[dayIdx]!;
     const rect = columnEl.getBoundingClientRect();
     const y = e.clientY - rect.top;
-    const pct = Math.max(0, Math.min(1, y / rect.height));
-    const totalMins = (endHour - startHour) * 60;
-    const startM = Math.floor(totalMins * pct);
+  const totalMins = (endHour - startHour) * 60;
+  const startMRaw = Math.floor((y / Math.max(1, rect.height)) * totalMins);
+    const snap = 15; // snap to 15-minute increments for easier targeting
+    const startM = Math.floor(startMRaw / snap) * snap;
     const dur = 60;
     const endM = Math.min(totalMins, startM + dur);
-    const topPct = (startM / totalMins) * 100;
-    const heightPct = Math.max(2, ((endM - startM) / totalMins) * 100);
-    setGhost({ dayIdx, topPct, heightPct });
+  const topPx = (startM / 60) * rowHeight; // px from top of column
+  const heightPx = Math.max(8, ((endM - startM) / 60) * rowHeight);
+    const hh = Math.floor(startM / 60) + startHour;
+    const mm = startM % 60;
+    const eh = Math.floor(endM / 60) + startHour;
+    const em = endM % 60;
+    const startTime = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+    const endTime = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+    setGhost({ dayIdx, topPct: topPx, heightPct: heightPx, startTime, endTime });
   }
 
   function dropToTime(e: React.DragEvent<HTMLDivElement>, dayISO: string, dayIdx: number) {
@@ -90,7 +98,8 @@ export function WeekCalendar({ date, entries, startHour = 8, endHour = 18, onDro
     const y = e.clientY - rect.top;
     const pct = Math.max(0, Math.min(1, y / rect.height));
     const totalMins = (endHour - startHour) * 60;
-    const startM = Math.floor(totalMins * pct);
+  const snap = 15;
+  const startM = Math.floor((totalMins * pct) / snap) * snap;
     const dur = Math.max(30, Math.min(240, (data?.estDurationMin ?? 60))); // clamp 30–240
     const endM = Math.min(totalMins, startM + dur);
     const hh = Math.floor(startM / 60) + startHour;
@@ -109,10 +118,66 @@ export function WeekCalendar({ date, entries, startHour = 8, endHour = 18, onDro
     e.preventDefault();
   }
 
+  function handleRootDrop(e: React.DragEvent<HTMLDivElement>) {
+    if (!onDrop) return;
+    e.preventDefault();
+    e.stopPropagation();
+    // Attempt to parse payload
+    let payloadStr = e.dataTransfer.getData('application/json')
+      || e.dataTransfer.getData('text/plain')
+      || e.dataTransfer.getData('text');
+    let data: any = null;
+    try { data = JSON.parse(payloadStr); } catch {}
+    if (!data || !data.itemId) {
+      console.warn('[DnD] Root drop: missing payload', payloadStr);
+      window.alert?.('Drag payload missing — try dragging the card again');
+      return;
+    }
+    // Determine day index using actual day column rects
+    let di = 0;
+    for (let idx = 0; idx < dayRefs.current.length; idx++) {
+      const col = dayRefs.current[idx];
+      if (!col) continue;
+      const r = col.getBoundingClientRect();
+      if (e.clientX >= r.left && e.clientX <= r.right) { di = idx; break; }
+    }
+    const colRect = dayRefs.current[di]?.getBoundingClientRect();
+    if (!colRect) return;
+    // Ignore drops on the date header (above the time grid)
+    if (e.clientY < colRect.top) {
+      window.alert?.('Drop inside the time grid (below the date header) to place the entry.');
+      return;
+    }
+    // Compute time by Y position relative to the day column
+    const totalMins = (endHour - startHour) * 60;
+    const y = e.clientY - colRect.top;
+    const pct = Math.max(0, Math.min(1, y / Math.max(1, colRect.height)));
+    const startM = Math.floor(totalMins * pct);
+    const dur = Math.max(30, Math.min(240, (data?.estDurationMin ?? 60)));
+    const endM = Math.min(totalMins, startM + dur);
+    const hh = Math.floor(startM / 60) + startHour;
+    const mm = startM % 60;
+    const eh = Math.floor(endM / 60) + startHour;
+    const em = endM % 60;
+    const startTime = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+    const endTime = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+    const dayISO = week[di];
+    onDrop({ date: dayISO, startTime, endTime, data });
+    setGhost(null);
+    setDragDay(null);
+  }
+
   return (
     <div
       onDragOver={handleRootDragOver}
-      style={{ display: 'grid', gridTemplateColumns: `80px repeat(7, 1fr)`, borderTop: '1px solid #e5e7eb', height: '100%' }}
+      onDrop={handleRootDrop}
+      style={{
+        display: 'grid',
+        gridTemplateColumns: `80px repeat(7, 1fr)`,
+        gridTemplateRows: `32px repeat(${hours.length}, ${rowHeight}px)`,
+        borderTop: '1px solid #e5e7eb',
+        height: '100%',
+      }}
     >
       {/* Header */}
       <div />
@@ -122,13 +187,13 @@ export function WeekCalendar({ date, entries, startHour = 8, endHour = 18, onDro
       {/* Body */}
       {hours.map((h, idx) => (
         <>
-          <div key={`h-${h}`} style={{ borderTop: '1px dashed #e5e7eb', padding: '2px 4px', fontVariantNumeric: 'tabular-nums' }}>{String(h).padStart(2, '0')}:00</div>
+          <div key={`h-${h}`} style={{ borderTop: '1px dashed #e5e7eb', padding: '2px 4px', fontVariantNumeric: 'tabular-nums', height: rowHeight }}>{String(h).padStart(2, '0')}:00</div>
           {week.map((d, di) => (
             <div
               key={`cell-${idx}-${di}`}
               onDragOver={handleDragOver}
               ref={el => { /* placeholder to keep structure; handled on parent overlay */ }}
-              style={{ borderTop: '1px dashed #e5e7eb', borderLeft: '1px solid #f3f4f6', position: 'relative' }}
+              style={{ borderTop: '1px dashed #e5e7eb', borderLeft: '1px solid #f3f4f6', position: 'relative', height: rowHeight }}
             />
           ))}
         </>
@@ -154,7 +219,12 @@ export function WeekCalendar({ date, entries, startHour = 8, endHour = 18, onDro
           onDrop={(e) => dropToTime(e as any, d, di)}
         >
           {ghost && ghost.dayIdx === di && (
-            <div style={{ position: 'absolute', left: 6, right: 6, top: `${ghost.topPct}%`, height: `${ghost.heightPct}%`, background: 'rgba(59,130,246,0.15)', border: '1px dashed #3b82f6', borderRadius: 6 }} />
+            <>
+              <div style={{ position: 'absolute', left: 6, right: 6, top: ghost.topPct, height: ghost.heightPct, background: 'rgba(59,130,246,0.15)', border: '1px dashed #3b82f6', borderRadius: 6 }} />
+              <div style={{ position: 'absolute', top: ghost.topPct - 16, left: 8, padding: '2px 6px', fontSize: 11, background: '#111827', color: 'white', borderRadius: 4 }}>
+                {ghost.startTime} → {ghost.endTime}
+              </div>
+            </>
           )}
         </div>
       ))}
@@ -163,10 +233,10 @@ export function WeekCalendar({ date, entries, startHour = 8, endHour = 18, onDro
       {entries.map((e) => {
         const dayIdx = week.indexOf(e.date);
         if (dayIdx === -1) return null;
-        const startM = toMinutes(e.startTime) - startHour * 60;
-        const endM = toMinutes(e.endTime) - startHour * 60;
-        const topPct = Math.max(0, (startM / rangeMinutes) * 100);
-        const heightPct = Math.max(2, ((endM - startM) / rangeMinutes) * 100);
+  const startM = toMinutes(e.startTime) - startHour * 60;
+  const endM = toMinutes(e.endTime) - startHour * 60;
+  const topPx = Math.max(0, (startM / 60) * rowHeight);
+  const heightPx = Math.max(8, ((endM - startM) / 60) * rowHeight);
         return (
           <div
             key={e.id}
@@ -180,10 +250,10 @@ export function WeekCalendar({ date, entries, startHour = 8, endHour = 18, onDro
             <div
               style={{
                 position: 'absolute',
-                top: `${topPct}%`,
+                top: topPx,
                 left: 6,
                 right: 6,
-                height: `${heightPct}%`,
+                height: heightPx,
                 background: e.status === 'confirmed' ? '#E6F4EA' : '#FEF3C7',
                 border: `1px solid ${e.status === 'confirmed' ? '#84cc16' : '#F59E0B'}`,
                 borderRadius: 6,
