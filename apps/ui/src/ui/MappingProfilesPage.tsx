@@ -24,9 +24,11 @@ export function MappingProfilesPage() {
         <input placeholder="Profile name" value={name} onChange={e => setName(e.target.value)} />
         <button onClick={addProfile} disabled={!name}>Add</button>
       </div>
-      <ul>
+      <ul style={{ background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 6, padding: 12 }}>
         {profiles.map(p => (
-          <li key={p.id}>{p.name} – owner: {p.owner}</li>
+          <li key={p.id} style={{ padding: '6px 4px', borderBottom: '1px solid var(--border)' }}>
+            {p.name} – owner: {p.owner}
+          </li>
         ))}
       </ul>
     </div>

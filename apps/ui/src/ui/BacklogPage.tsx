@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { getBacklog, seedDemoData, BacklogItem } from '../client/api';
 import { classifyProcedure, GROUP_LABELS, GROUP_ORDER, GROUP_COLORS, ProcedureGroupKey } from './procedureGroups';
+import { loadCategoryPrefs, defaultCategoryPrefs } from './categoryPrefs';
 
 export function BacklogPage({
   search = '',
@@ -58,6 +59,10 @@ export function BacklogPage({
       setLoading(false);
     })();
   }, []);
+
+  // Sidebar category preferences (hidden + color overrides)
+  const prefs = useMemo(() => loadCategoryPrefs(defaultCategoryPrefs()), []);
+  const hiddenKeys = useMemo(() => new Set(prefs.filter(p => p.hidden).map(p => p.key)), [prefs]);
 
   const filtered = useMemo(
     () =>
@@ -152,14 +157,15 @@ export function BacklogPage({
       >
         {GROUP_ORDER.map((key) => {
           const list = grouped.get(key) || [];
+          if (hiddenKeys.has(key)) return null;
           return (
-            <div key={key} style={{ border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
+            <div key={key} style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', background: 'var(--surface-1)' }}>
               <div
                 style={{
                   padding: '8px 10px',
                   fontWeight: 600,
-                  background: GROUP_COLORS[key],
-                  borderBottom: '1px solid #e5e7eb',
+                  background: (prefs.find(p => p.key === key)?.color) || GROUP_COLORS[key],
+                  borderBottom: '1px solid var(--border)',
                 }}
               >
                 {GROUP_LABELS[key]} <span style={{ opacity: 0.6 }}>({list.length})</span>
@@ -182,10 +188,10 @@ export function BacklogPage({
                       }}
                       onClick={() => onSelect?.(i)}
                       style={{
-                        border: selectedId === i.id ? '2px solid #3b82f6' : '1px solid #e5e7eb',
+                        border: selectedId === i.id ? `2px solid var(--primary)` : '1px solid var(--border)',
                         borderRadius: 6,
                         padding: 8,
-                        background: '#fafafa',
+                        background: 'var(--surface-2)',
                         cursor: onSelect ? 'pointer' : 'default',
                         position: 'relative',
                       }}
@@ -209,10 +215,10 @@ export function BacklogPage({
                             <span aria-hidden="true" style={{ lineHeight: '1', fontSize: 16 }}>⋮</span>
                           </button>
                           {openMenuId === i.id && (
-                            <div role="menu" style={{ position: 'absolute', top: 6, right: 6, zIndex: 20, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, boxShadow: '0 4px 10px rgba(0,0,0,0.08)' }}>
+                            <div role="menu" style={{ position: 'absolute', top: 6, right: 6, zIndex: 20, background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 6, boxShadow: '0 4px 10px var(--shadow)' }}>
                               <button role="menuitem" onClick={() => viewDetails(i)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', background: 'transparent', border: 'none', cursor: 'pointer' }}>View details</button>
                               <button role="menuitem" onClick={() => editItem(i)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', background: 'transparent', border: 'none', cursor: 'pointer' }}>Edit…</button>
-                              <button role="menuitem" onClick={() => removeItem(i)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#b91c1c' }}>Remove</button>
+                              <button role="menuitem" onClick={() => removeItem(i)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}>Remove</button>
                             </div>
                           )}
                         </div>

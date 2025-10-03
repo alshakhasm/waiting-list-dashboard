@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { getSchedule, createSchedule, BacklogItem, ScheduleEntry, confirmSchedule, deleteSchedule } from '../client/api';
+import { useEffect, useMemo, useState } from 'react';
+import { getSchedule, createSchedule, BacklogItem, ScheduleEntry, confirmSchedule, deleteSchedule, getBacklog, seedDemoData, updateSchedule } from '../client/api';
 import { SplitPane } from './SplitPane';
 import { WeekCalendar } from './WeekCalendar';
 import { CompactCalendar } from './CompactCalendar';
@@ -14,6 +14,7 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
   const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [hiddenIds, setHiddenIds] = useState<string[]>([]);
   const [view, setView] = useState<'day' | 'week' | 'month'>('week');
+  const [items, setItems] = useState<BacklogItem[]>([]);
   // full screen is controlled from App header; no internal toggle state
   const { role } = useSupabaseAuth();
   const canConfirm = role ? role === 'senior' : true; // allow by default when no role system
@@ -24,6 +25,14 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
       setSchedule(s);
     })();
   }, [date]);
+
+  useEffect(() => {
+    (async () => {
+      await seedDemoData();
+      const data = await getBacklog();
+      setItems(data);
+    })();
+  }, []);
 
   async function scheduleSelected() {
     if (!selectedItem) return;
@@ -38,8 +47,8 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingBottom: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 140px)' }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
         <input type="date" value={date} onChange={e => setDate(e.target.value)} />
         <button disabled={!selectedItem} onClick={scheduleSelected}>Schedule selected</button>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -58,6 +67,17 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
               date={date}
               view={view}
               entries={schedule}
+              itemById={useMemo(() => Object.fromEntries(items.map(i => [i.id, i])), [items])}
+              onToggleConfirm={async (id, confirmed) => {
+                try {
+                  if (confirmed) await confirmSchedule(id);
+                  else await updateSchedule(id, { status: 'tentative' });
+                  const s = await getSchedule({ date });
+                  setSchedule(s);
+                } catch (e) {
+                  console.error('Failed to toggle confirmation', e);
+                }
+              }}
               onDrop={async ({ date: d, startTime, endTime, data }) => {
                 try {
                   const roomId = 'or:1';
@@ -133,6 +153,17 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
                   date={date}
                   view={view}
                   entries={schedule}
+                  itemById={useMemo(() => Object.fromEntries(items.map(i => [i.id, i])), [items])}
+                  onToggleConfirm={async (id, confirmed) => {
+                    try {
+                      if (confirmed) await confirmSchedule(id);
+                      else await updateSchedule(id, { status: 'tentative' });
+                      const s = await getSchedule({ date });
+                      setSchedule(s);
+                    } catch (e) {
+                      console.error('Failed to toggle confirmation', e);
+                    }
+                  }}
                   onDrop={async ({ date: d, startTime, endTime, data }) => {
                     try {
                       const roomId = 'or:1';

@@ -198,10 +198,4 @@ export async function createMappingProfile(body: { name: string; owner: string; 
   return res.body as MappingProfile;
 }
 
-export type LegendEntry = { key: string; label: string; color: string };
-export async function getLegend(theme: 'default' | 'high-contrast' = 'default'): Promise<LegendEntry[]> {
-  const handleRequest = await getHandleRequest();
-  const res = await handleRequest({ method: 'GET', path: '/legend', query: { theme } });
-  if (res.status !== 200) throw new Error('Failed to load legend');
-  return res.body as LegendEntry[];
-}
+// Legend API removed per request

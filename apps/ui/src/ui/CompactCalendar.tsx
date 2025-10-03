@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import type { ScheduleEntry } from '../client/api';
+import type { ScheduleEntry, BacklogItem } from '../client/api';
 
 type ViewMode = 'day' | 'week' | 'month';
 
@@ -19,8 +19,10 @@ export function CompactCalendar(props: {
   onDrop: (info: CompactCalendarDrop) => void | Promise<void>;
   onRemoveEntry?: (id: string) => void | Promise<void>;
   canEdit?: boolean;
+  itemById?: Record<string, BacklogItem | undefined>;
+  onToggleConfirm?: (id: string, confirmed: boolean) => void | Promise<void>;
 }) {
-  const { date, view = 'week', entries, onDrop, onRemoveEntry, canEdit = true } = props;
+  const { date, view = 'week', entries, onDrop, onRemoveEntry, canEdit = true, itemById, onToggleConfirm } = props;
 
   const days: string[] = useMemo(() => buildDays(date, view), [date, view]);
 
@@ -55,7 +57,7 @@ export function CompactCalendar(props: {
         return (
           <div key={d}
                onDrop={(e) => handleDrop(e, d)}
-               style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 8, minHeight: 120, background: '#fff' }}>
+               style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 8, minHeight: 120, background: 'var(--surface-1)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
               <strong>{d}</strong>
               <span style={{ opacity: 0.6, fontSize: 12 }}>{list.length}</span>
@@ -65,21 +67,49 @@ export function CompactCalendar(props: {
                 <div key={en.id}
                      draggable={false}
                      style={{
-                       border: '1px solid #e5e7eb',
+                       border: '1px solid var(--border)',
                        borderRadius: 6,
                        padding: '6px 8px',
-                       background: '#f9fafb',
+                       background: 'var(--surface-2)',
                        fontSize: 13
                      }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Entry</span>
-                    <span style={{ opacity: 0.6 }}>{durationLabel(en.startTime, en.endTime)}</span>
-                  </div>
-                  {canEdit && onRemoveEntry && (
-                    <div style={{ textAlign: 'right', marginTop: 4 }}>
-                      <button onClick={() => onRemoveEntry(en.id)} style={{ fontSize: 12 }}>Remove</button>
-                    </div>
-                  )}
+                  {(() => {
+                    const item = itemById ? itemById[en.waitingListItemId] : undefined;
+                    const start = en.startTime;
+                    const end = en.endTime;
+                    const time = `${start}–${end}`;
+                    const dur = durationLabel(start, end);
+                    return (
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                          <strong style={{ fontSize: 12 }}>{time}</strong>
+                          <span style={{ opacity: 0.6 }}>{dur}</span>
+                        </div>
+                        <div style={{ marginTop: 2 }}>
+                          <div style={{ fontWeight: 600 }}>{item?.patientName ?? 'Patient'}</div>
+                          <div style={{ opacity: 0.8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item?.procedure ?? 'Scheduled case'}</div>
+                          <div style={{ fontSize: 12, opacity: 0.7 }}>Surgeon: {en.surgeonId}</div>
+                        </div>
+                        {canEdit && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                              <input
+                                type="checkbox"
+                                checked={(en.status || 'tentative') === 'confirmed'}
+                                onChange={(e) => onToggleConfirm?.(en.id, e.target.checked)}
+                              />
+                              Confirmed
+                            </label>
+                            {onRemoveEntry && (
+                              <div style={{ marginLeft: 'auto' }}>
+                                <button onClick={() => onRemoveEntry(en.id)} style={{ fontSize: 12 }}>Remove</button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               ))}
             </div>

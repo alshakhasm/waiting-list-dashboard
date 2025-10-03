@@ -1,0 +1,74 @@
+:root,
+.theme-default {
+  --bg: #ffffff;
+  --text: #111827; /* gray-900 */
+  --muted: #6b7280; /* gray-500 */
+  --border: #e5e7eb; /* gray-200 */
+  --surface-1: #ffffff; /* cards */
+  --surface-2: #fafafa; /* subtle panels */
+  --surface-3: #f3f4f6; /* headers, dividers */
+  --primary: #3b82f6; /* blue-500 */
+  --primary-contrast: #ffffff;
+  --danger: #b91c1c; /* red-700 */
+  --shadow: rgba(0,0,0,0.08);
+}
+
+.theme-contrast {
+  --bg: #ffffff;
+  --text: #0b0b0b;
+  --muted: #374151; /* gray-700 */
+  --border: #9ca3af; /* gray-400 */
+  --surface-1: #ffffff;
+  --surface-2: #f5f5f5;
+  --surface-3: #e5e7eb;
+  --primary: #1d4ed8; /* blue-700 */
+  --primary-contrast: #ffffff;
+  --danger: #991b1b; /* red-800 */
+  --shadow: rgba(0,0,0,0.14);
+}
+
+/* Warm theme with subtle beige tints */
+.theme-warm {
+  --bg: #ffffff;
+  --text: #1a1a1a;
+  --muted: #6b5e52;
+  --border: #e6dfd3;
+  --surface-1: #ffffff;
+  --surface-2: #faf6ef;
+  --surface-3: #f3ece0;
+  --primary: #b7791f; /* warm amber */
+  --primary-contrast: #ffffff;
+  --danger: #9b2c2c;
+  --shadow: rgba(108,88,76,0.15);
+}
+
+/* Dark theme */
+.theme-dark {
+  --bg: #0f172a; /* slate-900 */
+  --text: #e5e7eb; /* gray-200 */
+  --muted: #9ca3af; /* gray-400 */
+  --border: #334155; /* slate-700 */
+  --surface-1: #111827; /* gray-900 */
+  --surface-2: #0b1220; /* near-black */
+  --surface-3: #1f2937; /* gray-800 */
+  --primary: #60a5fa; /* blue-400 */
+  --primary-contrast: #0b1220;
+  --danger: #f87171; /* red-400 */
+  --shadow: rgba(0,0,0,0.6);
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Optional: basic reset for buttons and inputs to inherit text color */
+button, input, select, textarea {
+  color: inherit;
+}

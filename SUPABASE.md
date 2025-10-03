@@ -76,3 +76,24 @@ create policy backlog_read for backlog
 Notes
 - For assigning roles in JWT, you can use Supabase Auth with a custom JWT claim via hooks/edge functions, or store roles in user metadata and expose via `auth.jwt()`.
 - You can keep the current in-memory adapter for local dev and enable Supabase in production by checking env availability.
+
+Auth configuration
+
+1) In Supabase → Authentication → URL Configuration:
+  - Add your local URL: http://localhost:5173
+  - Add your production URL: https://alshakhasm.github.io/waiting-list-dashboard
+  These are used for email confirmation / magic link redirects.
+
+2) In Authentication → Providers → Email:
+  - Enable Email auth.
+  - Optionally enable Confirm email. If on, new sign-ups must confirm via email before session is created.
+  - Enable Magic Link if you want passwordless sign-in.
+  - Enable Email + Password if you want traditional sign-in.
+
+3) Roles in JWT:
+  - If you store `role` in `app_metadata` or `user_metadata`, you can surface it in RLS via `auth.jwt() ?->> 'role'`.
+  - Example: on sign-up, set `app_metadata.role = 'staff'` manually via the Admin API or a Postgres function. Alternatively, manage roles in a `profiles` table joined to `auth.uid()`.
+
+4) Environment variables:
+  - VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be present at build/runtime for auth to be enabled in the UI.
+  - When these are set, unauthenticated visitors will see a Sign In / Sign Up screen by default.
