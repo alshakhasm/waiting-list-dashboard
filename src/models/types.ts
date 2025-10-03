@@ -26,6 +26,9 @@ export type WaitingListItem = {
   procedure: string;
   estDurationMin: number;
   surgeonId?: SurgeonId;
+  phone1?: string;
+  phone2?: string;
+  preferredDate?: string; // YYYY-MM-DD
   priority?: Priority;
   equipment?: string;
   triageStatus?: TriageStatus;

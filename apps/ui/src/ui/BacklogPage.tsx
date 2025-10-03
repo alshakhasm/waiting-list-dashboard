@@ -30,6 +30,10 @@ export function BacklogPage({
     estDurationMin: number;
     surgeonId?: string;
     caseTypeId: string;
+    phone1?: string;
+    phone2?: string;
+    preferredDate?: string; // YYYY-MM-DD
+    notes?: string;
   } | null>(null);
 
   // Real data for dropdowns: collect unique surgeons and case types from loaded backlog
@@ -93,6 +97,10 @@ export function BacklogPage({
       `Estimated duration: ${i.estDurationMin} min`,
       i.surgeonId ? `Surgeon: ${i.surgeonId}` : '',
       `Case type: ${i.caseTypeId}`,
+      i.phone1 ? `Phone 1: ${i.phone1}` : '',
+      i.phone2 ? `Phone 2: ${i.phone2}` : '',
+      i.preferredDate ? `Preferred date: ${i.preferredDate}` : '',
+      i.notes ? `Notes: ${i.notes}` : '',
     ].filter(Boolean);
     window.alert?.(lines.join('\n'));
   }
@@ -106,6 +114,10 @@ export function BacklogPage({
       estDurationMin: i.estDurationMin,
       surgeonId: i.surgeonId,
       caseTypeId: i.caseTypeId,
+      phone1: i.phone1,
+      phone2: i.phone2,
+      preferredDate: i.preferredDate,
+      notes: i.notes,
     });
     setOpenMenuId(null);
   }
@@ -247,6 +259,14 @@ export function BacklogPage({
                 <input value={editDraft.procedure} onChange={(e) => setEditDraft({ ...editDraft, procedure: e.target.value })} style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb' }} />
               </label>
               <label style={{ display: 'grid', gap: 6 }}>
+                <span style={{ fontSize: 12, opacity: 0.8 }}>Phone 1</span>
+                <input value={editDraft.phone1 || ''} onChange={(e) => setEditDraft({ ...editDraft, phone1: e.target.value || undefined })} style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb' }} />
+              </label>
+              <label style={{ display: 'grid', gap: 6 }}>
+                <span style={{ fontSize: 12, opacity: 0.8 }}>Phone 2</span>
+                <input value={editDraft.phone2 || ''} onChange={(e) => setEditDraft({ ...editDraft, phone2: e.target.value || undefined })} style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb' }} />
+              </label>
+              <label style={{ display: 'grid', gap: 6 }}>
                 <span style={{ fontSize: 12, opacity: 0.8 }}>Estimated duration (min)</span>
                 <input type="number" min={0} value={editDraft.estDurationMin} onChange={(e) => setEditDraft({ ...editDraft, estDurationMin: Math.max(0, parseInt(e.target.value || '0', 10)) })} style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb' }} />
               </label>
@@ -275,6 +295,14 @@ export function BacklogPage({
                   ))}
                 </select>
               </label>
+              <label style={{ display: 'grid', gap: 6 }}>
+                <span style={{ fontSize: 12, opacity: 0.8 }}>Preferred date</span>
+                <input type="date" value={editDraft.preferredDate || ''} onChange={(e) => setEditDraft({ ...editDraft, preferredDate: e.target.value || undefined })} style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb' }} />
+              </label>
+              <label style={{ display: 'grid', gap: 6, gridColumn: '1 / -1' }}>
+                <span style={{ fontSize: 12, opacity: 0.8 }}>Notes</span>
+                <textarea rows={3} value={editDraft.notes || ''} onChange={(e) => setEditDraft({ ...editDraft, notes: e.target.value || undefined })} style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb', resize: 'vertical' }} />
+              </label>
             </div>
             <div style={{ padding: 16, display: 'flex', justifyContent: 'flex-end', gap: 8, borderTop: '1px solid #e5e7eb' }}>
               <button onClick={() => { setEditingId(null); setEditDraft(null); }} style={{ background: '#fff', border: '1px solid #e5e7eb', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>Cancel</button>
@@ -291,6 +319,10 @@ export function BacklogPage({
                     estDurationMin: Math.max(0, cleanDur),
                     surgeonId: editDraft.surgeonId,
                     caseTypeId: editDraft.caseTypeId,
+                    phone1: editDraft.phone1,
+                    phone2: editDraft.phone2,
+                    preferredDate: editDraft.preferredDate,
+                    notes: editDraft.notes,
                   } : it));
                   setEditingId(null);
                   setEditDraft(null);

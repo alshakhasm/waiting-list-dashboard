@@ -6,7 +6,18 @@ async function getHandleRequest(): Promise<(req: any) => Promise<any>> {
 import { supabase } from '../supabase/client';
 
 export type BacklogItem = {
-  id: string; patientName: string; mrn: string; procedure: string; estDurationMin: number; surgeonId?: string; caseTypeId: string; maskedMrn: string;
+  id: string;
+  patientName: string;
+  mrn: string;
+  maskedMrn: string;
+  procedure: string;
+  estDurationMin: number;
+  surgeonId?: string;
+  caseTypeId: string;
+  phone1?: string;
+  phone2?: string;
+  preferredDate?: string; // YYYY-MM-DD
+  notes?: string;
 };
 
 export async function getBacklog(params?: { caseTypeId?: string; surgeonId?: string; search?: string }): Promise<BacklogItem[]> {
@@ -27,6 +38,10 @@ export async function getBacklog(params?: { caseTypeId?: string; surgeonId?: str
       estDurationMin: r.est_duration_min,
       surgeonId: r.surgeon_id || undefined,
       caseTypeId: r.case_type_id,
+      phone1: r.phone1 || undefined,
+      phone2: r.phone2 || undefined,
+      preferredDate: r.preferred_date || undefined,
+      notes: r.notes || undefined,
     }));
   }
   const url = '/backlog';
