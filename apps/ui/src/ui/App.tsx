@@ -11,7 +11,7 @@ import { CategoryPref } from './categoryPrefs';
 import { supabase } from '../supabase/client';
 import { isGuest, disableGuest, GUEST_EVENT } from '../auth/guest';
 import { useAppUserProfile } from '../auth/useAppUserProfile';
-import { becomeOwner } from '../client/api';
+import { becomeOwner, getMyOwnerProfile } from '../client/api';
 import { AwaitingApprovalPage } from './AwaitingApprovalPage';
 import { AccessDeniedPage } from './AccessDeniedPage';
 import { AcceptInvitePage } from './AcceptInvitePage';
@@ -62,6 +62,7 @@ export function App() {
   const [guest, setGuest] = useState<boolean>(() => isGuest());
   const { loading: profileLoading, profile, error: profileError } = useAppUserProfile();
   const [ownerAction, setOwnerAction] = useState<{ pending: boolean; msg: string | null }>({ pending: false, msg: null });
+  const [ownerName, setOwnerName] = useState<string>('');
   // React to external changes to guest mode (e.g., SignInPage action)
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -170,6 +171,21 @@ export function App() {
   useEffect(() => {
     try { localStorage.setItem(TAB_KEY, tab); } catch {}
   }, [tab]);
+
+  // Load owner profile name for header indicator
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (profile?.role !== 'owner') { setOwnerName(''); return; }
+        const p = await getMyOwnerProfile();
+        if (!cancelled) setOwnerName(p?.fullName || user?.email || '');
+      } catch {
+        if (!cancelled) setOwnerName(user?.email || '');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [profile?.role, user?.email]);
 
   // If a restricted tab is saved but user isn't owner, fall back
   useEffect(() => {
@@ -303,7 +319,7 @@ export function App() {
             <EnvDebug />
           </div>
         )}
-        <nav style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+  <nav style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           <button
             onClick={() => setTab('backlog')}
             aria-current={tab === 'backlog' ? 'page' : undefined}
@@ -367,6 +383,11 @@ export function App() {
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
           {tab === 'backlog' && (
             <input placeholder="Search name/procedure" value={nameQuery} onChange={e => setNameQuery(e.target.value)} />
+          )}
+          {profile?.role === 'owner' && ownerName && (
+            <span title="Owner" style={{ fontSize: 12, opacity: 0.85, padding: '2px 6px', border: '1px solid var(--border)', borderRadius: 6 }}>
+              {ownerName}
+            </span>
           )}
           <span style={{ fontSize: 12, opacity: 0.7 }}>{role ? `role: ${role}` : ''}</span>
           {guest && (
