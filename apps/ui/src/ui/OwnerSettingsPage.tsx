@@ -69,6 +69,15 @@ export function OwnerSettingsPage() {
         <div>Loading…</div>
       ) : (
         <div style={{ display: 'grid', gap: 12, maxWidth: 640 }}>
+          {err && (
+            <div style={{ color: 'var(--danger)' }}>
+              {String(err).includes("Could not find the table 'public.owner_profiles'") ? (
+                <span>Owner profile table is not set up in this project. Your changes will be stored locally on this device.</span>
+              ) : (
+                <span>{err}</span>
+              )}
+            </div>
+          )}
           <label style={{ display: 'grid', gap: 6 }}>
             <span style={{ fontSize: 12, opacity: 0.7 }}>Full name</span>
             <input value={form.fullName} onChange={(e) => setForm(f => ({ ...f, fullName: e.target.value }))} />
@@ -93,7 +102,6 @@ export function OwnerSettingsPage() {
             <span style={{ fontSize: 12, opacity: 0.7 }}>Locale</span>
             <input value={form.locale} onChange={(e) => setForm(f => ({ ...f, locale: e.target.value }))} placeholder="e.g. en-US" />
           </label>
-          {err && <div style={{ color: 'var(--danger)' }}>{err}</div>}
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={onSave} disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
           </div>

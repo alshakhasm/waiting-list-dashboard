@@ -560,7 +560,17 @@ export async function getMyOwnerProfile(): Promise<OwnerProfile | null> {
     const uid = auth.user?.id;
     if (!uid) return null;
     const { data, error } = await supabase.from('owner_profiles').select('*').eq('user_id', uid).maybeSingle();
-    if (error) throw error;
+    if (error) {
+      const msg = String(error.message || '');
+      // Fallback if table doesn't exist yet in project
+      if (msg.includes("Could not find the table 'public.owner_profiles'")) {
+        try {
+          const raw = localStorage.getItem('owner-profile:me');
+          return raw ? (JSON.parse(raw) as OwnerProfile) : null;
+        } catch { return null; }
+      }
+      throw error;
+    }
     if (!data) return null;
     const r: any = data as any;
     return {
@@ -604,7 +614,26 @@ export async function upsertMyOwnerProfile(patch: Partial<Omit<OwnerProfile, 'us
       .upsert(payload)
       .select('*')
       .single();
-    if (error) throw error;
+    if (error) {
+      const msg = String(error.message || '');
+      if (msg.includes("Could not find the table 'public.owner_profiles'")) {
+        // Fallback to local storage
+        const next: OwnerProfile = {
+          userId: uid,
+          fullName: payload.full_name,
+          workspaceName: payload.workspace_name,
+          orgName: payload.org_name || undefined,
+          phone: payload.phone || undefined,
+          timezone: payload.timezone || undefined,
+          locale: payload.locale || undefined,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        try { localStorage.setItem('owner-profile:me', JSON.stringify(next)); } catch {}
+        return next;
+      }
+      throw error;
+    }
     const r: any = data as any;
     return {
       userId: r.user_id,
