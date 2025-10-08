@@ -248,6 +248,8 @@ export function BacklogPage({
           const pref = prefs.find(p => p.key === key);
           const bg = (pref?.color) || GROUP_COLORS[key];
           const headerText = pref?.textColor || getContrastText(bg);
+          // Ensure readable text on light tints (especially in dark mode where default text is light)
+          const bodyText = headerText;
           const colBg = `color-mix(in srgb, ${bg}, white 78%)`;
           const cardBg = `color-mix(in srgb, ${bg}, white 78%)`;
           const borderCol = `color-mix(in srgb, ${bg}, white 55%)`;
@@ -276,7 +278,7 @@ export function BacklogPage({
               >
                 {GROUP_LABELS[key]} <span style={{ opacity: 0.7 }}>({list.length})</span>
               </div>
-              <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8, color: bodyText }}>
                 {list.length === 0 ? (
                   <div style={{ opacity: 0.6, fontSize: 12 }}>No items</div>
                 ) : (
@@ -329,9 +331,9 @@ export function BacklogPage({
                           )}
                         </div>
                       </div>
-                      <div style={{ opacity: 0.8 }}>{i.procedure}</div>
-                      <div style={{ fontVariantNumeric: 'tabular-nums', opacity: 0.7, fontSize: 12 }}>{i.maskedMrn}</div>
-                      <div style={{ opacity: 0.7, fontSize: 12 }}>{i.estDurationMin} min</div>
+                      <div style={{ opacity: 0.9 }}>{i.procedure}</div>
+                      <div style={{ fontVariantNumeric: 'tabular-nums', opacity: 0.8, fontSize: 12 }}>{i.maskedMrn}</div>
+                      <div style={{ opacity: 0.8, fontSize: 12 }}>{i.estDurationMin} min</div>
                       {pendingIds.includes(i.id) && canConfirm && (
                         <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                           <input id={`confirm-${i.id}`} type="checkbox" onChange={() => onConfirm?.(i)} />
