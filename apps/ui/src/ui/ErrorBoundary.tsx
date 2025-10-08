@@ -12,7 +12,6 @@ export class ErrorBoundary extends React.Component<Props, State> {
     return { hasError: true, message: error?.message || String(error) };
   }
   componentDidCatch(error: any, info: any) {
-    // eslint-disable-next-line no-console
     console.error('UI error:', error, info);
   }
   render() {

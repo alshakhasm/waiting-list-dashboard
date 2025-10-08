@@ -20,4 +20,4 @@ export type ThemeTokens = {
 };
 export declare const themes: Record<'default' | 'high-contrast', ThemeTokens>;
 export type ThemeName = keyof typeof themes;
-export declare function getTheme(name: ThemeName): ThemeTokens;
+export declare function getTheme(_name: ThemeName): ThemeTokens;

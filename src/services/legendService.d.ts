@@ -3,4 +3,4 @@ export type LegendEntry = {
     label: string;
     color: string;
 };
-export declare function getLegend(themeName: 'default' | 'high-contrast'): LegendEntry[];
+export declare function getLegend(_themeName: 'default' | 'high-contrast'): LegendEntry[];

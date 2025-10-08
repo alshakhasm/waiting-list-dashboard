@@ -11,12 +11,12 @@ export type Response<T = any> = {
     body?: T;
     headers?: Record<string, string>;
 };
-type Handler = (req: Request, params: Record<string, string>) => Response | Promise<Response>;
+type Handler = (_req: Request, _params: Record<string, string>) => Response | Promise<Response>;
 type Route = {
     method: Method;
     pattern: string;
     handler: Handler;
 };
-export declare function handleRequest(req: Request): Promise<Response>;
+export declare function handleRequest(_req: Request): Promise<Response>;
 export declare const __routes: Route[];
 export {};

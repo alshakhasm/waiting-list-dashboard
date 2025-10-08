@@ -1,4 +1,5 @@
-export function ThemeToggle({ theme, onChange }: { theme: 'auto' | 'default' | 'warm' | 'high-contrast' | 'dark'; onChange: (t: 'auto' | 'default' | 'warm' | 'high-contrast' | 'dark') => void }) {
+type ThemeChoice = 'auto' | 'default' | 'warm' | 'high-contrast' | 'dark';
+export function ThemeToggle({ theme, onChange }: { theme: ThemeChoice; onChange: (_t: ThemeChoice) => void }) {
   return (
     <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       <span style={{ fontSize: 12, opacity: 0.7 }}>Theme</span>

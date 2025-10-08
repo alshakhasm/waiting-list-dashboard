@@ -1,7 +1,7 @@
 // Defer core adapter import to runtime to avoid blocking initial render if dev server fs.allow is strict
-async function getHandleRequest(): Promise<(req: any) => Promise<any>> {
+async function getHandleRequest(): Promise<(_req: any) => Promise<any>> {
   const mod: any = await import('@core');
-  return mod.handleRequest as (req: any) => Promise<any>;
+  return mod.handleRequest as (_req: any) => Promise<any>;
 }
 import { supabase } from '../supabase/client';
 
@@ -77,8 +77,16 @@ export async function seedDemoData(): Promise<void> {
       surgeon_id: r.surgeonId ?? null,
       case_type_id: r.caseTypeName ?? 'case:elective',
     }));
-    const { error } = await supabase.from('backlog').insert(inserts);
-    if (error) throw error;
+    const { error } = await (supabase as any).from('backlog').insert(inserts);
+    if (error) {
+      const msg = String((error as any)?.message || '');
+      // If RLS prevents inserts (e.g., no backlog insert policy), ignore and continue without demo data
+      if (msg.toLowerCase().includes('row-level security') || msg.toLowerCase().includes('permission denied')) {
+        console.warn('[seedDemoData] skipped due to RLS/permissions');
+        return;
+      }
+      throw error;
+    }
     return;
   }
   const handleRequest = await getHandleRequest();
@@ -116,7 +124,7 @@ export async function getSchedule(params?: { date?: string }): Promise<ScheduleE
 
 export async function createSchedule(input: { waitingListItemId: string; roomId: string; surgeonId: string; date: string; startTime: string; endTime: string; notes?: string }): Promise<ScheduleEntry> {
   if (supabase) {
-    const { data, error } = await supabase.from('schedule').insert({
+    const { data, error } = await (supabase as any).from('schedule').insert({
       waiting_list_item_id: input.waitingListItemId,
       room_id: input.roomId,
       surgeon_id: input.surgeonId,
@@ -148,7 +156,7 @@ export async function createSchedule(input: { waitingListItemId: string; roomId:
 
 export async function confirmSchedule(id: string): Promise<void> {
   if (supabase) {
-    const { error } = await supabase.from('schedule').update({ status: 'confirmed' }).eq('id', id);
+    const { error } = await (supabase as any).from('schedule').update({ status: 'confirmed' }).eq('id', id);
     if (error) throw error;
     return;
   }
@@ -166,7 +174,7 @@ export async function updateSchedule(id: string, patch: Partial<{ date: string; 
     if (patch.surgeonId) payload.surgeon_id = patch.surgeonId;
     if (patch.notes !== undefined) payload.notes = patch.notes;
     if (patch.status) payload.status = patch.status;
-    const { error } = await supabase.from('schedule').update(payload).eq('id', id);
+    const { error } = await (supabase as any).from('schedule').update(payload).eq('id', id);
     if (error) throw error;
     return;
   }
@@ -199,3 +207,152 @@ export async function createMappingProfile(body: { name: string; owner: string; 
 }
 
 // Legend API removed per request
+
+// --- Access control: app users & invitations (MVP manual link) ---
+
+export type AppUser = {
+  userId: string;
+  email: string;
+  role: 'owner' | 'member';
+  status: 'approved' | 'pending' | 'revoked';
+  invitedBy?: string | null;
+};
+
+export type Invitation = {
+  id: string;
+  email: string;
+  token: string;
+  status: 'pending' | 'accepted' | 'expired';
+  expiresAt: string; // ISO
+  invitedBy: string;
+};
+
+export async function getCurrentAppUser(): Promise<AppUser | null> {
+  if (!supabase) return { userId: 'guest', email: 'guest@example.com', role: 'owner', status: 'approved' };
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id;
+  if (!uid) return null;
+  const { data, error } = await supabase.from('app_users').select('*').eq('user_id', uid).maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const r: any = data as any;
+  return {
+    userId: r.user_id,
+    email: r.email,
+    role: r.role,
+    status: r.status,
+    invitedBy: r.invited_by,
+  } as AppUser;
+}
+
+export async function hasAnyAppUsers(): Promise<boolean> {
+  if (!supabase) return false;
+  // Prefer RPC that works even when no auth row exists and under RLS
+  const { data, error } = await (supabase as any).rpc('app_users_is_empty');
+  if (error) throw error as any;
+  // data: true => empty, so hasAny = !data
+  return data === true ? false : true;
+}
+
+export async function ensureBootstrapOwner(): Promise<void> {
+  if (!supabase) return;
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id;
+  const email = auth.user?.email ?? '';
+  if (!uid) return;
+  // First try to bootstrap if empty; then ensure a membership; owner can be explicitly requested by UI
+  const { error: rpcErr } = await (supabase as any).rpc('app_users_bootstrap_owner');
+  if (rpcErr && !String(rpcErr.message || '').includes('not authenticated')) {
+    // ignore non-critical bootstrap errors (e.g., function exists but not empty)
+  }
+  const { data: me, error: meErr } = await supabase.from('app_users').select('*').eq('user_id', uid).maybeSingle();
+  if (meErr) throw meErr;
+  // Do not auto-insert pending member to avoid RLS issues.
+  // Membership should be created via Create Account (becomeOwner) or Accept Invite.
+}
+
+// Explicitly become owner (user-initiated action)
+export async function becomeOwner(): Promise<void> {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id;
+  if (!uid) throw new Error('Not authenticated');
+  const { error } = await (supabase as any).rpc('app_users_become_owner');
+  if (error) {
+    try { (window as any).__LAST_BECOME_OWNER_ERROR__ = error; console.error('[becomeOwner] RPC failed', error); } catch {}
+    throw error;
+  }
+}
+
+export async function inviteByEmail(email: string): Promise<Invitation> {
+  if (!supabase) throw new Error('Invites require Supabase to be configured');
+  const { data: auth } = await supabase.auth.getUser();
+  const inviter = auth.user?.id;
+  if (!inviter) throw new Error('Not authenticated');
+  // random token
+  const token = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  const expires_at = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+  const { data, error } = await (supabase as any)
+    .from('invitations')
+    .insert({ email, token, invited_by: inviter, expires_at })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return {
+    id: data.id,
+    email: data.email,
+    token: data.token,
+    status: data.status,
+    expiresAt: data.expires_at,
+    invitedBy: data.invited_by,
+  } as Invitation;
+}
+
+export async function listInvitations(): Promise<Invitation[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.from('invitations').select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map((r: any) => ({ id: r.id, email: r.email, token: r.token, status: r.status, expiresAt: r.expires_at, invitedBy: r.invited_by }));
+}
+
+export async function listMembers(): Promise<AppUser[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.from('app_users').select('*');
+  if (error) throw error;
+  return (data || []).map((r: any) => ({ userId: r.user_id, email: r.email, role: r.role, status: r.status, invitedBy: r.invited_by }));
+}
+
+export async function updateMember(userId: string, patch: Partial<{ status: AppUser['status']; role: AppUser['role'] }>): Promise<void> {
+  if (!supabase) return;
+  const payload: any = {};
+  if (patch.status) payload.status = patch.status;
+  if (patch.role) payload.role = patch.role;
+  const { error } = await (supabase as any).from('app_users').update(payload).eq('user_id', userId);
+  if (error) throw error;
+}
+
+export async function acceptInvite(token: string): Promise<{ ok: boolean; reason?: string }> {
+  if (!supabase) return { ok: false, reason: 'Supabase not configured' };
+  const nowIso = new Date().toISOString();
+  const { data: inv, error } = await supabase.from('invitations').select('*').eq('token', token).maybeSingle();
+  if (error) throw error;
+  if (!inv) return { ok: false, reason: 'invalid' };
+  const invRow: any = inv as any;
+  if (invRow.status !== 'pending') return { ok: false, reason: 'used' };
+  if (invRow.expires_at && invRow.expires_at < nowIso) return { ok: false, reason: 'expired' };
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id;
+  const email = auth.user?.email ?? '';
+  if (!uid) return { ok: false, reason: 'unauthenticated' };
+  if (email.toLowerCase() !== String(invRow.email).toLowerCase()) return { ok: false, reason: 'email-mismatch' };
+  // mark accepted and upsert app_users (pending member)
+  const { error: upErr } = await (supabase as any).from('invitations').update({ status: 'accepted' }).eq('id', invRow.id);
+  if (upErr) throw upErr;
+  const { data: existing, error: exErr } = await supabase.from('app_users').select('*').eq('user_id', uid).maybeSingle();
+  if (exErr) throw exErr;
+  if (!existing) {
+    const { error: insErr } = await (supabase as any).from('app_users').insert({ user_id: uid, email, role: 'member', status: 'pending', invited_by: invRow.invited_by });
+    if (insErr) throw insErr;
+  }
+  return { ok: true };
+}

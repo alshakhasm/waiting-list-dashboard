@@ -13,10 +13,10 @@ export function BacklogPage({
   canConfirm = true,
 }: {
   search?: string;
-  onSelect?: (item: BacklogItem) => void;
+  onSelect?: (_item: BacklogItem) => void;
   selectedId?: string;
   pendingIds?: string[];
-  onConfirm?: (item: BacklogItem) => void;
+  onConfirm?: (_item: BacklogItem) => void;
   hiddenIds?: string[];
   canConfirm?: boolean;
 }) {
@@ -62,7 +62,7 @@ export function BacklogPage({
 
   // Sidebar category preferences (hidden + color overrides)
   const prefs = useMemo(() => loadCategoryPrefs(defaultCategoryPrefs()), []);
-  const hiddenKeys = useMemo(() => new Set(prefs.filter(p => p.hidden).map(p => p.key)), [prefs]);
+  const hiddenKeys = useMemo(() => new Set(prefs.filter((p) => p.hidden).map((p) => p.key)), [prefs]);
 
   const filtered = useMemo(
     () =>

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getSchedule, createSchedule, BacklogItem, ScheduleEntry, confirmSchedule, deleteSchedule, getBacklog, seedDemoData, updateSchedule } from '../client/api';
 import { SplitPane } from './SplitPane';
-import { WeekCalendar } from './WeekCalendar';
 import { CompactCalendar } from './CompactCalendar';
 import { BacklogPage } from './BacklogPage';
 import { useSupabaseAuth } from '../auth/useSupabaseAuth';

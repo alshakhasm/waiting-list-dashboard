@@ -1,4 +1,4 @@
-export declare const listBacklog: (params?: {
+export declare const listBacklog: (_params?: {
     caseTypeId?: string;
     surgeonId?: string;
     search?: string;

@@ -1,1 +1,1 @@
-export declare function maskMRN(mrn: string): string;
+export declare function maskMRN(_mrn: string): string;

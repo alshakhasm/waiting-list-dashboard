@@ -1,3 +1,3 @@
 declare module '@core' {
-  export function handleRequest(req: any): Promise<any>;
+  export function handleRequest(_req: any): Promise<any>;
 }

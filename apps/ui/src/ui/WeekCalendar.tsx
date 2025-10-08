@@ -7,7 +7,7 @@ type Props = {
   startHour?: number;
   endHour?: number;
   onDrop?: (info: { date: string; startTime: string; endTime: string; data: any }) => void;
-  onDragStateChange?: (dragging: boolean) => void;
+  onDragStateChange?: (_dragging: boolean) => void;
 };
 
 function getWeekStart(d: Date) {
@@ -50,7 +50,7 @@ export function WeekCalendar({ date, entries, startHour = 8, endHour = 18, onDro
     return arr;
   }, [startHour, endHour]);
 
-  const rangeMinutes = (endHour - startHour) * 60;
+  // const rangeMinutes = (endHour - startHour) * 60; // unused
   const rowHeight = 48; // px per hour row
 
   function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
@@ -123,7 +123,7 @@ export function WeekCalendar({ date, entries, startHour = 8, endHour = 18, onDro
     e.preventDefault();
     e.stopPropagation();
     // Attempt to parse payload
-    let payloadStr = e.dataTransfer.getData('application/json')
+    const payloadStr = e.dataTransfer.getData('application/json')
       || e.dataTransfer.getData('text/plain')
       || e.dataTransfer.getData('text');
     let data: any = null;
@@ -192,7 +192,7 @@ export function WeekCalendar({ date, entries, startHour = 8, endHour = 18, onDro
             <div
               key={`cell-${idx}-${di}`}
               onDragOver={handleDragOver}
-              ref={el => { /* placeholder to keep structure; handled on parent overlay */ }}
+              ref={() => { /* placeholder to keep structure; handled on parent overlay */ }}
               style={{ borderTop: '1px dashed #e5e7eb', borderLeft: '1px solid #f3f4f6', position: 'relative', height: rowHeight }}
             />
           ))}

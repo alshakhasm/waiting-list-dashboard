@@ -9,7 +9,7 @@ export type ThemeState = {
 
 export class ThemeManager {
   private state: ThemeState;
-  private listeners: Array<(s: ThemeState) => void> = [];
+  private listeners: Array<(_s: ThemeState) => void> = [];
 
   constructor() {
     const prefs = PreferenceService.get();
@@ -39,14 +39,14 @@ export class ThemeManager {
     this.emit();
   }
 
-  subscribe(listener: (s: ThemeState) => void) {
+  subscribe(listener: (_s: ThemeState) => void) {
     this.listeners.push(listener);
     return () => {
-      this.listeners = this.listeners.filter((l) => l !== listener);
+      this.listeners = this.listeners.filter((_l) => _l !== listener);
     };
   }
 
   private emit() {
-    for (const l of this.listeners) l(this.state);
+    for (const _listener of this.listeners) _listener(this.state);
   }
 }

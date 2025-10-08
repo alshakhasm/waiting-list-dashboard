@@ -29,11 +29,11 @@ export class ThemeManager {
     subscribe(listener) {
         this.listeners.push(listener);
         return () => {
-            this.listeners = this.listeners.filter((l) => l !== listener);
+            this.listeners = this.listeners.filter((_l) => _l !== listener);
         };
     }
     emit() {
-        for (const l of this.listeners)
-            l(this.state);
+        for (const _listener of this.listeners)
+            _listener(this.state);
     }
 }

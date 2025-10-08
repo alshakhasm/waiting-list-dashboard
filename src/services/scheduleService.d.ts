@@ -1,9 +1,9 @@
 import type { ScheduleEntry, WaitingListItemId, ORRoomId, SurgeonId } from '../models/types';
 export declare const ScheduleService: {
-    list(params?: {
+    list(_params?: {
         date?: string;
     }): ScheduleEntry[];
-    create(input: {
+    create(_input: {
         waitingListItemId: WaitingListItemId;
         roomId: ORRoomId;
         surgeonId: SurgeonId;
@@ -12,8 +12,8 @@ export declare const ScheduleService: {
         endTime: string;
         notes?: string;
     }): ScheduleEntry;
-    update(id: string, patch: Partial<Pick<ScheduleEntry, "startTime" | "endTime" | "status" | "notes">> & {
+    update(_id: string, _patch: Partial<Pick<ScheduleEntry, "startTime" | "endTime" | "status" | "notes">> & {
         version: number;
     }): ScheduleEntry;
-    cancel(id: string): void;
+    cancel(_id: string): void;
 };

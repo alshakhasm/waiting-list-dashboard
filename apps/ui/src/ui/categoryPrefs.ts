@@ -3,7 +3,7 @@ export type CategoryPref = {
   label: string;
   color: string;
   hidden: boolean;
-  icon?: string; // emoji or short text
+  // icon removed
   keywords?: string[]; // for custom categories only
   builtIn?: boolean;
 };
@@ -16,8 +16,36 @@ export function loadCategoryPrefs(defaults: CategoryPref[]): CategoryPref[] {
     if (!raw) return defaults;
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return defaults;
-    // shallow-validate
-    return parsed.filter((p) => p && typeof p.key === 'string' && typeof p.label === 'string' && typeof p.color === 'string' && typeof p.hidden === 'boolean');
+    // sanitize: drop deprecated `icon` and unknown fields, keep only known shape
+    let changed = false;
+    const sanitized: CategoryPref[] = [];
+    for (const p of parsed) {
+      if (!p || typeof p.key !== 'string' || typeof p.label !== 'string' || typeof p.color !== 'string' || typeof p.hidden !== 'boolean') {
+        continue;
+      }
+      const clean: CategoryPref = {
+        key: p.key,
+        label: p.label,
+        color: p.color,
+        hidden: p.hidden,
+      };
+      if (Array.isArray(p.keywords)) {
+        const kw = p.keywords.filter((k: unknown) => typeof k === 'string' && k.trim() !== '');
+        if (kw.length) clean.keywords = kw as string[];
+      }
+      if (p.builtIn === true) clean.builtIn = true;
+      // detect if we need to persist sanitized data
+      if ('icon' in p) changed = true;
+      for (const k of Object.keys(p)) {
+        if (!['key', 'label', 'color', 'hidden', 'keywords', 'builtIn'].includes(k)) {
+          changed = true;
+          break;
+        }
+      }
+      sanitized.push(clean);
+    }
+    if (changed) saveCategoryPrefs(sanitized);
+    return sanitized.length ? sanitized : defaults;
   } catch {
     return defaults;
   }
@@ -30,12 +58,12 @@ export function saveCategoryPrefs(prefs: CategoryPref[]) {
 export function defaultCategoryPrefs(): CategoryPref[] {
   // Defaults aligned with procedureGroups constants
   return [
-    { key: 'dental', label: 'Dental extraction', color: '#E6F4EA', hidden: false, icon: '🦷', builtIn: true },
-    { key: 'minorPath', label: 'Minor pathology', color: '#E8F0FE', hidden: false, icon: '🧪', builtIn: true },
-    { key: 'majorPath', label: 'Major pathology', color: '#FDE8E8', hidden: false, icon: '🏥', builtIn: true },
-    { key: 'tmj', label: 'TMJ', color: '#EDE9FE', hidden: false, icon: '🦴', builtIn: true },
-    { key: 'orthognathic', label: 'Orthognathic', color: '#FFF4E5', hidden: false, icon: '🙂', builtIn: true },
-    { key: 'uncategorized', label: 'Uncategorized', color: '#F3F4F6', hidden: false, icon: '📁', builtIn: true },
+    { key: 'dental', label: 'Dental extraction', color: '#E6F4EA', hidden: false, builtIn: true },
+    { key: 'minorPath', label: 'Minor pathology', color: '#E8F0FE', hidden: false, builtIn: true },
+    { key: 'majorPath', label: 'Major pathology', color: '#FDE8E8', hidden: false, builtIn: true },
+    { key: 'tmj', label: 'TMJ', color: '#EDE9FE', hidden: false, builtIn: true },
+    { key: 'orthognathic', label: 'Orthognathic', color: '#FFF4E5', hidden: false, builtIn: true },
+    { key: 'uncategorized', label: 'Uncategorized', color: '#F3F4F6', hidden: false, builtIn: true },
   ];
 }
 

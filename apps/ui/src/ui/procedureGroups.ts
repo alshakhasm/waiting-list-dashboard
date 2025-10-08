@@ -24,7 +24,7 @@ export const GROUP_ORDER: ProcedureGroupKey[] = [
   'uncategorized',
 ];
 
-const keyword = (s: string) => s.toLowerCase();
+const keyword = (_s: string) => _s.toLowerCase();
 
 const MATCHERS: Array<{ key: ProcedureGroupKey; match: (p: string) => boolean }> = [
   // TMJ-specific procedures (any TMJ variant)

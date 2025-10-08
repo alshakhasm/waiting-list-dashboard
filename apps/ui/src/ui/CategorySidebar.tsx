@@ -6,14 +6,14 @@ export function CategorySidebar({
   onChange,
 }: {
   open?: boolean;
-  onChange?: (prefs: CategoryPref[]) => void;
+  onChange?: (_prefs: CategoryPref[]) => void;
 }) {
   const [expanded, setExpanded] = useState(open);
-  const [prefs, setPrefs] = useState<CategoryPref[]>(() => loadCategoryPrefs(defaultCategoryPrefs()));
+  const [categoryPrefs, setPrefs] = useState<CategoryPref[]>(() => loadCategoryPrefs(defaultCategoryPrefs()));
   const [newLabel, setNewLabel] = useState('');
   const [newKeywords, setNewKeywords] = useState('');
   const [newColor, setNewColor] = useState('#e5e7eb');
-  const [newIcon, setNewIcon] = useState('📁');
+  // Removed icon support for categories
   const [openColorKey, setOpenColorKey] = useState<string | null>(null);
 
   const presetColors = useMemo(() => {
@@ -22,27 +22,27 @@ export function CategorySidebar({
     return Array.from(new Set([...base, ...extras]));
   }, []);
 
-  useEffect(() => { saveCategoryPrefs(prefs); onChange?.(prefs); }, [prefs]);
+  useEffect(() => { saveCategoryPrefs(categoryPrefs); onChange?.(categoryPrefs); }, [categoryPrefs]);
 
-  const builtIns = useMemo(() => prefs.filter(p => p.builtIn), [prefs]);
-  const customs = useMemo(() => prefs.filter(p => !p.builtIn), [prefs]);
+  const builtIns = useMemo(() => categoryPrefs.filter(p => p.builtIn), [categoryPrefs]);
+  const customs = useMemo(() => categoryPrefs.filter(p => !p.builtIn), [categoryPrefs]);
 
   function toggleHidden(key: string) {
-    setPrefs(prev => prev.map(p => p.key === key ? { ...p, hidden: !p.hidden } : p));
+  setPrefs(prev => prev.map(p => p.key === key ? { ...p, hidden: !p.hidden } : p));
   }
   function updateColor(key: string, color: string) {
-    setPrefs(prev => prev.map(p => p.key === key ? { ...p, color } : p));
+  setPrefs(prev => prev.map(p => p.key === key ? { ...p, color } : p));
   }
   function removeCustom(key: string) {
-    setPrefs(prev => prev.filter(p => p.key !== key));
+  setPrefs(prev => prev.filter(p => p.key !== key));
   }
   function addCustom() {
     const label = newLabel.trim();
     if (!label) return;
     const id = 'custom:' + Math.random().toString(36).slice(2, 8);
     const keywords = newKeywords.split(',').map(s => s.trim()).filter(Boolean);
-    setPrefs(prev => [...prev, { key: id, label, color: newColor, hidden: false, icon: newIcon || '📁', keywords }]);
-    setNewLabel(''); setNewKeywords(''); setNewColor('#e5e7eb'); setNewIcon('📁');
+  setPrefs(prev => [...prev, { key: id, label, color: newColor, hidden: false, keywords }]);
+  setNewLabel(''); setNewKeywords(''); setNewColor('#e5e7eb');
   }
 
   return (
@@ -58,7 +58,6 @@ export function CategorySidebar({
             <span title={p.label} style={{ width: 12, height: 12, background: p.color, borderRadius: 3, display: 'inline-block' }} />
             {expanded && (
               <>
-                <span style={{ width: 16, textAlign: 'center' }} aria-hidden>{p.icon || '•'}</span>
                 <span style={{ flex: 1, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label}</span>
                 <input
                   type="checkbox"
@@ -106,7 +105,6 @@ export function CategorySidebar({
             <span title={p.label} style={{ width: 12, height: 12, background: p.color, borderRadius: 3, display: 'inline-block' }} />
             {expanded && (
               <>
-                <span style={{ width: 16, textAlign: 'center' }} aria-hidden>{p.icon || '•'}</span>
                 <span style={{ flex: 1, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label}</span>
                 <input
                   type="checkbox"
@@ -173,7 +171,7 @@ export function CategorySidebar({
                   </div>
                 </div>
               )}
-              <input placeholder="Icon (emoji)" value={newIcon} onChange={(e) => setNewIcon(e.target.value)} style={{ width: 48, height: 28, padding: '4px 6px', fontSize: 13 }} />
+              {/* icon input removed */}
               <button onClick={addCustom} disabled={!newLabel.trim()} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border)', cursor: 'pointer', height: 28 }}>Add</button>
             </div>
           </div>

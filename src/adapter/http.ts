@@ -21,7 +21,7 @@ export type Response<T = any> = {
   headers?: Record<string, string>;
 };
 
-type Handler = (req: Request, params: Record<string, string>) => Response | Promise<Response>;
+type Handler = (_req: Request, _params: Record<string, string>) => Response | Promise<Response>;
 
 type Route = { method: Method; pattern: string; handler: Handler };
 

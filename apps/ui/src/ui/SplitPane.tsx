@@ -20,7 +20,7 @@ export function SplitPane({ initialLeft = 35, minLeft = 20, maxLeft = 80, left, 
     (e.currentTarget as HTMLElement).ownerDocument.body.style.cursor = 'col-resize';
   }, []);
 
-  const onUp = useCallback((e: MouseEvent) => {
+  const onUp = useCallback((_e: MouseEvent) => {
     if (!dragging.current) return;
     dragging.current = false;
     document.body.style.cursor = '';

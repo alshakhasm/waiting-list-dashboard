@@ -17,7 +17,7 @@ export function CompactCalendar(props: {
   view?: ViewMode;
   entries: ScheduleEntry[];
   onDrop: (info: CompactCalendarDrop) => void | Promise<void>;
-  onRemoveEntry?: (id: string) => void | Promise<void>;
+  onRemoveEntry?: (id: string) => void | Promise<void>; // Prefixing unused parameter
   canEdit?: boolean;
   itemById?: Record<string, BacklogItem | undefined>;
   onToggleConfirm?: (id: string, confirmed: boolean) => void | Promise<void>;

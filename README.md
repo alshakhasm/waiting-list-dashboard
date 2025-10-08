@@ -38,3 +38,32 @@ npm run dev
 
 The app calls the in-process adapter directly, so no backend server is required.
 
+## Enable Supabase auth (Step 1)
+If you want real authentication and persistence via Supabase (optional for local dev), set these env vars for the UI:
+
+- Create a Supabase project (free tier is fine) at https://supabase.com/
+- In Supabase → Project Settings → API, copy:
+	- Project URL → VITE_SUPABASE_URL
+	- anon public key → VITE_SUPABASE_ANON_KEY
+- In `apps/ui/.env.local` (create it if missing), add:
+	- `VITE_SUPABASE_URL=...`
+	- `VITE_SUPABASE_ANON_KEY=...`
+
+Notes
+- Do not commit real keys. `.gitignore` already excludes `apps/ui/.env*`.
+- An example file exists at `apps/ui/.env.example`.
+- Full schema, RLS policies, and auth configuration are in `SUPABASE.md`.
+ - The UI shows an EnvDebug badge with `/?debug=1` indicating if Supabase is enabled.
+
+Verify locally
+- Restart the dev server after setting env.
+- In the browser console, you should NOT see a warning like `[Supabase] Disabled — missing or invalid VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY`.
+- The header Sign in menu will include Magic Link/Reset options when Supabase is enabled.
+ - If profile loading times out, an error screen appears with Retry, Become owner now, and Go to Sign in.
+
+## Account flows
+
+- Create Account (owner): visit `/?create=1`, fill details, confirm email; after signing in, your owner row is created automatically. If not, use the error screen’s “Become owner now”.
+- Sign in: `/?signin=1` supports email + password and magic link.
+- Accept invite: `/?accept=1&token=...` links add you as a pending member; the owner approves in Members.
+

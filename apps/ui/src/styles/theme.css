@@ -72,3 +72,16 @@ body {
 button, input, select, textarea {
   color: inherit;
 }
+
+/* Subtle affordance: buttons with icons tint the icon on hover/focus */
+.icon-button svg {
+  transition: color 120ms ease;
+}
+.icon-button:hover svg,
+.icon-button:focus-visible svg {
+  color: var(--primary);
+}
+.icon-button:hover,
+.icon-button:focus-visible {
+  color: var(--primary);
+}

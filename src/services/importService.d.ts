@@ -3,5 +3,5 @@ export type ImportRow = Partial<Pick<WaitingListItem, 'patientName' | 'mrn' | 'p
     caseTypeName?: string;
 };
 export declare const ImportService: {
-    importExcel(fileName: string, rows: ImportRow[], mapping?: MappingProfile): ImportBatch;
+    importExcel(_fileName: string, _rows: ImportRow[], _mapping?: MappingProfile): ImportBatch;
 };
