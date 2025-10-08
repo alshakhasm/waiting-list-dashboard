@@ -74,7 +74,7 @@ export function CategorySidebar({
         width: expanded ? 260 : 48,
         transition: 'width 160ms ease',
         borderRight: '1px solid var(--border)',
-        background: 'var(--surface-2)',
+  background: 'var(--surface-3)',
         minWidth: 0,
         maxHeight: 'calc(100vh - 64px)',
         overflow: 'hidden',
