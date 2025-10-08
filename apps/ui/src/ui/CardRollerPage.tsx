@@ -6,7 +6,7 @@ import { CardRollerCard } from './CardRollerCard';
 
 export function CardRollerPage() {
   // Require category selection; show a selector at top.
-  const [category, setCategory] = useState<ProcedureGroupKey | ''>('');
+  const [category, setCategory] = useState<ProcedureGroupKey | '' | 'ALL'>('');
   const [items, setItems] = useState<BacklogItem[]>([]);
   const [idx, setIdx] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -46,18 +46,20 @@ export function CardRollerPage() {
   const availableCategories = useMemo(() => prefs.filter(p => p.builtIn && !p.hidden).map(p => p.key as ProcedureGroupKey), [prefs]);
 
   const filtered = useMemo(() => {
-    const sel = (category || '') as ProcedureGroupKey | '';
+    const sel = category;
+    const allowed = new Set<ProcedureGroupKey>(availableCategories);
     const list = items.filter((i) => {
-      const k = i.categoryKey || classifyProcedure(i.procedure);
-      return sel && k === sel;
+      const k = (i.categoryKey || classifyProcedure(i.procedure)) as ProcedureGroupKey;
+      if (!allowed.has(k)) return false;
+      // When 'ALL' show all allowed; when a specific category is chosen, match it; when empty (none), show none
+      return sel === 'ALL' ? true : sel ? k === sel : false;
     });
-    // Order oldest -> newest (by createdAt if available)
     return list.sort((a, b) => {
       const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
       const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
       return ta - tb;
     });
-  }, [items, category]);
+  }, [items, category, availableCategories]);
 
   // Clamp index when filter changes
   useEffect(() => {
@@ -104,6 +106,7 @@ export function CardRollerPage() {
           <span style={{ fontSize: 12, opacity: 0.7 }}>Category</span>
           <select value={category} onChange={(e) => setCategory(e.target.value as any)}>
             <option value="">— Select category —</option>
+            <option value="ALL">ALL</option>
             {availableCategories.map((k) => (
               <option key={k} value={k}>{GROUP_LABELS[k]}</option>
             ))}
