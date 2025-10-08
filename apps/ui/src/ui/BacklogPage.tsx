@@ -249,7 +249,7 @@ export function BacklogPage({
           const bg = (pref?.color) || GROUP_COLORS[key];
           const headerText = pref?.textColor || getContrastText(bg);
           const colBg = `color-mix(in srgb, ${bg}, white 78%)`;
-          const cardBg = `color-mix(in srgb, ${bg}, white 80%)`;
+          const cardBg = `color-mix(in srgb, ${bg}, white 78%)`;
           const borderCol = `color-mix(in srgb, ${bg}, white 55%)`;
           return (
             <div key={key} style={{ border: `1px solid ${borderCol}`, borderRadius: 8, overflow: 'hidden', background: colBg }}>
