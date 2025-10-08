@@ -12,7 +12,7 @@ export function CardRollerCard({ item, onEdit, onSchedule, onRemove }: {
   const created = item.createdAt ? new Date(item.createdAt) : null;
   const createdFmt = created ? created.toLocaleDateString() + ' ' + created.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined;
   return (
-    <div style={{ border: '1px solid var(--border)', borderRadius: 0, padding: 24, background: 'var(--surface-1)', boxShadow: '0 10px 30px var(--shadow)' }}>
+    <div style={{ border: '1px solid var(--border)', borderRadius: 0, padding: 24, background: 'var(--surface-1)', color: 'var(--text)', boxShadow: '0 10px 30px var(--shadow)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 16 }}>
         <h2 style={{ margin: 0, fontSize: 28, lineHeight: 1.2 }}>{item.patientName}</h2>
         <div style={{ fontSize: 14, opacity: 0.7 }}>{item.maskedMrn}</div>
@@ -43,9 +43,45 @@ export function CardRollerCard({ item, onEdit, onSchedule, onRemove }: {
         </div>
       </div>
       <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
-        <button onClick={() => onEdit(item)} style={{ padding: '8px 12px', fontSize: 14 }}>Edit</button>
-        <button onClick={() => onSchedule(item)} style={{ padding: '8px 12px', fontSize: 14 }}>Schedule</button>
-        <button onClick={() => onRemove(item)} style={{ padding: '8px 12px', fontSize: 14, color: 'var(--danger)' }}>Remove</button>
+        <button
+          onClick={() => onEdit(item)}
+          style={{
+            padding: '8px 12px',
+            fontSize: 14,
+            background: 'var(--surface-2)',
+            color: 'var(--text)',
+            border: '1px solid var(--border)',
+            borderRadius: 6,
+          }}
+        >
+          Edit
+        </button>
+        <button
+          onClick={() => onSchedule(item)}
+          style={{
+            padding: '8px 12px',
+            fontSize: 14,
+            background: 'var(--surface-2)',
+            color: 'var(--text)',
+            border: '1px solid var(--border)',
+            borderRadius: 6,
+          }}
+        >
+          Schedule
+        </button>
+        <button
+          onClick={() => onRemove(item)}
+          style={{
+            padding: '8px 12px',
+            fontSize: 14,
+            background: 'var(--surface-2)',
+            color: 'var(--danger)',
+            border: '1px solid var(--border)',
+            borderRadius: 6,
+          }}
+        >
+          Remove
+        </button>
       </div>
     </div>
   );

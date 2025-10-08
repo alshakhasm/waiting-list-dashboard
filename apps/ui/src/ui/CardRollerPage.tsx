@@ -135,7 +135,7 @@ export function CardRollerPage() {
               aria-label="Previous"
               onClick={() => setIdx((i) => Math.max(0, i - 1))}
               disabled={idx === 0}
-              style={{ width: 44, height: 44, borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface-1)', fontSize: 18 }}
+              style={{ width: 44, height: 44, borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface-1)', color: 'var(--text)', fontSize: 18 }}
             >
               ↑
             </button>
@@ -145,7 +145,7 @@ export function CardRollerPage() {
               aria-label="Next"
               onClick={() => setIdx((i) => Math.min(filtered.length - 1, i + 1))}
               disabled={idx >= filtered.length - 1}
-              style={{ width: 44, height: 44, borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface-1)', fontSize: 18 }}
+              style={{ width: 44, height: 44, borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface-1)', color: 'var(--text)', fontSize: 18 }}
             >
               ↓
             </button>
