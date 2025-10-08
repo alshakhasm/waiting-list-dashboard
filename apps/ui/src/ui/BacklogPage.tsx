@@ -236,14 +236,14 @@ export function BacklogPage({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: `repeat(${GROUP_ORDER.length}, minmax(220px, 1fr))`,
-              gap: 12,
+              // Edge-to-edge columns: no gaps between
+              gap: 0,
               alignItems: 'start',
+              gridTemplateColumns: `repeat(${GROUP_ORDER.filter((k) => !hiddenKeys.has(k)).length}, minmax(220px, 1fr))`,
             }}
           >
-        {GROUP_ORDER.map((key) => {
+        {GROUP_ORDER.filter((key) => !hiddenKeys.has(key)).map((key, idx, arr) => {
           const list = grouped.get(key) || [];
-          if (hiddenKeys.has(key)) return null;
           // Derive a soft tint for the whole column based on the header color
           const pref = prefs.find(p => p.key === key);
           const bg = (pref?.color) || GROUP_COLORS[key];
@@ -252,7 +252,19 @@ export function BacklogPage({
           const cardBg = `color-mix(in srgb, ${bg}, white 78%)`;
           const borderCol = `color-mix(in srgb, ${bg}, white 55%)`;
           return (
-            <div key={key} style={{ border: `1px solid ${borderCol}`, borderRadius: 8, overflow: 'hidden', background: colBg }}>
+            <div
+              key={key}
+              style={{
+                // Draw a single-pixel seam between columns without doubling borders
+                borderTop: `1px solid ${borderCol}`,
+                borderBottom: `1px solid ${borderCol}`,
+                borderRight: `1px solid ${borderCol}`,
+                borderLeft: idx === 0 ? `1px solid ${borderCol}` : 'none',
+                borderRadius: 0,
+                overflow: 'hidden',
+                background: colBg,
+              }}
+            >
               <div
                 style={{
                   padding: '8px 10px',
