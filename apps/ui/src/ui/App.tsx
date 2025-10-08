@@ -11,7 +11,7 @@ import { CategoryPref } from './categoryPrefs';
 import { supabase } from '../supabase/client';
 import { isGuest, disableGuest, GUEST_EVENT } from '../auth/guest';
 import { useAppUserProfile } from '../auth/useAppUserProfile';
-import { becomeOwner, getMyOwnerProfile } from '../client/api';
+import { becomeOwner } from '../client/api';
 import { AwaitingApprovalPage } from './AwaitingApprovalPage';
 import { AccessDeniedPage } from './AccessDeniedPage';
 import { AcceptInvitePage } from './AcceptInvitePage';
@@ -25,16 +25,17 @@ import { CreateAccountPage } from './CreateAccountPage';
 import { IntakePage } from './IntakePage';
 import { IntakeLinksPage } from './IntakeLinksPage';
 import { CardRollerPage } from './CardRollerPage';
+import { OwnerSettingsPage } from './OwnerSettingsPage';
 
 const THEME_KEY = 'ui-theme';
 
 type ThemeMode = 'auto' | 'default' | 'warm' | 'high-contrast' | 'dark';
 
 export function App() {
-  type Tab = 'backlog' | 'schedule' | 'mappings' | 'operated' | 'list' | 'archive' | 'members' | 'intake-links' | 'roller';
+  type Tab = 'backlog' | 'schedule' | 'mappings' | 'operated' | 'list' | 'archive' | 'members' | 'intake-links' | 'roller' | 'owner-settings';
   const TAB_KEY = 'ui-last-tab';
   const isTab = (v: any): v is Tab => (
-    v === 'backlog' || v === 'schedule' || v === 'mappings' || v === 'operated' || v === 'list' || v === 'archive' || v === 'members' || v === 'intake-links' || v === 'roller'
+    v === 'backlog' || v === 'schedule' || v === 'mappings' || v === 'operated' || v === 'list' || v === 'archive' || v === 'members' || v === 'intake-links' || v === 'roller' || v === 'owner-settings'
   );
   const [tab, setTab] = useState<Tab>(() => {
     try {
@@ -61,7 +62,6 @@ export function App() {
   const [guest, setGuest] = useState<boolean>(() => isGuest());
   const { loading: profileLoading, profile, error: profileError } = useAppUserProfile();
   const [ownerAction, setOwnerAction] = useState<{ pending: boolean; msg: string | null }>({ pending: false, msg: null });
-  const [ownerName, setOwnerName] = useState<string | null>(null);
   // React to external changes to guest mode (e.g., SignInPage action)
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -178,26 +178,6 @@ export function App() {
       setTab('backlog');
     }
   }, [profile, tab]);
-
-  // Load owner display name for topbar
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        if (profile?.role === 'owner') {
-          const p = await getMyOwnerProfile();
-          if (!cancelled) setOwnerName(p?.fullName || p?.workspaceName || profile?.email || null);
-        } else if (profile?.email) {
-          if (!cancelled) setOwnerName(profile.email);
-        } else {
-          if (!cancelled) setOwnerName(null);
-        }
-      } catch {
-        if (!cancelled) setOwnerName(profile?.email || null);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [profile?.role, profile?.email]);
 
   if (signingOut) {
     return (
@@ -378,17 +358,13 @@ export function App() {
                   <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '6px 0' }} />
                   <button onClick={() => setTab('members')} style={{ textAlign: 'left' }}>Members</button>
                   <button onClick={() => setTab('intake-links')} style={{ textAlign: 'left' }}>Intake Links</button>
+                  <button onClick={() => setTab('owner-settings')} style={{ textAlign: 'left' }}>Owner Settings</button>
                 </>
               )}
             </div>
           </details>
         </nav>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
-          {ownerName && (
-            <span title="Owner" style={{ fontSize: 13, opacity: 0.85, padding: '2px 8px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface-1)' }}>
-              {ownerName}
-            </span>
-          )}
           {tab === 'backlog' && (
             <input placeholder="Search name/procedure" value={nameQuery} onChange={e => setNameQuery(e.target.value)} />
           )}
@@ -403,8 +379,8 @@ export function App() {
           <AuthBox />
         </div>
       </header>
-      <div style={{ display: 'grid', gridTemplateColumns: (tab === 'schedule' && scheduleFull) || tab === 'operated' || tab === 'roller' ? '1fr' : 'auto 1fr', gap: 8, padding: 16 }}>
-        {!(tab === 'schedule' && scheduleFull) && tab !== 'operated' && tab !== 'roller' && (
+      <div style={{ display: 'grid', gridTemplateColumns: (tab === 'schedule' && scheduleFull) || tab === 'operated' || tab === 'roller' || tab === 'owner-settings' ? '1fr' : 'auto 1fr', gap: 8, padding: 16 }}>
+        {!(tab === 'schedule' && scheduleFull) && tab !== 'operated' && tab !== 'roller' && tab !== 'owner-settings' && (
           <CategorySidebar onChange={setCategoryPrefs} onAddedCase={() => setBacklogReloadKey(k => k + 1)} />
         )}
         <div style={{ minWidth: 0, overflow: 'auto' }}>
@@ -418,6 +394,7 @@ export function App() {
           {tab === 'intake-links' && <IntakeLinksPage />}
           {tab === 'list' && <ComprehensiveListPage />}
           {tab === 'archive' && <ArchivePage />}
+          {tab === 'owner-settings' && <OwnerSettingsPage />}
         </div>
       </div>
     </div>

@@ -411,16 +411,6 @@ export type Invitation = {
   invitedBy: string;
 };
 
-export type OwnerProfile = {
-  userId: string;
-  fullName: string;
-  workspaceName: string;
-  orgName?: string | null;
-  phone?: string | null;
-  timezone?: string | null;
-  locale?: string | null;
-};
-
 export async function getCurrentAppUser(): Promise<AppUser | null> {
   if (!supabase) return { userId: 'guest', email: 'guest@example.com', role: 'owner', status: 'approved' };
   const { data: auth } = await supabase.auth.getUser();
@@ -509,31 +499,6 @@ export async function listInvitations(): Promise<Invitation[]> {
   return (data || []).map((r: any) => ({ id: r.id, email: r.email, token: r.token, status: r.status, expiresAt: r.expires_at, invitedBy: r.invited_by }));
 }
 
-// Fetch current user's owner profile (if exists)
-export async function getMyOwnerProfile(): Promise<OwnerProfile | null> {
-  if (!supabase) return { userId: 'guest', fullName: 'Guest Owner', workspaceName: 'Demo', orgName: null, phone: null, timezone: null, locale: null };
-  const { data: auth } = await supabase.auth.getUser();
-  const uid = auth.user?.id;
-  if (!uid) return null;
-  const { data, error } = await supabase
-    .from('owner_profiles')
-    .select('*')
-    .eq('user_id', uid)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) return null;
-  const r: any = data as any;
-  return {
-    userId: r.user_id,
-    fullName: r.full_name,
-    workspaceName: r.workspace_name,
-    orgName: r.org_name,
-    phone: r.phone,
-    timezone: r.timezone,
-    locale: r.locale,
-  } as OwnerProfile;
-}
-
 export async function listMembers(): Promise<AppUser[]> {
   if (!supabase) return [];
   const { data, error } = await supabase.from('app_users').select('*');
@@ -574,6 +539,100 @@ export async function acceptInvite(token: string): Promise<{ ok: boolean; reason
     if (insErr) throw insErr;
   }
   return { ok: true };
+}
+
+// --- Owner profile ---
+export type OwnerProfile = {
+  userId: string;
+  fullName: string;
+  workspaceName: string;
+  orgName?: string;
+  phone?: string;
+  timezone?: string;
+  locale?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export async function getMyOwnerProfile(): Promise<OwnerProfile | null> {
+  if (supabase) {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth.user?.id;
+    if (!uid) return null;
+    const { data, error } = await supabase.from('owner_profiles').select('*').eq('user_id', uid).maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    const r: any = data as any;
+    return {
+      userId: r.user_id,
+      fullName: r.full_name,
+      workspaceName: r.workspace_name,
+      orgName: r.org_name || undefined,
+      phone: r.phone || undefined,
+      timezone: r.timezone || undefined,
+      locale: r.locale || undefined,
+      createdAt: r.created_at || undefined,
+      updatedAt: r.updated_at || undefined,
+    } as OwnerProfile;
+  }
+  try {
+    const raw = localStorage.getItem('owner-profile:me');
+    if (!raw) return null;
+    return JSON.parse(raw) as OwnerProfile;
+  } catch {
+    return null;
+  }
+}
+
+export async function upsertMyOwnerProfile(patch: Partial<Omit<OwnerProfile, 'userId'>> & { fullName: string; workspaceName: string }): Promise<OwnerProfile> {
+  if (supabase) {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth.user?.id;
+    if (!uid) throw new Error('Not authenticated');
+    const payload: any = {
+      user_id: uid,
+      full_name: patch.fullName,
+      workspace_name: patch.workspaceName,
+      org_name: patch.orgName ?? null,
+      phone: patch.phone ?? null,
+      timezone: patch.timezone ?? null,
+      locale: patch.locale ?? null,
+      updated_at: new Date().toISOString(),
+    };
+    const { data, error } = await (supabase as any)
+      .from('owner_profiles')
+      .upsert(payload)
+      .select('*')
+      .single();
+    if (error) throw error;
+    const r: any = data as any;
+    return {
+      userId: r.user_id,
+      fullName: r.full_name,
+      workspaceName: r.workspace_name,
+      orgName: r.org_name || undefined,
+      phone: r.phone || undefined,
+      timezone: r.timezone || undefined,
+      locale: r.locale || undefined,
+      createdAt: r.created_at || undefined,
+      updatedAt: r.updated_at || undefined,
+    } as OwnerProfile;
+  }
+  // Fallback to local storage for non-Supabase/dev mode
+  const existing = await getMyOwnerProfile();
+  const next: OwnerProfile = {
+    userId: existing?.userId || 'local-owner',
+    fullName: patch.fullName,
+    workspaceName: patch.workspaceName,
+    orgName: patch.orgName,
+    phone: patch.phone,
+    timezone: patch.timezone,
+    locale: patch.locale,
+    createdAt: existing?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  try { localStorage.setItem('owner-profile:me', JSON.stringify(next)); } catch {}
+  return next;
 }
 
 // --- Intake links management ---
