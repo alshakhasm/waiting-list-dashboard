@@ -11,7 +11,7 @@ import { CategoryPref } from './categoryPrefs';
 import { supabase } from '../supabase/client';
 import { isGuest, disableGuest, GUEST_EVENT } from '../auth/guest';
 import { useAppUserProfile } from '../auth/useAppUserProfile';
-import { becomeOwner } from '../client/api';
+import { becomeOwner, getMyOwnerProfile } from '../client/api';
 import { AwaitingApprovalPage } from './AwaitingApprovalPage';
 import { AccessDeniedPage } from './AccessDeniedPage';
 import { AcceptInvitePage } from './AcceptInvitePage';
@@ -61,6 +61,7 @@ export function App() {
   const [guest, setGuest] = useState<boolean>(() => isGuest());
   const { loading: profileLoading, profile, error: profileError } = useAppUserProfile();
   const [ownerAction, setOwnerAction] = useState<{ pending: boolean; msg: string | null }>({ pending: false, msg: null });
+  const [ownerName, setOwnerName] = useState<string | null>(null);
   // React to external changes to guest mode (e.g., SignInPage action)
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -177,6 +178,26 @@ export function App() {
       setTab('backlog');
     }
   }, [profile, tab]);
+
+  // Load owner display name for topbar
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (profile?.role === 'owner') {
+          const p = await getMyOwnerProfile();
+          if (!cancelled) setOwnerName(p?.fullName || p?.workspaceName || profile?.email || null);
+        } else if (profile?.email) {
+          if (!cancelled) setOwnerName(profile.email);
+        } else {
+          if (!cancelled) setOwnerName(null);
+        }
+      } catch {
+        if (!cancelled) setOwnerName(profile?.email || null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [profile?.role, profile?.email]);
 
   if (signingOut) {
     return (
@@ -363,6 +384,11 @@ export function App() {
           </details>
         </nav>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
+          {ownerName && (
+            <span title="Owner" style={{ fontSize: 13, opacity: 0.85, padding: '2px 8px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface-1)' }}>
+              {ownerName}
+            </span>
+          )}
           {tab === 'backlog' && (
             <input placeholder="Search name/procedure" value={nameQuery} onChange={e => setNameQuery(e.target.value)} />
           )}

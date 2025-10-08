@@ -411,6 +411,16 @@ export type Invitation = {
   invitedBy: string;
 };
 
+export type OwnerProfile = {
+  userId: string;
+  fullName: string;
+  workspaceName: string;
+  orgName?: string | null;
+  phone?: string | null;
+  timezone?: string | null;
+  locale?: string | null;
+};
+
 export async function getCurrentAppUser(): Promise<AppUser | null> {
   if (!supabase) return { userId: 'guest', email: 'guest@example.com', role: 'owner', status: 'approved' };
   const { data: auth } = await supabase.auth.getUser();
@@ -497,6 +507,31 @@ export async function listInvitations(): Promise<Invitation[]> {
   const { data, error } = await supabase.from('invitations').select('*').order('created_at', { ascending: false });
   if (error) throw error;
   return (data || []).map((r: any) => ({ id: r.id, email: r.email, token: r.token, status: r.status, expiresAt: r.expires_at, invitedBy: r.invited_by }));
+}
+
+// Fetch current user's owner profile (if exists)
+export async function getMyOwnerProfile(): Promise<OwnerProfile | null> {
+  if (!supabase) return { userId: 'guest', fullName: 'Guest Owner', workspaceName: 'Demo', orgName: null, phone: null, timezone: null, locale: null };
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id;
+  if (!uid) return null;
+  const { data, error } = await supabase
+    .from('owner_profiles')
+    .select('*')
+    .eq('user_id', uid)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const r: any = data as any;
+  return {
+    userId: r.user_id,
+    fullName: r.full_name,
+    workspaceName: r.workspace_name,
+    orgName: r.org_name,
+    phone: r.phone,
+    timezone: r.timezone,
+    locale: r.locale,
+  } as OwnerProfile;
 }
 
 export async function listMembers(): Promise<AppUser[]> {
