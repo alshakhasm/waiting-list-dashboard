@@ -92,6 +92,7 @@ export function CategorySidebar({
             justifyItems: 'center',
             gap: 8,
             padding: 8,
+            background: 'var(--surface-3)',
           }}
         >
           <button
@@ -196,7 +197,7 @@ export function CategorySidebar({
           {/* Chevron removed: panel icons now control expand/collapse */}
         </div>
         {/* Panel content */}
-        <div style={{ flex: 1, minWidth: 0, overflow: 'auto', display: expanded ? 'block' : 'none' }}>
+  <div style={{ flex: 1, minWidth: 0, overflow: 'auto', display: expanded ? 'block' : 'none', background: 'var(--surface-3)' }}>
           <div style={{ display: 'flex', alignItems: 'center', padding: 8 }}>
             <strong style={{ fontSize: 13 }}>{panel === 'add' ? 'Quick Add Case' : panel === 'categories' ? 'Categories' : panel === 'search' ? 'Search' : ''}</strong>
           </div>
