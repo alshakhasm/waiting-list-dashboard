@@ -16,17 +16,34 @@ import { AwaitingApprovalPage } from './AwaitingApprovalPage';
 import { AccessDeniedPage } from './AccessDeniedPage';
 import { AcceptInvitePage } from './AcceptInvitePage';
 import { MembersPage } from './MembersPage';
+import { ArchivePage } from './ArchivePage';
+import { ComprehensiveListPage } from './ComprehensiveListPage';
 import { AuthLandingPage } from './AuthLandingPage';
 import { SignInPage } from '../auth/SignInPage';
 import { EnvDebug } from './EnvDebug';
 import { CreateAccountPage } from './CreateAccountPage';
+import { IntakePage } from './IntakePage';
+import { IntakeLinksPage } from './IntakeLinksPage';
+import { CardRollerPage } from './CardRollerPage';
 
 const THEME_KEY = 'ui-theme';
 
 type ThemeMode = 'auto' | 'default' | 'warm' | 'high-contrast' | 'dark';
 
 export function App() {
-  const [tab, setTab] = useState<'backlog' | 'schedule' | 'mappings' | 'operated' | 'members'>('backlog');
+  type Tab = 'backlog' | 'schedule' | 'mappings' | 'operated' | 'list' | 'archive' | 'members' | 'intake-links' | 'roller';
+  const TAB_KEY = 'ui-last-tab';
+  const isTab = (v: any): v is Tab => (
+    v === 'backlog' || v === 'schedule' || v === 'mappings' || v === 'operated' || v === 'list' || v === 'archive' || v === 'members' || v === 'intake-links' || v === 'roller'
+  );
+  const [tab, setTab] = useState<Tab>(() => {
+    try {
+      const saved = localStorage.getItem(TAB_KEY);
+      return isTab(saved) ? saved : 'backlog';
+    } catch {
+      return 'backlog';
+    }
+  });
   const [theme, setTheme] = useState<ThemeMode>(() => {
     try { return (localStorage.getItem(THEME_KEY) as ThemeMode) || 'auto'; } catch { return 'auto'; }
   });
@@ -39,6 +56,7 @@ export function App() {
     };
   })();
   const [scheduleFull, setScheduleFull] = useState(false);
+  const [backlogReloadKey, setBacklogReloadKey] = useState(0);
   const { role, user } = useSupabaseAuth();
   const [guest, setGuest] = useState<boolean>(() => isGuest());
   const { loading: profileLoading, profile, error: profileError } = useAppUserProfile();
@@ -147,6 +165,19 @@ export function App() {
     };
   }, [theme]);
 
+  // Persist last selected tab
+  useEffect(() => {
+    try { localStorage.setItem(TAB_KEY, tab); } catch {}
+  }, [tab]);
+
+  // If a restricted tab is saved but user isn't owner, fall back
+  useEffect(() => {
+    const isOwner = profile?.role === 'owner';
+    if (!isOwner && (tab === 'members' || tab === 'intake-links')) {
+      setTab('backlog');
+    }
+  }, [profile, tab]);
+
   if (signingOut) {
     return (
       <div style={{ display: 'grid', placeItems: 'center', minHeight: '70vh' }}>
@@ -161,6 +192,7 @@ export function App() {
   if (supabase && !user && !guest) {
     // Show landing first; it will route to sign-in, owner create, or accept invite
     const url = new URL(window.location.href);
+    if (url.searchParams.get('intake') === '1') return <IntakePage />;
     if (url.searchParams.get('create') === '1') return <CreateAccountPage />;
     if (url.searchParams.get('accept') === '1') return <AcceptInvitePage />;
     if (url.searchParams.get('signin') === '1') return <SignInPage />;
@@ -179,6 +211,9 @@ export function App() {
     const url = new URL(window.location.href);
     if (url.searchParams.get('accept') === '1') {
       return <AcceptInvitePage />;
+    }
+    if (url.searchParams.get('intake') === '1') {
+      return <IntakePage />;
     }
   }
   // If signed in, gate by app_users profile
@@ -260,36 +295,74 @@ export function App() {
   }
   return (
     <div style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
-      <header style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', gap: 12, alignItems: 'center', padding: 16, background: 'var(--surface-3)', borderBottom: '1px solid var(--border)', boxShadow: `0 2px 6px var(--shadow)` }}>
-        <strong>OR Waiting & Scheduling</strong>
+      <header style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', gap: 12, alignItems: 'center', padding: 12, background: 'var(--surface-3)', borderBottom: '1px solid var(--border)', boxShadow: `0 2px 6px var(--shadow)` }}>
+        <strong style={{ whiteSpace: 'nowrap' }}>OR Waiting & Scheduling</strong>
         {typeof window !== 'undefined' && new URL(window.location.href).searchParams.get('debug') === '1' && (
           <div style={{ marginLeft: 8 }}>
             <EnvDebug />
           </div>
         )}
-        <nav style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => setTab('backlog')}>Backlog</button>
-          <button onClick={() => setTab('schedule')}>Schedule</button>
-          {tab === 'schedule' && (
+        <nav style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setTab('backlog')}
+            aria-current={tab === 'backlog' ? 'page' : undefined}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'backlog' ? 'var(--surface-1)' : 'transparent', fontWeight: tab === 'backlog' ? 600 : 500 }}
+          >
+            Backlog
+          </button>
+          <button
+            onClick={() => setTab('roller')}
+            aria-current={tab === 'roller' ? 'page' : undefined}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'roller' ? 'var(--surface-1)' : 'transparent', fontWeight: tab === 'roller' ? 600 : 500 }}
+          >
+            Roller
+          </button>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <button
-              title={scheduleFull ? 'Exit full screen calendar' : 'Full screen calendar'}
-              aria-label={scheduleFull ? 'Exit full screen calendar' : 'Full screen calendar'}
-              aria-pressed={scheduleFull}
-              onClick={() => setScheduleFull(v => !v)}
-              style={{ width: 32, height: 32, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+              onClick={() => setTab('schedule')}
+              aria-current={tab === 'schedule' ? 'page' : undefined}
+              style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'schedule' ? 'var(--surface-1)' : 'transparent', fontWeight: tab === 'schedule' ? 600 : 500 }}
             >
-              <span aria-hidden="true" style={{ fontSize: 16, lineHeight: '1' }}>
-                {scheduleFull ? '⤢' : '⛶'}
-              </span>
+              Schedule
             </button>
-          )}
-          <button onClick={() => setTab('mappings')}>Mapping Profiles</button>
-          <button onClick={() => setTab('operated')}>Operated</button>
-          {profile?.role === 'owner' && (
-            <button onClick={() => setTab('members')}>Members</button>
-          )}
+            {tab === 'schedule' && (
+              <button
+                title={scheduleFull ? 'Exit full screen calendar' : 'Full screen calendar'}
+                aria-label={scheduleFull ? 'Exit full screen calendar' : 'Full screen calendar'}
+                aria-pressed={scheduleFull}
+                onClick={() => setScheduleFull(v => !v)}
+                style={{ width: 32, height: 32, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid var(--border)' }}
+              >
+                <span aria-hidden="true" style={{ fontSize: 16, lineHeight: '1' }}>
+                  {scheduleFull ? '⤢' : '⛶'}
+                </span>
+              </button>
+            )}
+          </span>
+          <button
+            onClick={() => setTab('list')}
+            aria-current={tab === 'list' ? 'page' : undefined}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'list' ? 'var(--surface-1)' : 'transparent', fontWeight: tab === 'list' ? 600 : 500 }}
+          >
+            List
+          </button>
+          <details style={{ position: 'relative' }}>
+            <summary style={{ listStyle: 'none', cursor: 'pointer', padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)' }}>More ▾</summary>
+            <div style={{ position: 'absolute', marginTop: 6, minWidth: 180, background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 6px 18px var(--shadow)', padding: 8, display: 'grid', gap: 6 }}>
+              <button onClick={() => setTab('archive')} style={{ textAlign: 'left' }}>Archive</button>
+              <button onClick={() => setTab('operated')} style={{ textAlign: 'left' }}>Operated</button>
+              <button onClick={() => setTab('mappings')} style={{ textAlign: 'left' }}>Mapping Profiles</button>
+              {profile?.role === 'owner' && (
+                <>
+                  <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '6px 0' }} />
+                  <button onClick={() => setTab('members')} style={{ textAlign: 'left' }}>Members</button>
+                  <button onClick={() => setTab('intake-links')} style={{ textAlign: 'left' }}>Intake Links</button>
+                </>
+              )}
+            </div>
+          </details>
         </nav>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
           {tab === 'backlog' && (
             <input placeholder="Search name/procedure" value={nameQuery} onChange={e => setNameQuery(e.target.value)} />
           )}
@@ -304,17 +377,21 @@ export function App() {
           <AuthBox />
         </div>
       </header>
-      <div style={{ display: 'grid', gridTemplateColumns: (tab === 'schedule' && scheduleFull) || tab === 'operated' ? '1fr' : 'auto 1fr', gap: 8, padding: 16 }}>
-        {!(tab === 'schedule' && scheduleFull) && tab !== 'operated' && (
-          <CategorySidebar onChange={setCategoryPrefs} />
+      <div style={{ display: 'grid', gridTemplateColumns: (tab === 'schedule' && scheduleFull) || tab === 'operated' || tab === 'roller' ? '1fr' : 'auto 1fr', gap: 8, padding: 16 }}>
+        {!(tab === 'schedule' && scheduleFull) && tab !== 'operated' && tab !== 'roller' && (
+          <CategorySidebar onChange={setCategoryPrefs} onAddedCase={() => setBacklogReloadKey(k => k + 1)} />
         )}
         <div style={{ minWidth: 0, overflow: 'auto' }}>
           {/* Legend removed per request */}
-          {tab === 'backlog' && <BacklogPage search={nameQuery} canConfirm={false} />}
+          {tab === 'backlog' && <BacklogPage search={nameQuery} canConfirm={false} reloadKey={backlogReloadKey} />}
+          {tab === 'roller' && <CardRollerPage />}
           {tab === 'schedule' && <SchedulePage isFull={scheduleFull} />}
           {tab === 'mappings' && <MappingProfilesPage />}
           {tab === 'operated' && <OperatedTablePage />}
           {tab === 'members' && <MembersPage />}
+          {tab === 'intake-links' && <IntakeLinksPage />}
+          {tab === 'list' && <ComprehensiveListPage />}
+          {tab === 'archive' && <ArchivePage />}
         </div>
       </div>
     </div>

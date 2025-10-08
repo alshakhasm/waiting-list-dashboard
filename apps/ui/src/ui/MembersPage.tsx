@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { AppUser, Invitation, inviteByEmail, listInvitations, listMembers, updateMember } from '../client/api';
+import { useEffect, useMemo, useState } from 'react';
+import { AppUser, Invitation, getCurrentAppUser, inviteByEmail, listInvitations, listMembers, updateMember } from '../client/api';
 
 export function MembersPage() {
   const [email, setEmail] = useState('');
@@ -7,6 +7,10 @@ export function MembersPage() {
   const [invites, setInvites] = useState<Invitation[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [me, setMe] = useState<AppUser | null>(null);
+  const isOwner = me?.role === 'owner';
+  const [statusFilter, setStatusFilter] = useState<'all' | AppUser['status']>('all');
+  const [memberSearch, setMemberSearch] = useState('');
 
   async function refresh() {
     try {
@@ -19,7 +23,7 @@ export function MembersPage() {
     }
   }
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => { refresh(); (async () => { try { setMe(await getCurrentAppUser()); } catch {} })(); }, []);
 
   async function invite() {
     try {
@@ -46,9 +50,22 @@ export function MembersPage() {
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       <h2>Members</h2>
-      <div style={{ display: 'flex', gap: 8 }}>
+      {!isOwner && (
+        <div style={{ fontSize: 12, color: '#92400e', background: '#fffbeb', border: '1px solid #f59e0b', padding: '6px 8px', borderRadius: 6 }}>
+          Owner access required to invite and change member status. You can still view the list below.
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <input placeholder="Invite email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <button onClick={invite} disabled={!email}>Invite</button>
+        <button onClick={invite} disabled={!email || !isOwner}>Invite</button>
+        <span style={{ marginLeft: 'auto' }} />
+        <input placeholder="Search email" value={memberSearch} onChange={(e) => setMemberSearch(e.target.value)} />
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)}>
+          <option value="all">All</option>
+          <option value="approved">Approved</option>
+          <option value="pending">Pending</option>
+          <option value="revoked">Revoked</option>
+        </select>
       </div>
       {info && <div style={{ fontSize: 12, color: '#155e75' }}>{info}</div>}
       {error && <div style={{ fontSize: 12, color: '#9f1239' }}>{error}</div>}
@@ -62,29 +79,41 @@ export function MembersPage() {
           </tr>
         </thead>
         <tbody>
-          {members.map((m) => (
+          {members
+            .filter((m) => (statusFilter === 'all' ? true : m.status === statusFilter))
+            .filter((m) => (memberSearch.trim() ? m.email.toLowerCase().includes(memberSearch.trim().toLowerCase()) : true))
+            .map((m) => (
             <tr key={m.userId}>
               <td>{m.email}</td>
               <td>{m.role}</td>
               <td>{m.status}</td>
               <td style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => approve(m.userId)} disabled={m.status==='approved'}>Approve</button>
-                <button onClick={() => pend(m.userId)} disabled={m.status==='pending'}>Set Pending</button>
-                <button onClick={() => revoke(m.userId)} disabled={m.status==='revoked'}>Revoke</button>
+                {isOwner ? (
+                  <>
+                    <button onClick={() => approve(m.userId)} disabled={m.status==='approved'}>Approve</button>
+                    <button onClick={() => pend(m.userId)} disabled={m.status==='pending'}>Set Pending</button>
+                    <button onClick={() => revoke(m.userId)} disabled={m.status==='revoked'}>Revoke</button>
+                  </>
+                ) : (
+                  <span style={{ opacity: 0.6 }}>—</span>
+                )}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-
-      <h3>Invitations</h3>
-      <ul>
-        {invites.map((i) => (
-          <li key={i.id}>
-            {i.email} — {i.status} — expires {new Date(i.expiresAt).toLocaleString()} — link: {`${window.location.origin}?accept=1&token=${i.token}`}
-          </li>
-        ))}
-      </ul>
+      {isOwner && (
+        <>
+          <h3>Invitations</h3>
+          <ul>
+            {invites.map((i) => (
+              <li key={i.id}>
+                {i.email} — {i.status} — expires {new Date(i.expiresAt).toLocaleString()} — link: {`${window.location.origin}?accept=1&token=${i.token}`}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   );
 }

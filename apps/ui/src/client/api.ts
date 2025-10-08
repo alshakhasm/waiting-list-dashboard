@@ -11,6 +11,7 @@ export type BacklogItem = {
   mrn: string;
   maskedMrn: string;
   procedure: string;
+  categoryKey?: 'dental' | 'minorPath' | 'majorPath' | 'tmj' | 'orthognathic' | 'uncategorized';
   estDurationMin: number;
   surgeonId?: string;
   caseTypeId: string;
@@ -18,16 +19,58 @@ export type BacklogItem = {
   phone2?: string;
   preferredDate?: string; // YYYY-MM-DD
   notes?: string;
+  isRemoved?: boolean;
+  createdAt?: string;
 };
+
+// Capability flag remembered during session: whether the DB has backlog.is_removed
+let HAS_BACKLOG_IS_REMOVED: boolean | null = null;
+
+// --- Data hygiene helpers ---
+function normalizeMrn(mrn: string): string {
+  return (mrn || '').replace(/\D+/g, '');
+}
+function normalizePhone(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  const digits = String(phone).replace(/\D+/g, '');
+  return digits || null;
+}
+function getDefaultSurgeonId(): string {
+  try {
+    const v = localStorage.getItem('cfg.defaultSurgeonId');
+    if (v && v.trim()) return v.trim();
+  } catch {}
+  return 's:1';
+}
 
 export async function getBacklog(params?: { caseTypeId?: string; surgeonId?: string; search?: string }): Promise<BacklogItem[]> {
   if (supabase) {
-    let q = supabase.from('backlog').select('*');
-    if (params?.search) {
-      // simple ilike filter on patient_name/procedure
-      q = q.or(`patient_name.ilike.%${params.search}%,procedure.ilike.%${params.search}%`);
+    // Prefer filtering out soft-removed rows if column exists; otherwise, retry without the filter
+    let data: any[] | null = null;
+    let error: any = null;
+    if (HAS_BACKLOG_IS_REMOVED !== false) {
+      try {
+        let q = supabase.from('backlog').select('*').eq('is_removed', false);
+        if (params?.search) q = q.or(`patient_name.ilike.%${params.search}%,procedure.ilike.%${params.search}%`);
+        const res = await q;
+        data = res.data as any[];
+        error = res.error;
+        if (!error) HAS_BACKLOG_IS_REMOVED = true;
+      } catch (e: any) {
+        error = e;
+      }
+      // If column missing, retry without filter
+      if (error && /column\s+backlog\.is_removed\s+does not exist/i.test(String(error.message || ''))) {
+        HAS_BACKLOG_IS_REMOVED = false;
+        const res2 = await supabase.from('backlog').select('*');
+        data = res2.data as any[];
+        error = res2.error;
+      }
+    } else {
+      const res = await supabase.from('backlog').select('*');
+      data = res.data as any[];
+      error = res.error;
     }
-    const { data, error } = await q;
     if (error) throw error;
     return (data || []).map((r: any) => ({
       id: r.id,
@@ -35,6 +78,7 @@ export async function getBacklog(params?: { caseTypeId?: string; surgeonId?: str
       mrn: r.mrn,
       maskedMrn: r.masked_mrn,
       procedure: r.procedure,
+      categoryKey: r.category_key || undefined,
       estDurationMin: r.est_duration_min,
       surgeonId: r.surgeon_id || undefined,
       caseTypeId: r.case_type_id,
@@ -42,6 +86,8 @@ export async function getBacklog(params?: { caseTypeId?: string; surgeonId?: str
       phone2: r.phone2 || undefined,
       preferredDate: r.preferred_date || undefined,
       notes: r.notes || undefined,
+      isRemoved: r.is_removed || false,
+      createdAt: r.created_at || undefined,
     }));
   }
   const url = '/backlog';
@@ -49,6 +95,56 @@ export async function getBacklog(params?: { caseTypeId?: string; surgeonId?: str
   const res = await handleRequest({ method: 'GET', path: url, query: params as any });
   if (res.status !== 200) throw new Error('Failed to fetch backlog');
   return res.body as BacklogItem[];
+}
+
+export async function createBacklogItem(input: {
+  patientName: string;
+  mrn: string;
+  procedure: string;
+  categoryKey?: 'dental' | 'minorPath' | 'majorPath' | 'tmj' | 'orthognathic' | 'uncategorized';
+  estDurationMin: number;
+  caseTypeId?: string;
+  surgeonId?: string;
+  phone1?: string;
+  phone2?: string;
+  preferredDate?: string; // YYYY-MM-DD
+  notes?: string;
+}): Promise<BacklogItem> {
+  if (!supabase) throw new Error('Supabase not configured');
+  const mask = (mrn: string) => mrn.replace(/.(?=.{2}$)/g, '•');
+  const cleanMrn = normalizeMrn(input.mrn);
+  const payload: any = {
+    patient_name: input.patientName,
+    mrn: cleanMrn,
+    masked_mrn: mask(cleanMrn),
+    procedure: input.procedure,
+  category_key: input.categoryKey ?? null,
+    est_duration_min: input.estDurationMin,
+  surgeon_id: (input.surgeonId ?? getDefaultSurgeonId()),
+    case_type_id: input.caseTypeId ?? 'case:elective',
+    phone1: normalizePhone(input.phone1) ?? null,
+    phone2: normalizePhone(input.phone2) ?? null,
+    preferred_date: input.preferredDate ?? null,
+    notes: input.notes ?? null,
+  };
+  const { data, error } = await (supabase as any).from('backlog').insert(payload).select('*').single();
+  if (error) throw error;
+  return {
+    id: data.id,
+    patientName: data.patient_name,
+    mrn: data.mrn,
+    maskedMrn: data.masked_mrn,
+    procedure: data.procedure,
+    categoryKey: data.category_key || undefined,
+    estDurationMin: data.est_duration_min,
+    surgeonId: data.surgeon_id || undefined,
+    caseTypeId: data.case_type_id,
+    phone1: data.phone1 || undefined,
+    phone2: data.phone2 || undefined,
+    preferredDate: data.preferred_date || undefined,
+    notes: data.notes || undefined,
+    isRemoved: data.is_removed || false,
+  } as BacklogItem;
 }
 
 export async function seedDemoData(): Promise<void> {
@@ -180,6 +276,94 @@ export async function updateSchedule(id: string, patch: Partial<{ date: string; 
   }
   const handleRequest = await getHandleRequest();
   await handleRequest({ method: 'PATCH', path: `/schedule/${id}`, body: patch as any });
+}
+
+export type ArchivedPatient = {
+  mrn: string;
+  lastPatientName?: string;
+  firstSeenAt: string; // ISO
+  lastSeenAt: string; // ISO
+  totalBacklogEntries: number;
+  lastCategoryKey?: BacklogItem['categoryKey'];
+  lastCaseTypeId?: string;
+  lastProcedure?: string;
+};
+
+export async function getArchivedPatients(params?: { search?: string }): Promise<ArchivedPatient[]> {
+  if (!supabase) throw new Error('Supabase not configured');
+  let q = supabase.from('patients_archive').select('*');
+  if (params?.search) {
+    q = q.or(`mrn.ilike.%${params.search}%,last_patient_name.ilike.%${params.search}%`);
+  }
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data || []).map((r: any) => ({
+    mrn: r.mrn,
+    lastPatientName: r.last_patient_name || undefined,
+    firstSeenAt: r.first_seen_at,
+    lastSeenAt: r.last_seen_at,
+    totalBacklogEntries: r.total_backlog_entries ?? 0,
+    lastCategoryKey: r.last_category_key || undefined,
+    lastCaseTypeId: r.last_case_type_id || undefined,
+    lastProcedure: r.last_procedure || undefined,
+  }));
+}
+
+export async function softRemoveBacklogItem(id: string): Promise<void> {
+  if (!supabase) throw new Error('Supabase not configured');
+  // Try soft-delete flag; fallback to notes marker if column missing
+  if (HAS_BACKLOG_IS_REMOVED !== false) {
+    const { error } = await (supabase as any).from('backlog').update({ is_removed: true }).eq('id', id);
+    if (error) {
+      if (/column\s+backlog\.is_removed\s+does not exist/i.test(String(error.message || ''))) {
+        HAS_BACKLOG_IS_REMOVED = false;
+      } else {
+        throw error;
+      }
+    } else {
+      return;
+    }
+  }
+  // Fallback path: mark removal in notes
+  const marker = `removed@${new Date().toISOString()}`;
+  const { error: e2 } = await (supabase as any).from('backlog').update({ notes: marker }).eq('id', id);
+  if (e2) throw e2;
+}
+
+export async function updateBacklogItem(id: string, patch: Partial<{
+  phone1: string | null;
+  phone2: string | null;
+  notes: string | null;
+}>): Promise<BacklogItem> {
+  if (!supabase) throw new Error('Supabase not configured');
+  const payload: any = {};
+  if ('phone1' in patch) payload.phone1 = normalizePhone(patch.phone1 ?? null);
+  if ('phone2' in patch) payload.phone2 = normalizePhone(patch.phone2 ?? null);
+  if ('notes' in patch) payload.notes = patch.notes ?? null;
+  const { data, error } = await (supabase as any)
+    .from('backlog')
+    .update(payload)
+    .eq('id', id)
+    .select('*')
+    .single();
+  if (error) throw error;
+  return {
+    id: data.id,
+    patientName: data.patient_name,
+    mrn: data.mrn,
+    maskedMrn: data.masked_mrn,
+    procedure: data.procedure,
+    categoryKey: data.category_key || undefined,
+    estDurationMin: data.est_duration_min,
+    surgeonId: data.surgeon_id || undefined,
+    caseTypeId: data.case_type_id,
+    phone1: data.phone1 || undefined,
+    phone2: data.phone2 || undefined,
+    preferredDate: data.preferred_date || undefined,
+    notes: data.notes || undefined,
+    isRemoved: data.is_removed || false,
+    createdAt: data.created_at || undefined,
+  } as BacklogItem;
 }
 
 export async function deleteSchedule(id: string): Promise<void> {
@@ -355,4 +539,108 @@ export async function acceptInvite(token: string): Promise<{ ok: boolean; reason
     if (insErr) throw insErr;
   }
   return { ok: true };
+}
+
+// --- Intake links management ---
+
+export type IntakeLink = {
+  id: string;
+  token: string;
+  label?: string;
+  active: boolean;
+  defaultCategoryKey?: BacklogItem['categoryKey'];
+  defaultCaseTypeId?: string;
+  defaultSurgeonId?: string;
+  createdBy: string;
+  createdAt: string;
+};
+
+function generateIntakeToken(): string {
+  // Simple random token; consider switching to crypto if available
+  return (
+    Math.random().toString(36).slice(2) +
+    Math.random().toString(36).slice(2) +
+    Math.random().toString(36).slice(2)
+  );
+}
+
+export async function listIntakeLinks(opts?: { ownerUserId?: string | 'all' }): Promise<IntakeLink[]> {
+  if (!supabase) return [];
+  let q = supabase.from('intake_links').select('*').order('created_at', { ascending: false });
+  if (opts?.ownerUserId && opts.ownerUserId !== 'all') q = q.eq('created_by', opts.ownerUserId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data || []).map((r: any) => ({
+    id: r.id,
+    token: r.token,
+    label: r.label || undefined,
+    active: !!r.active,
+    defaultCategoryKey: r.default_category_key || undefined,
+    defaultCaseTypeId: r.default_case_type_id || undefined,
+    defaultSurgeonId: r.default_surgeon_id || undefined,
+    createdBy: r.created_by,
+    createdAt: r.created_at,
+  }));
+}
+
+export async function createIntakeLink(input: {
+  label?: string;
+  ownerUserId: string; // who owns this link; may be another owner
+  defaultCategoryKey?: BacklogItem['categoryKey'];
+  defaultCaseTypeId?: string;
+  defaultSurgeonId?: string;
+}): Promise<IntakeLink> {
+  if (!supabase) throw new Error('Supabase not configured');
+  const token = generateIntakeToken();
+  const row: any = {
+    token,
+    label: input.label ?? null,
+    active: true,
+    default_category_key: input.defaultCategoryKey ?? null,
+    default_case_type_id: input.defaultCaseTypeId ?? null,
+    default_surgeon_id: input.defaultSurgeonId ?? null,
+    created_by: input.ownerUserId,
+  };
+  const { data, error } = await (supabase as any).from('intake_links').insert(row).select('*').single();
+  if (error) throw error;
+  return {
+    id: data.id,
+    token: data.token,
+    label: data.label || undefined,
+    active: !!data.active,
+    defaultCategoryKey: data.default_category_key || undefined,
+    defaultCaseTypeId: data.default_case_type_id || undefined,
+    defaultSurgeonId: data.default_surgeon_id || undefined,
+    createdBy: data.created_by,
+    createdAt: data.created_at,
+  } as IntakeLink;
+}
+
+export async function updateIntakeLink(id: string, patch: Partial<{
+  label: string | null;
+  active: boolean;
+  defaultCategoryKey: BacklogItem['categoryKey'] | null;
+  defaultCaseTypeId: string | null;
+  defaultSurgeonId: string | null;
+  ownerUserId: string; // allow reassigning owner
+}>): Promise<void> {
+  if (!supabase) return;
+  const payload: any = {};
+  if ('label' in patch) payload.label = patch.label;
+  if ('active' in patch) payload.active = patch.active;
+  if ('defaultCategoryKey' in patch) payload.default_category_key = patch.defaultCategoryKey;
+  if ('defaultCaseTypeId' in patch) payload.default_case_type_id = patch.defaultCaseTypeId;
+  if ('defaultSurgeonId' in patch) payload.default_surgeon_id = patch.defaultSurgeonId;
+  if ('ownerUserId' in patch) payload.created_by = patch.ownerUserId;
+  const { error } = await (supabase as any).from('intake_links').update(payload).eq('id', id);
+  if (error) throw error;
+}
+
+export function getIntakeShareUrl(token: string): string {
+  try {
+    const base = window.location.origin;
+    return `${base}?intake=1&token=${encodeURIComponent(token)}`;
+  } catch {
+    return `?intake=1&token=${encodeURIComponent(token)}`;
+  }
 }
