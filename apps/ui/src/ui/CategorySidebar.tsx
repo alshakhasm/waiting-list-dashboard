@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { IconSearch } from './icons';
 import { CategoryPref, defaultCategoryPrefs, loadCategoryPrefs, saveCategoryPrefs } from './categoryPrefs';
 import { createBacklogItem } from '../client/api';
 
@@ -6,12 +7,14 @@ export function CategorySidebar({
   open = true,
   onChange,
   onAddedCase,
+  onSearchChange,
 }: {
   open?: boolean;
   onChange?: (_prefs: CategoryPref[]) => void;
   onAddedCase?: () => void;
+  onSearchChange?: (q: string) => void;
 }) {
-  type Panel = 'add' | 'categories' | null;
+  type Panel = 'add' | 'categories' | 'search' | null;
   const [expanded, setExpanded] = useState<boolean>(!!open);
   const [panel, setPanel] = useState<Panel>(open ? 'categories' : null);
   const [categoryPrefs, setPrefs] = useState<CategoryPref[]>(() => loadCategoryPrefs(defaultCategoryPrefs()));
@@ -19,6 +22,7 @@ export function CategorySidebar({
   const [newKeywords, setNewKeywords] = useState('');
   const [newColor, setNewColor] = useState('#e5e7eb');
   const [openColorKey, setOpenColorKey] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   // Add Case form state
   const [adding, setAdding] = useState(false);
@@ -90,6 +94,36 @@ export function CategorySidebar({
             padding: 8,
           }}
         >
+          <button
+            title={panel === 'search' && expanded ? 'Hide Search' : 'Show Search'}
+            aria-label="Toggle Search"
+            aria-pressed={panel === 'search'}
+            onClick={() => {
+              setOpenColorKey(null);
+              if (!expanded) {
+                setExpanded(true);
+                setPanel('search');
+                return;
+              }
+              if (panel === 'search') {
+                setExpanded(false);
+              } else {
+                setPanel('search');
+              }
+            }}
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 6,
+              border: '1px solid var(--border)',
+              background: panel === 'search' ? 'var(--surface-1)' : 'transparent',
+              cursor: 'pointer',
+              display: 'grid',
+              placeItems: 'center',
+            }}
+          >
+            <IconSearch size={16} />
+          </button>
           <button
             title={panel === 'add' && expanded ? 'Hide Add Case' : 'Show Add Case'}
             aria-label="Toggle Add Case"
@@ -164,7 +198,20 @@ export function CategorySidebar({
         {/* Panel content */}
         <div style={{ flex: 1, minWidth: 0, overflow: 'auto', display: expanded ? 'block' : 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', padding: 8 }}>
-            <strong style={{ fontSize: 13 }}>{panel === 'add' ? 'Quick Add Case' : panel === 'categories' ? 'Categories' : ''}</strong>
+            <strong style={{ fontSize: 13 }}>{panel === 'add' ? 'Quick Add Case' : panel === 'categories' ? 'Categories' : panel === 'search' ? 'Search' : ''}</strong>
+          </div>
+          {/* Search */}
+          <div style={{ padding: 8, borderTop: '1px solid var(--border)', display: panel === 'search' ? 'grid' : 'none', gap: 8 }}>
+            <input
+              placeholder="Search name/procedure"
+              value={search}
+              onChange={(e) => {
+                const q = e.target.value;
+                setSearch(q);
+                onSearchChange?.(q);
+              }}
+              style={{ height: 28, padding: '4px 8px', fontSize: 13 }}
+            />
           </div>
           {/* Quick Add Case */}
           <div style={{ padding: 8, borderTop: '1px solid var(--border)', display: panel === 'add' ? 'grid' : 'none', gap: 8 }}>

@@ -142,3 +142,25 @@ export function IconUser({ size = 20, style, ...rest }: IconProps) {
     </svg>
   );
 }
+
+export function IconSearch({ size = 20, style, ...rest }: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={style}
+      {...rest}
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="M21 21l-3.5-3.5" />
+    </svg>
+  );
+}

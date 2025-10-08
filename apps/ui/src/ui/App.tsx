@@ -381,9 +381,6 @@ export function App() {
           </details>
         </nav>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
-          {tab === 'backlog' && (
-            <input placeholder="Search name/procedure" value={nameQuery} onChange={e => setNameQuery(e.target.value)} />
-          )}
           {profile?.role === 'owner' && ownerName && (
             <span title="Owner" style={{ fontSize: 12, opacity: 0.85, padding: '2px 6px', border: '1px solid var(--border)', borderRadius: 6 }}>
               {ownerName}
@@ -402,7 +399,11 @@ export function App() {
       </header>
       <div style={{ display: 'grid', gridTemplateColumns: (tab === 'schedule' && scheduleFull) || tab === 'operated' || tab === 'roller' || tab === 'owner-settings' ? '1fr' : 'auto 1fr', gap: 8, padding: 16 }}>
         {!(tab === 'schedule' && scheduleFull) && tab !== 'operated' && tab !== 'roller' && tab !== 'owner-settings' && (
-          <CategorySidebar onChange={setCategoryPrefs} onAddedCase={() => setBacklogReloadKey(k => k + 1)} />
+          <CategorySidebar
+            onChange={setCategoryPrefs}
+            onAddedCase={() => setBacklogReloadKey(k => k + 1)}
+            onSearchChange={(q) => setNameQuery(q)}
+          />
         )}
         <div style={{ minWidth: 0, overflow: 'auto' }}>
           {/* Legend removed per request */}
