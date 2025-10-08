@@ -244,26 +244,26 @@ export function BacklogPage({
         {GROUP_ORDER.map((key) => {
           const list = grouped.get(key) || [];
           if (hiddenKeys.has(key)) return null;
+          // Derive a soft tint for the whole column based on the header color
+          const pref = prefs.find(p => p.key === key);
+          const bg = (pref?.color) || GROUP_COLORS[key];
+          const headerText = pref?.textColor || getContrastText(bg);
+          const colBg = `color-mix(in srgb, ${bg}, white 86%)`;
+          const cardBg = `color-mix(in srgb, ${bg}, white 94%)`;
+          const borderCol = `color-mix(in srgb, ${bg}, white 70%)`;
           return (
-            <div key={key} style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', background: 'var(--surface-1)' }}>
-              {(() => {
-                const pref = prefs.find(p => p.key === key);
-                const bg = (pref?.color) || GROUP_COLORS[key];
-                const color = pref?.textColor || getContrastText(bg);
-                return (
-                  <div
-                    style={{
-                      padding: '8px 10px',
-                      fontWeight: 600,
-                      background: bg,
-                      color,
-                      borderBottom: '1px solid var(--border)',
-                    }}
-                  >
-                    {GROUP_LABELS[key]} <span style={{ opacity: 0.7 }}>({list.length})</span>
-                  </div>
-                );
-              })()}
+            <div key={key} style={{ border: `1px solid ${borderCol}`, borderRadius: 8, overflow: 'hidden', background: colBg }}>
+              <div
+                style={{
+                  padding: '8px 10px',
+                  fontWeight: 600,
+                  background: bg,
+                  color: headerText,
+                  borderBottom: `1px solid ${borderCol}`,
+                }}
+              >
+                {GROUP_LABELS[key]} <span style={{ opacity: 0.7 }}>({list.length})</span>
+              </div>
               <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {list.length === 0 ? (
                   <div style={{ opacity: 0.6, fontSize: 12 }}>No items</div>
@@ -282,10 +282,10 @@ export function BacklogPage({
                       }}
                       onClick={() => onSelect?.(i)}
                       style={{
-                        border: selectedId === i.id ? `2px solid var(--primary)` : '1px solid var(--border)',
+                        border: selectedId === i.id ? `2px solid var(--primary)` : `1px solid ${borderCol}`,
                         borderRadius: 6,
                         padding: 8,
-                        background: 'var(--surface-2)',
+                        background: cardBg,
                         cursor: onSelect ? 'pointer' : 'default',
                         position: 'relative',
                       }}
