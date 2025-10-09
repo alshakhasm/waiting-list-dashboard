@@ -312,6 +312,20 @@ export function App() {
   }
   return (
     <div style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <style>{`
+        /* Global form control contrast adjustments (especially for dark mode) */
+        select, input, textarea {
+          background: var(--surface-1);
+          color: var(--text);
+          border: 1px solid var(--border);
+        }
+        select:disabled, input:disabled, textarea:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+        }
+        option { color: var(--text); background: var(--surface-1); }
+        ::placeholder { color: color-mix(in srgb, var(--text), transparent 45%); }
+      `}</style>
       <header style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', gap: 12, alignItems: 'center', padding: 12, background: 'var(--surface-3)', borderBottom: '1px solid var(--border)', boxShadow: `0 2px 6px var(--shadow)` }}>
   <strong style={{ whiteSpace: 'nowrap', color: 'var(--text)' }}>OR Waiting & Scheduling</strong>
         {typeof window !== 'undefined' && new URL(window.location.href).searchParams.get('debug') === '1' && (
