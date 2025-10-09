@@ -313,7 +313,7 @@ export function App() {
   return (
     <div style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
       <header style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', gap: 12, alignItems: 'center', padding: 12, background: 'var(--surface-3)', borderBottom: '1px solid var(--border)', boxShadow: `0 2px 6px var(--shadow)` }}>
-        <strong style={{ whiteSpace: 'nowrap' }}>OR Waiting & Scheduling</strong>
+  <strong style={{ whiteSpace: 'nowrap', color: 'var(--text)' }}>OR Waiting & Scheduling</strong>
         {typeof window !== 'undefined' && new URL(window.location.href).searchParams.get('debug') === '1' && (
           <div style={{ marginLeft: 8 }}>
             <EnvDebug />
@@ -323,14 +323,14 @@ export function App() {
           <button
             onClick={() => setTab('backlog')}
             aria-current={tab === 'backlog' ? 'page' : undefined}
-            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'backlog' ? 'var(--surface-1)' : 'transparent', fontWeight: tab === 'backlog' ? 600 : 500 }}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'backlog' ? 'var(--surface-2)' : 'transparent', fontWeight: tab === 'backlog' ? 600 : 500, color: 'var(--text)' }}
           >
             Backlog
           </button>
           <button
             onClick={() => setTab('roller')}
             aria-current={tab === 'roller' ? 'page' : undefined}
-            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'roller' ? 'var(--surface-1)' : 'transparent', fontWeight: tab === 'roller' ? 600 : 500 }}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'roller' ? 'var(--surface-2)' : 'transparent', fontWeight: tab === 'roller' ? 600 : 500, color: 'var(--text)' }}
           >
             Roller
           </button>
@@ -338,7 +338,7 @@ export function App() {
             <button
               onClick={() => setTab('schedule')}
               aria-current={tab === 'schedule' ? 'page' : undefined}
-              style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'schedule' ? 'var(--surface-1)' : 'transparent', fontWeight: tab === 'schedule' ? 600 : 500 }}
+              style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'schedule' ? 'var(--surface-2)' : 'transparent', fontWeight: tab === 'schedule' ? 600 : 500, color: 'var(--text)' }}
             >
               Schedule
             </button>
@@ -359,12 +359,12 @@ export function App() {
           <button
             onClick={() => setTab('list')}
             aria-current={tab === 'list' ? 'page' : undefined}
-            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'list' ? 'var(--surface-1)' : 'transparent', fontWeight: tab === 'list' ? 600 : 500 }}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'list' ? 'var(--surface-2)' : 'transparent', fontWeight: tab === 'list' ? 600 : 500, color: 'var(--text)' }}
           >
             List
           </button>
           <details style={{ position: 'relative' }}>
-            <summary style={{ listStyle: 'none', cursor: 'pointer', padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)' }}>More ▾</summary>
+            <summary style={{ listStyle: 'none', cursor: 'pointer', padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', color: 'var(--text)' }}>More ▾</summary>
             <div style={{ position: 'absolute', marginTop: 6, minWidth: 180, background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 6px 18px var(--shadow)', padding: 8, display: 'grid', gap: 6 }}>
               <button onClick={() => setTab('archive')} style={{ textAlign: 'left' }}>Archive</button>
               <button onClick={() => setTab('operated')} style={{ textAlign: 'left' }}>Operated</button>
@@ -382,11 +382,11 @@ export function App() {
         </nav>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
           {profile?.role === 'owner' && ownerName && (
-            <span title="Owner" style={{ fontSize: 12, opacity: 0.85, padding: '2px 6px', border: '1px solid var(--border)', borderRadius: 6 }}>
+            <span title="Owner" style={{ fontSize: 12, padding: '2px 6px', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)' }}>
               {ownerName}
             </span>
           )}
-          <span style={{ fontSize: 12, opacity: 0.7 }}>{role ? `role: ${role}` : ''}</span>
+          <span style={{ fontSize: 12, color: 'var(--text)', opacity: role ? 0.85 : 0 }}>{role ? `role: ${role}` : ''}</span>
           {guest && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '2px 6px', border: '1px dashed var(--border)', borderRadius: 6, fontSize: 12 }}>
               Guest
