@@ -176,16 +176,16 @@ export function AuthBox() {
   }
 
   return (
-    <div ref={wrapRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div ref={wrapRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text)' }}>
       {user ? (
         <>
-          <span style={{ fontSize: 12, opacity: 0.8 }}>Signed in{role ? ` (${role})` : ''}</span>
-          <button onClick={signOut}>Sign out</button>
+          <span style={{ fontSize: 12 }}>Signed in{role ? ` (${role})` : ''}</span>
+          <button onClick={signOut} style={{ padding: '4px 10px', fontSize: 12, background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6 }}>Sign out</button>
         </>
       ) : (
         <>
-          <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <button ref={anchorRef} onClick={() => setOpen(v => !v)} className="icon-button" aria-expanded={open} aria-haspopup="menu" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ height: 30, padding: '4px 8px', fontSize: 12 }} />
+          <button ref={anchorRef} onClick={() => setOpen(v => !v)} className="icon-button" aria-expanded={open} aria-haspopup="menu" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6 }}>
             <IconLogIn size={14} aria-hidden="true" style={{ marginRight: -1, position: 'relative', top: 1 }} /> Sign in ▾
           </button>
           {open && createPortal(
@@ -199,33 +199,33 @@ export function AuthBox() {
                 const key = list[activeIndex] || list[0];
                 return `auth-item-${key}`;
               })()}
-              style={{ position: 'fixed', top: menuPos.top, right: menuPos.right, background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 8px 20px var(--shadow)', minWidth: 260, zIndex: 1000, overflow: 'hidden' }}
+              style={{ position: 'fixed', top: menuPos.top, right: menuPos.right, background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 8px 20px var(--shadow)', minWidth: 260, zIndex: 1000, overflow: 'hidden' }}
             >
-              <button id="auth-item-magic" role="menuitem" aria-selected={activeIndex===0} tabIndex={-1} onMouseEnter={() => setActiveIndex(0)} onClick={() => { persistMethod('magic'); signIn(); }} disabled={!email} style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', cursor: email ? 'pointer' : 'not-allowed', opacity: email ? 1 : 0.6, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button id="auth-item-magic" role="menuitem" aria-selected={activeIndex===0} tabIndex={-1} onMouseEnter={() => setActiveIndex(0)} onClick={() => { persistMethod('magic'); signIn(); }} disabled={!email} style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', cursor: email ? 'pointer' : 'not-allowed', opacity: email ? 1 : 0.45, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <IconMail size={14} aria-hidden="true" /> Send magic link to {email || '…'}
               </button>
-              <button id="auth-item-options" role="menuitem" aria-selected={activeIndex===1} tabIndex={-1} onMouseEnter={() => setActiveIndex(1)} onClick={() => { persistMethod('options'); goToAuthLanding(); }} style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button id="auth-item-options" role="menuitem" aria-selected={activeIndex===1} tabIndex={-1} onMouseEnter={() => setActiveIndex(1)} onClick={() => { persistMethod('options'); goToAuthLanding(); }} style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text)' }}>
                 <IconKey size={14} aria-hidden="true" /> Open sign-in options…
               </button>
-              <button id="auth-item-reset" role="menuitem" aria-selected={activeIndex===2} tabIndex={-1} onMouseEnter={() => setActiveIndex(2)} onClick={() => { persistMethod('reset'); resetPassword(); }} style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', cursor: (!supabase || !email) ? 'not-allowed' : 'pointer', opacity: (!supabase || !email) ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 8 }} disabled={!supabase || !email}>
+              <button id="auth-item-reset" role="menuitem" aria-selected={activeIndex===2} tabIndex={-1} onMouseEnter={() => setActiveIndex(2)} onClick={() => { persistMethod('reset'); resetPassword(); }} style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', cursor: (!supabase || !email) ? 'not-allowed' : 'pointer', opacity: (!supabase || !email) ? 0.45 : 1, display: 'flex', alignItems: 'center', gap: 8 }} disabled={!supabase || !email}>
                 <IconKey size={14} aria-hidden="true" /> Forgot password…
               </button>
               <hr style={{ margin: '6px 0', border: 0, borderTop: '1px solid var(--border)' }} />
-              <button id="auth-item-join" role="menuitem" aria-selected={activeIndex===3} tabIndex={-1} onMouseEnter={() => setActiveIndex(3)} onClick={() => { persistMethod('join'); goToAuthLanding(); }} style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button id="auth-item-join" role="menuitem" aria-selected={activeIndex===3} tabIndex={-1} onMouseEnter={() => setActiveIndex(3)} onClick={() => { persistMethod('join'); goToAuthLanding(); }} style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text)' }}>
                 <IconUserPlus size={14} aria-hidden="true" /> Join team…
               </button>
               {allowOwnerCreate && (
-                <button id="auth-item-owner" role="menuitem" aria-selected={activeIndex===4} tabIndex={-1} onMouseEnter={() => setActiveIndex(4)} onClick={() => { persistMethod('owner'); try { const u = new URL(window.location.href); u.searchParams.set('auth','1'); u.searchParams.set('signin','1'); u.searchParams.set('signup','1'); u.searchParams.set('bootstrap','1'); window.location.href = u.toString(); } catch {} }} style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button id="auth-item-owner" role="menuitem" aria-selected={activeIndex===4} tabIndex={-1} onMouseEnter={() => setActiveIndex(4)} onClick={() => { persistMethod('owner'); try { const u = new URL(window.location.href); u.searchParams.set('auth','1'); u.searchParams.set('signin','1'); u.searchParams.set('signup','1'); u.searchParams.set('bootstrap','1'); window.location.href = u.toString(); } catch {} }} style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text)' }}>
                   <IconShield size={14} aria-hidden="true" /> Create owner account…
                 </button>
               )}
-              <button id="auth-item-guest" role="menuitem" aria-selected={activeIndex=== (allowOwnerCreate ? 5 : 4)} tabIndex={-1} onMouseEnter={() => setActiveIndex(allowOwnerCreate ? 5 : 4)} onClick={() => { persistMethod('guest'); enableGuest(); setOpen(false); }} style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button id="auth-item-guest" role="menuitem" aria-selected={activeIndex=== (allowOwnerCreate ? 5 : 4)} tabIndex={-1} onMouseEnter={() => setActiveIndex(allowOwnerCreate ? 5 : 4)} onClick={() => { persistMethod('guest'); enableGuest(); setOpen(false); }} style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text)' }}>
                 <IconUser size={14} aria-hidden="true" /> Continue as guest
               </button>
             </div>,
             document.body
           )}
-          {status && <small style={{ opacity: 0.8 }}>{status}</small>}
+          {status && <small style={{ opacity: 0.85 }}>{status}</small>}
         </>
       )}
     </div>
