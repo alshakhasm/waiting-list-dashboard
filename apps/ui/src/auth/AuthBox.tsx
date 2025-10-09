@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { supabase } from '../supabase/client';
 import { useSupabaseAuth } from './useSupabaseAuth';
-import { IconLogIn } from '../ui/icons';
+import { IconLogIn, IconLogOut } from '../ui/icons';
 
 export function AuthBox() {
   const { user } = useSupabaseAuth();
@@ -21,15 +21,36 @@ export function AuthBox() {
     try { await (supabase.auth as any).signOut(); } catch {}
   }, []);
 
-  return (
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      {user ? (
-        <button onClick={signOut} style={{ padding: '6px 14px', background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8 }}>Sign out</button>
-      ) : (
-        <button onClick={goToAuthLanding} style={{ padding: '6px 14px', background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <IconLogIn size={14} aria-hidden="true" /> Sign in
-        </button>
-      )}
-    </div>
+  const baseStyle: React.CSSProperties = {
+    width: 38,
+    height: 34,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'var(--surface-2)',
+    color: 'var(--text)',
+    border: '1px solid var(--border)',
+    borderRadius: 8,
+    cursor: 'pointer',
+  };
+
+  return user ? (
+    <button
+      onClick={signOut}
+      title="Sign out"
+      aria-label="Sign out"
+      style={baseStyle}
+    >
+      <IconLogOut size={16} />
+    </button>
+  ) : (
+    <button
+      onClick={goToAuthLanding}
+      title="Sign in"
+      aria-label="Sign in"
+      style={baseStyle}
+    >
+      <IconLogIn size={16} />
+    </button>
   );
 }
