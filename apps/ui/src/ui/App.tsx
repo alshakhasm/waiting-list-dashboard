@@ -412,7 +412,14 @@ export function App() {
           <AuthBox />
         </div>
       </header>
-      <div style={{ display: 'grid', gridTemplateColumns: (tab === 'schedule' && scheduleFull) || tab === 'operated' || tab === 'roller' || tab === 'owner-settings' ? '1fr' : 'auto 1fr', gap: 8, padding: 16 }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: (tab === 'schedule' && scheduleFull) || tab === 'operated' || tab === 'roller' || tab === 'owner-settings' ? '1fr' : 'auto 1fr',
+        gap: 8,
+        padding: 16,
+        // Ensure the content area (including sidebar) fills the viewport below the header
+        minHeight: 'calc(100vh - 64px)'
+      }}>
         {!(tab === 'schedule' && scheduleFull) && tab !== 'operated' && tab !== 'roller' && tab !== 'owner-settings' && (
           <CategorySidebar
             onChange={setCategoryPrefs}
