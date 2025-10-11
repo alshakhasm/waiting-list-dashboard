@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { acceptInvite } from '../client/api';
 import { supabase } from '../supabase/client';
 import { SignInPage } from '../auth/SignInPage';
 
@@ -14,24 +13,28 @@ export function AcceptInvitePage() {
       setMessage('Missing invitation token.');
       return;
     }
-    supabase?.auth.getSession().then(({ data }) => {
+    supabase?.auth.getSession().then(async ({ data }) => {
       if (!data.session) {
         setStatus('working');
         setMessage('Please sign in with the invited email to accept the invitation.');
         return;
       }
-      acceptInvite(token).then((res) => {
-        if (!res.ok) {
-          setStatus('error');
-          setMessage(res.reason || 'Could not accept invitation.');
-        } else {
-          setStatus('ok');
-          setMessage('Invitation accepted. You will be approved by the owner shortly.');
-        }
-      }).catch((e) => {
+      try {
+        const { error } = await (supabase as any).rpc('invitations_accept', { p_token: token });
+        if (error) throw error;
+        setStatus('ok');
+        setMessage("You're in. Your invitation has been accepted.");
+        // Clean URL so refreshes don't re-trigger
+        try {
+          const clean = new URL(window.location.href);
+          clean.searchParams.delete('accept');
+          clean.searchParams.delete('token');
+          window.history.replaceState({}, document.title, clean.toString());
+        } catch {}
+      } catch (e: any) {
         setStatus('error');
         setMessage(e?.message || String(e));
-      });
+      }
     });
   }, []);
   return (
@@ -50,7 +53,12 @@ export function AcceptInvitePage() {
             </SignedInGate>
           </>
         )}
-        {status === 'ok' && (<p>You can close this page.</p>)}
+        {status === 'ok' && (
+          <div style={{ marginTop: 8 }}>
+            <p>You can close this page or return to the app.</p>
+            <button onClick={() => { window.location.href = window.location.origin; }}>Go to app</button>
+          </div>
+        )}
       </div>
     </div>
   );

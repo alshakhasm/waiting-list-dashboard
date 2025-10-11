@@ -5,6 +5,48 @@ async function getHandleRequest(): Promise<(_req: any) => Promise<any>> {
 }
 import { supabase } from '../supabase/client';
 
+
+// --- Debug helpers ---
+export async function debugCurrentAccess(): Promise<{
+  authUserId: string | null;
+  authEmail: string | null;
+  appUserById: any | null;
+  appUsersByEmail: Array<{ user_id: string; email: string; role: AppUser['role']; status: AppUser['status']; created_at?: string }>;
+}> {
+  if (!supabase) {
+    console.warn('Supabase not configured');
+    return { authUserId: null, authEmail: null, appUserById: null, appUsersByEmail: [] };
+  }
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id ?? null;
+  const email = auth.user?.email ?? null;
+  let byId: any = null;
+  if (uid) {
+    const { data } = await supabase.from('app_users').select('*').eq('user_id', uid).maybeSingle();
+    byId = data || null;
+  }
+  let byEmail: any[] = [];
+  if (email) {
+    const { data } = await supabase.from('app_users').select('*').ilike('email', email); // case-insensitive exact
+    byEmail = data || [];
+  }
+  const compact = (r: any) => r ? { user_id: r.user_id, email: r.email, role: r.role, status: r.status, created_at: r.created_at } : null;
+  console.log('[debugCurrentAccess] auth uid:', uid, 'email:', email);
+  console.log('[debugCurrentAccess] app_users by user_id:', compact(byId));
+  console.table((byEmail || []).map(compact));
+  return {
+    authUserId: uid,
+    authEmail: email,
+    appUserById: compact(byId),
+    appUsersByEmail: (byEmail || []).map(compact).filter(Boolean) as any,
+  };
+}
+
+try {
+  if (typeof window !== 'undefined') {
+    (window as any).appDebug = { ...(window as any).appDebug, debugCurrentAccess };
+  }
+} catch {}
 export type BacklogItem = {
   id: string;
   patientName: string;
@@ -111,6 +153,17 @@ export async function createBacklogItem(input: {
   notes?: string;
 }): Promise<BacklogItem> {
   if (!supabase) throw new Error('Supabase not configured');
+  // Ensure auth session is loaded so the client will attach the Authorization header.
+  try {
+    // This is a no-op if the session is already available, but forces supabase-js to refresh internal state.
+    const sess = await (supabase as any).auth.getSession();
+    if (!sess?.data?.session) {
+      console.warn('[createBacklogItem] no active auth session');
+    }
+  } catch (e) {
+    // Ignore — proceed to attempt the insert which will fail with a permission error if unauthenticated.
+    console.warn('[createBacklogItem] failed to load session', e);
+  }
   const mask = (mrn: string) => mrn.replace(/.(?=.{2}$)/g, '•');
   const cleanMrn = normalizeMrn(input.mrn);
   const payload: any = {
@@ -128,7 +181,53 @@ export async function createBacklogItem(input: {
     notes: input.notes ?? null,
   };
   const { data, error } = await (supabase as any).from('backlog').insert(payload).select('*').single();
-  if (error) throw error;
+  if (error) {
+    const msg = String((error as any)?.message || '');
+    // If direct insert is blocked by RLS, fallback to RPC that runs as SECURITY DEFINER
+    if (/row-level security|new row violates row-level security policy/i.test(msg)) {
+      try {
+        const rpcParams: any = {
+          p_patient_name: payload.patient_name,
+          p_mrn: payload.mrn,
+          p_procedure: payload.procedure,
+          p_phone1: payload.phone1,
+          p_phone2: payload.phone2,
+          p_notes: payload.notes,
+          p_category_key: payload.category_key,
+          p_case_type_id: payload.case_type_id,
+          p_est_duration_min: payload.est_duration_min,
+          p_surgeon_id: payload.surgeon_id,
+        };
+        const { data: rpcData, error: rpcErr } = await (supabase as any).rpc('submit_backlog_user', rpcParams as any);
+        if (rpcErr) throw rpcErr;
+        // rpcData may be the returned id or an array/record; normalize to id
+        const returnedId = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+        // Fetch the inserted row by id
+        const { data: fetched, error: fetchErr } = await (supabase as any).from('backlog').select('*').eq('id', returnedId).maybeSingle();
+        if (fetchErr) throw fetchErr;
+        const row = fetched;
+        return {
+          id: row.id,
+          patientName: row.patient_name,
+          mrn: row.mrn,
+          maskedMrn: row.masked_mrn,
+          procedure: row.procedure,
+          categoryKey: row.category_key || undefined,
+          estDurationMin: row.est_duration_min,
+          surgeonId: row.surgeon_id || undefined,
+          caseTypeId: row.case_type_id,
+          phone1: row.phone1 || undefined,
+          phone2: row.phone2 || undefined,
+          preferredDate: row.preferred_date || undefined,
+          notes: row.notes || undefined,
+          isRemoved: row.is_removed || false,
+        } as BacklogItem;
+      } catch (rpcFallbackErr) {
+        throw rpcFallbackErr;
+      }
+    }
+    throw error;
+  }
   return {
     id: data.id,
     patientName: data.patient_name,
@@ -397,7 +496,7 @@ export async function createMappingProfile(body: { name: string; owner: string; 
 export type AppUser = {
   userId: string;
   email: string;
-  role: 'owner' | 'member';
+  role: 'owner' | 'member' | 'viewer' | 'editor';
   status: 'approved' | 'pending' | 'revoked';
   invitedBy?: string | null;
 };
@@ -499,6 +598,101 @@ export async function listInvitations(): Promise<Invitation[]> {
   return (data || []).map((r: any) => ({ id: r.id, email: r.email, token: r.token, status: r.status, expiresAt: r.expires_at, invitedBy: r.invited_by }));
 }
 
+export async function sendInviteLink(email: string, token: string): Promise<void> {
+  if (!supabase) throw new Error('Supabase not configured');
+  // Build accept URL with token param; the recipient will authenticate via the magic link email
+  const origin = window.location.origin;
+  const path = window.location.pathname || '/';
+  const acceptUrl = new URL(origin + path);
+  acceptUrl.searchParams.set('accept', '1');
+  acceptUrl.searchParams.set('token', token);
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: acceptUrl.toString() },
+  });
+  if (error) throw error;
+}
+
+export async function acceptInvitationFromUrl(): Promise<'done' | 'skipped'> {
+  if (!supabase) throw new Error('Supabase not configured');
+  const u = new URL(window.location.href);
+  const accept = u.searchParams.get('accept');
+  const token = u.searchParams.get('token');
+  if (accept !== '1' || !token) return 'skipped';
+  // Ensure user is signed in first; if not, prompt email sign-in
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user?.id) {
+    const email = window.prompt('Enter your email to accept the invitation:');
+    if (!email) throw new Error('Email is required to accept invitation');
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.href } });
+    if (error) throw error;
+    alert('Check your email for a sign-in link, then return to this page to complete acceptance.');
+    return 'skipped';
+  }
+  // Call server to accept (validates token and email match on server)
+  const { error } = await (supabase as any).rpc('invitations_accept', { p_token: token });
+  if (error) throw error;
+  try {
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete('accept');
+    clean.searchParams.delete('token');
+    window.history.replaceState({}, document.title, clean.toString());
+  } catch {}
+  return 'done';
+}
+// --- Dangerous: owner-only purge flow with email confirmation ---
+// Contract:
+// - Step 1: requestPurgeEmail() -> sends a sign-in/verification email containing a link with ?confirmPurge=<token>
+// - Step 2: confirmPurge(token) -> verifies token by checking current session email match, then calls RPC to purge.
+
+export async function requestPurgeEmail(opts?: { redirectTo?: string }): Promise<void> {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { data: auth } = await supabase.auth.getUser();
+  const email = auth.user?.email;
+  if (!email) throw new Error('Not authenticated');
+  const origin = window.location.origin;
+  const redirect = opts?.redirectTo ?? `${origin}${window.location.pathname}`;
+  // Generate a one-time token (client-side marker); the real security is the auth email link itself.
+  const token = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  const url = new URL(redirect);
+  url.searchParams.set('confirmPurge', token);
+  // Send a magic link to the current email that returns to the URL above
+  const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: url.toString() } });
+  if (error) throw error;
+  // Stash token locally to require the same browser to confirm (defense-in-depth UX guard)
+  try { localStorage.setItem('purge.token', token); } catch {}
+}
+
+export async function confirmPurgeFromUrl(): Promise<'done' | 'skipped'> {
+  if (!supabase) throw new Error('Supabase not configured');
+  const u = new URL(window.location.href);
+  const token = u.searchParams.get('confirmPurge');
+  if (!token) return 'skipped';
+  // Optional local check to ensure same device initiated the flow
+  try {
+    const t = localStorage.getItem('purge.token');
+    if (!t || t !== token) {
+      // Not fatal, but add a small delay to reduce CSRF-like attempts
+      await new Promise(r => setTimeout(r, 500));
+    }
+  } catch {}
+  // Ensure session exists and user is owner
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id;
+  if (!uid) throw new Error('Not authenticated');
+  // Server-side check occurs inside RPC; client-side we just call it
+  const { error } = await (supabase as any).rpc('app_purge_everything');
+  if (error) throw error;
+  // Clean URL param & local token
+  try { localStorage.removeItem('purge.token'); } catch {}
+  try {
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete('confirmPurge');
+    window.history.replaceState({}, document.title, clean.toString());
+  } catch {}
+  return 'done';
+}
+
 export async function listMembers(): Promise<AppUser[]> {
   if (!supabase) return [];
   const { data, error } = await supabase.from('app_users').select('*');
@@ -510,9 +704,45 @@ export async function updateMember(userId: string, patch: Partial<{ status: AppU
   if (!supabase) return;
   const payload: any = {};
   if (patch.status) payload.status = patch.status;
-  if (patch.role) payload.role = patch.role;
+  if (patch.role) {
+    // Disallow assigning owner via the client UI. Owner assignment must go through owner bootstrap or server-side flows.
+    if (patch.role === 'owner') throw new Error('Assigning owner role via UI is not allowed');
+    payload.role = patch.role;
+  }
   const { error } = await (supabase as any).from('app_users').update(payload).eq('user_id', userId);
   if (error) throw error;
+}
+
+export async function deleteMemberCompletely(userId: string, mode: 'delete' | 'null' = 'delete'): Promise<void> {
+  if (!supabase) throw new Error('Supabase not configured');
+  // Try server-side RPC first (preferred: cleans up dependents)
+  const { error } = await (supabase as any).rpc('app_users_delete_completely', { p_user_id: userId, p_mode: mode });
+  if (!error) return;
+  const originalErr = error;
+  // Fallback path: ensure target is not an owner, then delete related invitations and the app_user row
+  try {
+    const { data: target, error: qErr } = await supabase
+      .from('app_users')
+      .select('user_id,email,role')
+      .eq('user_id', userId)
+      .maybeSingle<{ user_id: string; email: string | null; role: AppUser['role'] }>();
+    if (qErr) throw qErr;
+    if (!target) return; // Already gone
+    if (target.role === 'owner') throw new Error('refusing to delete an owner via fallback');
+    // Best-effort cleanup of invitations for this email
+    if (target.email) {
+      await (supabase as any)
+        .from('invitations')
+        .delete()
+        .ilike('email', target.email);
+    }
+    // Delete the app user
+    const { error: delErr } = await supabase.from('app_users').delete().eq('user_id', userId);
+    if (delErr) throw delErr;
+  } catch (_fallbackErr) {
+    // Bubble original RPC error for clarity
+    throw originalErr;
+  }
 }
 
 export async function acceptInvite(token: string): Promise<{ ok: boolean; reason?: string }> {

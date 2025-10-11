@@ -10,7 +10,7 @@ export function IntakeLinksPage() {
   const [info, setInfo] = useState<string | null>(null);
   const [filterOwner, setFilterOwner] = useState<string>('mine'); // 'mine' | 'all' | userId
 
-  // New link form
+  // New l ink form
   const [label, setLabel] = useState('');
   const [ownerUserId, setOwnerUserId] = useState<string>('');
   const [defaultCategoryKey, setDefaultCategoryKey] = useState<string>('');

@@ -187,3 +187,55 @@ export function IconLogOut({ size = 20, style, ...rest }: IconProps) {
     </svg>
   );
 }
+
+export function IconSun({ size = 20, style, ...rest }: IconProps) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={style} {...rest}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l1.41-1.41M16.66 7.34l1.41-1.41" />
+    </svg>
+  );
+}
+
+export function IconMoon({ size = 20, style, ...rest }: IconProps) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={style} {...rest}>
+      <path d="M21 12.79A9 9 0 0 1 11.21 3 7 7 0 1 0 21 12.79z" />
+    </svg>
+  );
+}
+
+export function IconAuto({ size = 20, style, ...rest }: IconProps) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={style} {...rest}>
+      <path d="M3 12h18" />
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 3a9 9 0 0 0 0 18" />
+    </svg>
+  );
+}
+
+export function IconWarm({ size = 20, style, ...rest }: IconProps) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={style} {...rest}>
+      <path d="M12 2v4" />
+      <path d="M12 18v4" />
+      <path d="M4.93 4.93l2.83 2.83" />
+      <path d="M16.24 16.24l2.83 2.83" />
+      <path d="M2 12h4" />
+      <path d="M18 12h4" />
+      <path d="M4.93 19.07l2.83-2.83" />
+      <path d="M16.24 7.76l2.83-2.83" />
+      <circle cx="12" cy="12" r="5" />
+    </svg>
+  );
+}
+
+export function IconContrast({ size = 20, style, ...rest }: IconProps) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={style} {...rest}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 3v18" />
+    </svg>
+  );
+}

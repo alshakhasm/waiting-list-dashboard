@@ -12,6 +12,10 @@ export function SignInPage() {
   const [status, setStatus] = useState<string | null>(null);
   const [isMagic, setIsMagic] = useState(false);
   const [canSignUp, setCanSignUp] = useState(false);
+  const [isRecovery, setIsRecovery] = useState(false);
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [newConfirm, setNewConfirm] = useState('');
   const [loading, setLoading] = useState(false);
 
   function getRedirectBase() {
@@ -59,9 +63,65 @@ export function SignInPage() {
         if ((signup === '1' || signup === 'true') && allowed) setMode('sign-up');
         if (presetEmail) setEmail(presetEmail);
         if (magic === '1' || magic === 'true') setIsMagic(true);
+        // Detect password recovery flow from Supabase redirect (type=recovery)
+        const type = url.searchParams.get('type');
+        // Supabase may put recovery info either in query params or in the URL fragment (#)
+        const hash = typeof window !== 'undefined' ? (window.location.hash || '') : '';
+        if (type === 'recovery' || hash.includes('type=recovery') || hash.includes('access_token=')) {
+          setIsRecovery(true);
+        }
       } catch {}
     })();
   }, []);
+
+  // If we were redirected from Supabase password-recovery link, exchange the URL for a session
+  useEffect(() => {
+    if (!isRecovery || !supabase) return;
+    let mounted = true;
+    (async () => {
+      setRecoveryLoading(true);
+      try {
+        // supabase-js provides getSessionFromUrl to exchange the access token in the URL
+        // Use optional chaining in case older lib doesn't expose it
+        const fn = (supabase.auth as any).getSessionFromUrl;
+        if (typeof fn === 'function') {
+          const { error } = await fn();
+          if (error) {
+            setStatus(error.message || String(error));
+            setRecoveryLoading(false);
+            return;
+          }
+        } else {
+          // Fallback: parse hash params and call setSession if getSessionFromUrl isn't available
+          try {
+            const rawHash = (typeof window !== 'undefined' ? (window.location.hash || '') : '').replace(/^#/, '');
+            const params = new URLSearchParams(rawHash);
+            const access_token = params.get('access_token');
+            const refresh_token = params.get('refresh_token');
+            if (access_token) {
+              // modern supabase client exposes setSession
+              if ((supabase.auth as any).setSession) {
+                const { error } = await (supabase.auth as any).setSession({ access_token, refresh_token });
+                if (error) {
+                  setStatus(error.message || String(error));
+                  setRecoveryLoading(false);
+                  return;
+                }
+              }
+            }
+          } catch (e: any) {
+            // ignore fallback failures and continue — user will see an error if session isn't established
+          }
+        }
+        // At this point the session should be loaded; show reset form
+        if (mounted) setRecoveryLoading(false);
+      } catch (err: any) {
+        if (mounted) setStatus(err?.message || String(err));
+        if (mounted) setRecoveryLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [isRecovery]);
 
   if (!supabase) {
     return (
@@ -154,6 +214,58 @@ export function SignInPage() {
     } catch (err: any) {
       setStatus(err?.message || String(err));
     }
+  }
+
+  async function submitNewPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setStatus(null);
+    if (!newPassword || newPassword !== newConfirm) {
+      setStatus('Passwords do not match or are empty.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase!.auth.updateUser({ password: newPassword } as any);
+      if (error) throw error;
+      setStatus('Password updated. You are now signed in.');
+      // Clean URL params to avoid re-trigger
+      try { const u = new URL(window.location.href); u.searchParams.delete('type'); u.searchParams.delete('access_token'); window.history.replaceState({}, '', u.toString()); } catch {}
+    } catch (err: any) {
+      setStatus(err?.message || String(err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // If recovery flow, show new password form
+  if (isRecovery) {
+    return (
+      <div style={{ display: 'grid', placeItems: 'center', minHeight: '80vh', padding: 24 }}>
+        <form onSubmit={submitNewPassword} style={{ width: '100%', maxWidth: 420, padding: 24, border: '1px solid #ddd', borderRadius: 8 }}>
+          <h1 style={{ marginTop: 0 }}>Reset password</h1>
+          {recoveryLoading ? (
+            <div>Preparing password reset…</div>
+          ) : (
+            <>
+              <div style={{ display: 'grid', gap: 10 }}>
+                <label style={{ display: 'grid', gap: 6 }}>
+                  <span>New password</span>
+                  <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required placeholder="••••••••" />
+                </label>
+                <label style={{ display: 'grid', gap: 6 }}>
+                  <span>Confirm new password</span>
+                  <input type="password" value={newConfirm} onChange={(e) => setNewConfirm(e.target.value)} required placeholder="Repeat password" />
+                </label>
+              </div>
+              {status && <div role="status" style={{ marginTop: 10, fontSize: 12, color: '#555' }}>{status}</div>}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 16 }}>
+                <button type="submit" disabled={loading}>{loading ? 'Please wait…' : 'Set new password'}</button>
+              </div>
+            </>
+          )}
+        </form>
+      </div>
+    );
   }
 
   return (

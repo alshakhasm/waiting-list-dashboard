@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getMyOwnerProfile, upsertMyOwnerProfile, OwnerProfile } from '../client/api';
+import { getMyOwnerProfile, upsertMyOwnerProfile, OwnerProfile, requestPurgeEmail, confirmPurgeFromUrl } from '../client/api';
 
 export function OwnerSettingsPage() {
   const [loading, setLoading] = useState(true);
@@ -18,6 +18,18 @@ export function OwnerSettingsPage() {
     (async () => {
       try {
         setLoading(true);
+        // If returning from email link with ?confirmPurge=, finalize purge
+        try {
+          const res = await confirmPurgeFromUrl();
+          if (res === 'done') {
+            // After purge, reload minimal state and bail early
+            setLoading(false);
+            return;
+          }
+        } catch (e: any) {
+          console.error('Purge confirm failed', e);
+          setErr(e?.message || String(e));
+        }
         const p = await getMyOwnerProfile();
         if (p) {
           setForm({
@@ -59,6 +71,16 @@ export function OwnerSettingsPage() {
     } catch (e: any) {
       setErr(e?.message || String(e));
       setSaving(false);
+    }
+  }
+
+  async function onRequestDeleteAll() {
+    try {
+      setErr(null);
+      await requestPurgeEmail();
+      alert('Check your email for a confirmation link. Clicking it will sign you in and reset the database.');
+    } catch (e: any) {
+      setErr(e?.message || String(e));
     }
   }
 
@@ -104,6 +126,9 @@ export function OwnerSettingsPage() {
           </label>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={onSave} disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
+            <button onClick={onRequestDeleteAll} style={{ marginLeft: 'auto', color: 'var(--danger)', borderColor: 'var(--danger)' }}>
+              Delete account & reset (email confirm)
+            </button>
           </div>
         </div>
       )}
