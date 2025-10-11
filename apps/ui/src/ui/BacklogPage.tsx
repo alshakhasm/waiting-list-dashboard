@@ -367,16 +367,23 @@ export function BacklogPage({
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
+                  cursor: 'grab',
                 }}
+                draggable
+                onDragStart={(e) => {
+                  try { e.dataTransfer.setData('text/plain', key); } catch {}
+                  // set a tiny drag image so it feels responsive
+                  try {
+                    const img = document.createElement('canvas');
+                    img.width = 1; img.height = 1;
+                    e.dataTransfer.setDragImage(img, 0, 0);
+                  } catch {}
+                  setDragColKey(key);
+                }}
+                onDragEnd={() => { setDragColKey(null); setDragOverColKey(null); }}
               >
-                {/* drag handle for column */}
-                <div
-                  draggable
-                  onDragStart={(e) => { try { e.dataTransfer.setData('text/plain', key); } catch {}; setDragColKey(key); }}
-                  onDragEnd={() => { setDragColKey(null); setDragOverColKey(null); }}
-                  title="Drag to reorder columns"
-                  style={{ width: 18, height: 18, display: 'grid', gap: 2, alignContent: 'center', cursor: 'grab' }}
-                >
+                {/* drag handle visual (still visible) */}
+                <div title="Drag to reorder columns" style={{ width: 18, height: 18, display: 'grid', gap: 2, alignContent: 'center' }} aria-hidden>
                   <div style={{ height: 2, background: headerText, borderRadius: 1 }} />
                   <div style={{ height: 2, background: headerText, borderRadius: 1 }} />
                 </div>
