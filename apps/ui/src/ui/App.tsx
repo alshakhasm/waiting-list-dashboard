@@ -38,6 +38,22 @@ export function App() {
   const isTab = (v: any): v is Tab => (
     v === 'backlog' || v === 'schedule' || v === 'mappings' || v === 'operated' || v === 'list' || v === 'archive' || v === 'members' || v === 'intake-links' || v === 'roller' || v === 'owner-settings'
   );
+  // Backlog label can be overridden via env (build-time) or localStorage (runtime)
+  const ENV_BACKLOG_LABEL = (import.meta as any)?.env?.VITE_BACKLOG_TAB_LABEL as string | undefined;
+  const [backlogLabel, setBacklogLabel] = useState<string>(() => {
+    try {
+      return localStorage.getItem('ui-backlog-label') || ENV_BACKLOG_LABEL || 'Backlog';
+    } catch {
+      return ENV_BACKLOG_LABEL || 'Backlog';
+    }
+  });
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'ui-backlog-label') setBacklogLabel(e.newValue || 'Backlog');
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
   const [tab, setTab] = useState<Tab>(() => {
     try {
       const saved = localStorage.getItem(TAB_KEY);
@@ -344,7 +360,7 @@ export function App() {
             aria-current={tab === 'backlog' ? 'page' : undefined}
             style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'backlog' ? 'var(--surface-2)' : 'transparent', fontWeight: tab === 'backlog' ? 600 : 500, color: 'var(--text)' }}
           >
-            Backlog
+            {backlogLabel}
           </button>
           <button
             onClick={() => setTab('roller')}
@@ -394,6 +410,19 @@ export function App() {
                   <button onClick={() => setTab('members')} style={{ textAlign: 'left' }}>Members</button>
                   <button onClick={() => setTab('intake-links')} style={{ textAlign: 'left' }}>Intake Links</button>
                   <button onClick={() => setTab('owner-settings')} style={{ textAlign: 'left' }}>Owner Settings</button>
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <label style={{ fontSize: 12, opacity: 0.8 }}>Rename "Backlog" tab</label>
+                    <input
+                      value={backlogLabel}
+                      onChange={(e) => {
+                        const v = e.target.value || 'Backlog';
+                        setBacklogLabel(v);
+                        try { localStorage.setItem('ui-backlog-label', v); } catch {}
+                      }}
+                      placeholder="Backlog"
+                      style={{ padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 8 }}
+                    />
+                  </div>
                 </>
               )}
             </div>
