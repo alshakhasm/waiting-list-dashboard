@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
-import { getBacklog, seedDemoData, BacklogItem } from '../client/api';
+import { getBacklog, seedDemoData, BacklogItem, softRemoveBacklogItem } from '../client/api';
 import { classifyProcedure, GROUP_LABELS, GROUP_ORDER, GROUP_COLORS, ProcedureGroupKey } from './procedureGroups';
-import { loadCategoryPrefs, defaultCategoryPrefs } from './categoryPrefs';
+import { loadCategoryPrefs, defaultCategoryPrefs, saveCategoryPrefs } from './categoryPrefs';
+import { getContrastText } from './color';
 
 export function BacklogPage({
   search = '',
@@ -11,6 +12,7 @@ export function BacklogPage({
   onConfirm,
   hiddenIds = [],
   canConfirm = true,
+  reloadKey,
 }: {
   search?: string;
   onSelect?: (_item: BacklogItem) => void;
@@ -19,6 +21,7 @@ export function BacklogPage({
   onConfirm?: (_item: BacklogItem) => void;
   hiddenIds?: string[];
   canConfirm?: boolean;
+  reloadKey?: number;
 }) {
   const [items, setItems] = useState<BacklogItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,6 +40,18 @@ export function BacklogPage({
     notes?: string;
   } | null>(null);
 
+  // Zoom/scale percentage for the backlog grid
+  const [scale, setScale] = useState<number>(() => {
+    const v = (typeof localStorage !== 'undefined' && localStorage.getItem('backlog.scale')) || '100';
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) && n >= 50 && n <= 200 ? n : 100;
+  });
+  useEffect(() => {
+    try { localStorage.setItem('backlog.scale', String(scale)); } catch {}
+  }, [scale]);
+
+  // Contrast helper now imported from ./color
+
   // Real data for dropdowns: collect unique surgeons and case types from loaded backlog
   const surgeonOptions = useMemo<string[]>(() => {
     const set = new Set<string>();
@@ -52,17 +67,38 @@ export function BacklogPage({
   }, [items]);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
+      setLoading(true);
       await seedDemoData();
       const data = await getBacklog();
-      setItems(data);
-      setLoading(false);
+      if (!cancelled) {
+        setItems(data);
+        setLoading(false);
+      }
     })();
-  }, []);
+    return () => { cancelled = true; };
+  }, [reloadKey]);
 
   // Sidebar category preferences (hidden + color overrides)
-  const prefs = useMemo(() => loadCategoryPrefs(defaultCategoryPrefs()), []);
+  const [prefs, setPrefs] = useState(() => loadCategoryPrefs(defaultCategoryPrefs()));
   const hiddenKeys = useMemo(() => new Set(prefs.filter((p) => p.hidden).map((p) => p.key)), [prefs]);
+
+  useEffect(() => {
+    function onPrefs(e: Event) {
+      try {
+        const detail = (e as CustomEvent).detail as any[] | undefined;
+        if (Array.isArray(detail)) {
+          setPrefs(detail as any);
+          return;
+        }
+      } catch {}
+      // fallback: reload persisted prefs
+      try { setPrefs(loadCategoryPrefs(defaultCategoryPrefs())); } catch {}
+    }
+    window.addEventListener('category-prefs-changed', onPrefs as EventListener);
+    return () => window.removeEventListener('category-prefs-changed', onPrefs as EventListener);
+  }, []);
 
   const filtered = useMemo(
     () =>
@@ -73,14 +109,73 @@ export function BacklogPage({
   );
 
   const grouped = useMemo(() => {
-    const map = new Map<ProcedureGroupKey, BacklogItem[]>();
-    for (const key of GROUP_ORDER) map.set(key, []);
+    // Use string keys so custom category keys are supported
+    const map = new Map<string, BacklogItem[]>();
+    for (const key of GROUP_ORDER) map.set(key as string, []);
     for (const it of filtered) {
-      const key = classifyProcedure(it.procedure);
-      map.set(key, [...(map.get(key) || []), it]);
+      const k = it.categoryKey || classifyProcedure(it.procedure);
+      map.set(k, [...(map.get(k) || []), it]);
     }
     return map;
   }, [filtered]);
+
+  // Build the ordered list of columns:
+  // 1) Use the order from saved prefs for ALL categories (built-in and custom), excluding hidden
+  // 2) Append any extra category keys discovered in data that aren't present in prefs
+  const columnKeys = useMemo(() => {
+    // Order driven by prefs (persisted and updated by drag/drop)
+    const orderedFromPrefs = prefs
+      .filter((p) => !p.hidden)
+      .map((p) => p.key);
+
+    const known = new Set(orderedFromPrefs);
+
+    // Discover any category keys present in data that aren't in prefs yet
+    const extras: string[] = [];
+    for (const k of Array.from(grouped.keys())) {
+      if (!hiddenKeys.has(k) && !known.has(k)) extras.push(k);
+    }
+
+    return [...orderedFromPrefs, ...extras];
+  }, [prefs, grouped, hiddenKeys]);
+
+  // Expose a runtime helper to inspect the columnKeys computed by the page.
+  useEffect(() => {
+    try {
+      (window as any).appDebug = { ...(window as any).appDebug, dumpBacklogColumns: () => {
+        try { console.log('[dumpBacklogColumns]', columnKeys); } catch {}
+        return columnKeys;
+      } };
+    } catch {}
+    return () => {};
+  }, [columnKeys]);
+
+  // Drag state for column reordering
+  const [dragColKey, setDragColKey] = useState<string | null>(null);
+  const [dragOverColKey, setDragOverColKey] = useState<string | null>(null);
+
+  function reorderPrefs(fromKey: string, toKey: string | null) {
+    try {
+      if (toKey && toKey === fromKey) return; // no-op
+      const current = loadCategoryPrefs(defaultCategoryPrefs());
+      const fromIndex = current.findIndex((p) => p.key === fromKey);
+      if (fromIndex === -1) return;
+      const out = current.slice();
+      const [item] = out.splice(fromIndex, 1);
+      if (!toKey) {
+        out.push(item);
+      } else {
+        const toIndex = out.findIndex((p) => p.key === toKey);
+        if (toIndex === -1) out.push(item);
+        else out.splice(toIndex, 0, item);
+      }
+      saveCategoryPrefs(out);
+      // Notify other components
+      try { window.dispatchEvent(new CustomEvent('category-prefs-changed', { detail: out })); } catch {}
+    } catch (e) {
+      console.warn('reorderPrefs failed', e);
+    }
+  }
 
   // Close open menu on outside click
   useEffect(() => {
@@ -127,50 +222,184 @@ export function BacklogPage({
     setOpenMenuId(null);
   }
 
-  function removeItem(i: BacklogItem) {
-    if (!hiddenIds.includes(i.id)) {
-      // Hide from dashboard (soft remove)
-      (onConfirm ? onConfirm : (() => {}))(i); // optional hook if provided
+  async function removeItem(i: BacklogItem) {
+    try {
+      await softRemoveBacklogItem(i.id);
+    } catch (e) {
+      console.warn('soft remove failed, removing locally only', e);
     }
-    // Always hide locally
+    if (!hiddenIds.includes(i.id)) {
+      (onConfirm ? onConfirm : (() => {}))(i);
+    }
     if (!hiddenIds.includes(i.id)) hiddenIds.push(i.id);
     setItems(prev => prev.filter(it => it.id !== i.id));
     setOpenMenuId(null);
   }
 
-  if (loading) return <div>Loading backlog…</div>;
+  const scaleFactor = Math.max(0.5, Math.min(2, scale / 100));
+
+  // Keyboard shortcuts for zooming (Cmd/Ctrl + '+', '-', or '0')
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const isMeta = e.metaKey || e.ctrlKey;
+      if (!isMeta) return;
+      // Don't hijack when typing in inputs or textareas or contenteditable
+      const target = e.target as HTMLElement | null;
+      const tag = (target?.tagName || '').toLowerCase();
+      const editable = target && (target.getAttribute('contenteditable') === 'true');
+      if (tag === 'input' || tag === 'textarea' || editable) return;
+
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        setScale((s) => Math.min(200, s + 10));
+      } else if (e.key === '-') {
+        e.preventDefault();
+        setScale((s) => Math.max(50, s - 10));
+      } else if (e.key === '0') {
+        e.preventDefault();
+        setScale(100);
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   return (
     <div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-        <span style={{ opacity: 0.6 }}>
-          {filtered.length} of {items.length}
-        </span>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+        <div style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <button
+            onClick={() => setScale((s) => Math.max(50, s - 10))}
+            title="Zoom out"
+            style={{ padding: '2px 8px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface-1)', cursor: 'pointer' }}
+          >−</button>
+          <select
+            value={scale}
+            onChange={(e) => setScale(parseInt(e.target.value, 10))}
+            title="Backlog scale"
+            style={{ padding: '2px 6px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface-1)' }}
+          >
+            {[200,175,150,125,110,100,90,80,75,70,67,60,50].map((p) => (
+              <option key={p} value={p}>{p}%</option>
+            ))}
+          </select>
+          <button
+            onClick={() => setScale((s) => Math.min(200, s + 10))}
+            title="Zoom in"
+            style={{ padding: '2px 8px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface-1)', cursor: 'pointer' }}
+          >+</button>
+          <button
+            onClick={() => setScale(100)}
+            title="Reset to 100%"
+            style={{ padding: '2px 8px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface-1)', cursor: 'pointer' }}
+          >100%</button>
+          {/* Reorder fallback UI */}
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginLeft: 8 }}>
+            <input type="checkbox" checked={!!(dragColKey === '__reorder_mode__')} onChange={(e) => { if (e.target.checked) setDragColKey('__reorder_mode__'); else setDragColKey(null); }} />
+            <span style={{ fontSize: 12 }}>Reorder columns</span>
+          </label>
+        </div>
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${GROUP_ORDER.length}, minmax(220px, 1fr))`,
-          gap: 12,
-          alignItems: 'start',
-        }}
-      >
-        {GROUP_ORDER.map((key) => {
-          const list = grouped.get(key) || [];
-          if (hiddenKeys.has(key)) return null;
+      {loading ? (
+        <div>Loading backlog…</div>
+      ) : (
+      <div style={{ overflow: 'auto' }}>
+        <div
+          style={{
+            transform: `scale(${scaleFactor})`,
+            transformOrigin: 'top left',
+            // Counter the shrinking so it fits the viewport width nicely
+            width: `${100 / scaleFactor}%`,
+          }}
+        >
+          <div
+            style={{
+              display: 'grid',
+              // Edge-to-edge columns: no gaps between
+              gap: 0,
+              alignItems: 'start',
+              gridTemplateColumns: `repeat(${columnKeys.length}, minmax(220px, 1fr))`,
+            }}
+          >
+        {columnKeys.map((key, idx) => {
+          const list = grouped.get(key as ProcedureGroupKey) || [];
+          // Derive a soft tint for the whole column based on the header color
+          const pref = prefs.find(p => p.key === key);
+          const bg = (pref?.color) || (GROUP_COLORS as any)[key];
+          const headerText = pref?.textColor || getContrastText(bg);
+          // Ensure readable text on light tints (especially in dark mode where default text is light)
+          const bodyText = headerText;
+          const colBg = `color-mix(in srgb, ${bg}, white 78%)`;
+          const cardBg = `color-mix(in srgb, ${bg}, white 78%)`;
+    const borderCol = `color-mix(in srgb, ${bg}, white 55%)`;
           return (
-            <div key={key} style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', background: 'var(--surface-1)' }}>
+            <div
+              key={key}
+              onDragOver={(e) => { e.preventDefault(); try { console.debug('[BacklogPage] dragover', key); } catch {} setDragOverColKey(key); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                try { console.debug('[BacklogPage] drop target', key); } catch {}
+                const from = dragColKey || (e.dataTransfer.getData('text/plain') || null);
+                try { console.debug('[BacklogPage] drop from', from); } catch {}
+                if (from && from !== key) reorderPrefs(from, key);
+                setDragColKey(null);
+                setDragOverColKey(null);
+              }}
+              style={{
+                // Draw a single-pixel seam between columns without doubling borders
+                borderTop: `1px solid ${borderCol}`,
+                borderBottom: `1px solid ${borderCol}`,
+                borderRight: `1px solid ${borderCol}`,
+                borderLeft: idx === 0 ? `1px solid ${borderCol}` : 'none',
+                borderRadius: 0,
+                overflow: 'hidden',
+                background: colBg,
+                outline: dragOverColKey === key ? `3px solid ${headerText}55` : 'none',
+              }}
+            >
               <div
                 style={{
                   padding: '8px 10px',
                   fontWeight: 600,
-                  background: (prefs.find(p => p.key === key)?.color) || GROUP_COLORS[key],
-                  borderBottom: '1px solid var(--border)',
+                  background: bg,
+                  color: headerText,
+                  borderBottom: `1px solid ${borderCol}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  cursor: 'grab',
+                }}
+                draggable
+                onDragStart={(e) => {
+                  try { console.debug('[BacklogPage] dragstart', key); } catch {}
+                  try { e.dataTransfer.setData('text/plain', key); } catch {}
+                  try {
+                    const img = document.createElement('canvas');
+                    img.width = 1; img.height = 1;
+                    e.dataTransfer.setDragImage(img, 0, 0);
+                  } catch {}
+                  setDragColKey(key);
+                }}
+                onDragEnd={() => { setDragColKey(null); setDragOverColKey(null); }}
+                onMouseDown={(e) => {
+                  if (dragColKey !== '__reorder_mode__') return;
+                  setDragColKey(`__reorder_source__:${key}`);
                 }}
               >
-                {GROUP_LABELS[key]} <span style={{ opacity: 0.6 }}>({list.length})</span>
+                {/* drag handle visual (still visible) */}
+                <div title="Drag to reorder columns" style={{ width: 18, height: 18, display: 'grid', gap: 2, alignContent: 'center' }} aria-hidden>
+                  <div style={{ height: 2, background: headerText, borderRadius: 1 }} />
+                  <div style={{ height: 2, background: headerText, borderRadius: 1 }} />
+                </div>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>{pref?.label || (GROUP_LABELS as any)[key] || key} <span style={{ opacity: 0.7 }}>({list.length})</span></div>
+                  {dragColKey && (dragColKey as string).startsWith('__reorder_source__:') && (
+                    <button onClick={() => { const src = (dragColKey as string).split(':', 2)[1]; reorderPrefs(src, key); setDragColKey(null); }} style={{ marginLeft: 8, padding: '4px 6px', fontSize: 12 }}>Move here</button>
+                  )}
+                </div>
               </div>
-              <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8, color: bodyText }}>
                 {list.length === 0 ? (
                   <div style={{ opacity: 0.6, fontSize: 12 }}>No items</div>
                 ) : (
@@ -188,10 +417,10 @@ export function BacklogPage({
                       }}
                       onClick={() => onSelect?.(i)}
                       style={{
-                        border: selectedId === i.id ? `2px solid var(--primary)` : '1px solid var(--border)',
+                        border: selectedId === i.id ? `2px solid var(--primary)` : `1px solid ${borderCol}`,
                         borderRadius: 6,
                         padding: 8,
-                        background: 'var(--surface-2)',
+                        background: cardBg,
                         cursor: onSelect ? 'pointer' : 'default',
                         position: 'relative',
                       }}
@@ -223,9 +452,9 @@ export function BacklogPage({
                           )}
                         </div>
                       </div>
-                      <div style={{ opacity: 0.8 }}>{i.procedure}</div>
-                      <div style={{ fontVariantNumeric: 'tabular-nums', opacity: 0.7, fontSize: 12 }}>{i.maskedMrn}</div>
-                      <div style={{ opacity: 0.7, fontSize: 12 }}>{i.estDurationMin} min</div>
+                      <div style={{ opacity: 0.9 }}>{i.procedure}</div>
+                      <div style={{ fontVariantNumeric: 'tabular-nums', opacity: 0.8, fontSize: 12 }}>{i.maskedMrn}</div>
+                      <div style={{ opacity: 0.8, fontSize: 12 }}>{i.estDurationMin} min</div>
                       {pendingIds.includes(i.id) && canConfirm && (
                         <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                           <input id={`confirm-${i.id}`} type="checkbox" onChange={() => onConfirm?.(i)} />
@@ -241,7 +470,10 @@ export function BacklogPage({
             </div>
           );
         })}
+          </div>
+        </div>
       </div>
+      )}
 
       {/* Edit Modal */}
       {editingId && editDraft && (

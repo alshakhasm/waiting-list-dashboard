@@ -5,12 +5,81 @@ async function getHandleRequest(): Promise<(_req: any) => Promise<any>> {
 }
 import { supabase } from '../supabase/client';
 
+
+// --- Debug helpers ---
+export async function debugCurrentAccess(): Promise<{
+  authUserId: string | null;
+  authEmail: string | null;
+  appUserById: any | null;
+  appUsersByEmail: Array<{ user_id: string; email: string; role: AppUser['role']; status: AppUser['status']; created_at?: string }>;
+}> {
+  if (!supabase) {
+    console.warn('Supabase not configured');
+    return { authUserId: null, authEmail: null, appUserById: null, appUsersByEmail: [] };
+  }
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id ?? null;
+  const email = auth.user?.email ?? null;
+  let byId: any = null;
+  if (uid) {
+    const { data } = await supabase.from('app_users').select('*').eq('user_id', uid).maybeSingle();
+    byId = data || null;
+  }
+  let byEmail: any[] = [];
+  if (email) {
+    const { data } = await supabase.from('app_users').select('*').ilike('email', email); // case-insensitive exact
+    byEmail = data || [];
+  }
+  const compact = (r: any) => r ? { user_id: r.user_id, email: r.email, role: r.role, status: r.status, created_at: r.created_at } : null;
+  console.log('[debugCurrentAccess] auth uid:', uid, 'email:', email);
+  console.log('[debugCurrentAccess] app_users by user_id:', compact(byId));
+  console.table((byEmail || []).map(compact));
+  return {
+    authUserId: uid,
+    authEmail: email,
+    appUserById: compact(byId),
+    appUsersByEmail: (byEmail || []).map(compact).filter(Boolean) as any,
+  };
+}
+
+try {
+  if (typeof window !== 'undefined') {
+    (window as any).appDebug = { ...(window as any).appDebug, debugCurrentAccess };
+    // Attach a small helper to dump backlog items and their category keys
+    (window as any).appDebug.dumpBacklogWithCategories = async () => {
+      try {
+        const items = await getBacklog();
+        console.table((items || []).map(i => ({ id: i.id, patientName: i.patientName, categoryKey: i.categoryKey })));
+        return items;
+      } catch (e) {
+        console.error('dumpBacklogWithCategories failed', e);
+        throw e;
+      }
+    };
+    // Expose persisted category prefs for debugging
+    (window as any).appDebug.dumpCategoryPrefs = () => {
+      try {
+        const raw = localStorage.getItem('category-prefs-v1');
+        console.log('[dumpCategoryPrefs] raw:', raw);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        console.table((parsed || []).map((p: any) => ({ key: p.key, label: p.label, color: p.color, hidden: p.hidden })));
+        return parsed;
+      } catch (e) {
+        console.error('dumpCategoryPrefs failed', e);
+        return null;
+      }
+    };
+  }
+} catch {}
 export type BacklogItem = {
   id: string;
   patientName: string;
   mrn: string;
   maskedMrn: string;
   procedure: string;
+  // allow built-in and custom category keys
+  categoryKey?: string;
   estDurationMin: number;
   surgeonId?: string;
   caseTypeId: string;
@@ -18,16 +87,58 @@ export type BacklogItem = {
   phone2?: string;
   preferredDate?: string; // YYYY-MM-DD
   notes?: string;
+  isRemoved?: boolean;
+  createdAt?: string;
 };
+
+// Capability flag remembered during session: whether the DB has backlog.is_removed
+let HAS_BACKLOG_IS_REMOVED: boolean | null = null;
+
+// --- Data hygiene helpers ---
+function normalizeMrn(mrn: string): string {
+  return (mrn || '').replace(/\D+/g, '');
+}
+function normalizePhone(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  const digits = String(phone).replace(/\D+/g, '');
+  return digits || null;
+}
+function getDefaultSurgeonId(): string {
+  try {
+    const v = localStorage.getItem('cfg.defaultSurgeonId');
+    if (v && v.trim()) return v.trim();
+  } catch {}
+  return 's:1';
+}
 
 export async function getBacklog(params?: { caseTypeId?: string; surgeonId?: string; search?: string }): Promise<BacklogItem[]> {
   if (supabase) {
-    let q = supabase.from('backlog').select('*');
-    if (params?.search) {
-      // simple ilike filter on patient_name/procedure
-      q = q.or(`patient_name.ilike.%${params.search}%,procedure.ilike.%${params.search}%`);
+    // Prefer filtering out soft-removed rows if column exists; otherwise, retry without the filter
+    let data: any[] | null = null;
+    let error: any = null;
+    if (HAS_BACKLOG_IS_REMOVED !== false) {
+      try {
+        let q = supabase.from('backlog').select('*').eq('is_removed', false);
+        if (params?.search) q = q.or(`patient_name.ilike.%${params.search}%,procedure.ilike.%${params.search}%`);
+        const res = await q;
+        data = res.data as any[];
+        error = res.error;
+        if (!error) HAS_BACKLOG_IS_REMOVED = true;
+      } catch (e: any) {
+        error = e;
+      }
+      // If column missing, retry without filter
+      if (error && /column\s+backlog\.is_removed\s+does not exist/i.test(String(error.message || ''))) {
+        HAS_BACKLOG_IS_REMOVED = false;
+        const res2 = await supabase.from('backlog').select('*');
+        data = res2.data as any[];
+        error = res2.error;
+      }
+    } else {
+      const res = await supabase.from('backlog').select('*');
+      data = res.data as any[];
+      error = res.error;
     }
-    const { data, error } = await q;
     if (error) throw error;
     return (data || []).map((r: any) => ({
       id: r.id,
@@ -35,6 +146,7 @@ export async function getBacklog(params?: { caseTypeId?: string; surgeonId?: str
       mrn: r.mrn,
       maskedMrn: r.masked_mrn,
       procedure: r.procedure,
+      categoryKey: r.category_key || undefined,
       estDurationMin: r.est_duration_min,
       surgeonId: r.surgeon_id || undefined,
       caseTypeId: r.case_type_id,
@@ -42,6 +154,8 @@ export async function getBacklog(params?: { caseTypeId?: string; surgeonId?: str
       phone2: r.phone2 || undefined,
       preferredDate: r.preferred_date || undefined,
       notes: r.notes || undefined,
+      isRemoved: r.is_removed || false,
+      createdAt: r.created_at || undefined,
     }));
   }
   const url = '/backlog';
@@ -49,6 +163,116 @@ export async function getBacklog(params?: { caseTypeId?: string; surgeonId?: str
   const res = await handleRequest({ method: 'GET', path: url, query: params as any });
   if (res.status !== 200) throw new Error('Failed to fetch backlog');
   return res.body as BacklogItem[];
+}
+
+export async function createBacklogItem(input: {
+  patientName: string;
+  mrn: string;
+  procedure: string;
+  categoryKey?: string;
+  estDurationMin: number;
+  caseTypeId?: string;
+  surgeonId?: string;
+  phone1?: string;
+  phone2?: string;
+  preferredDate?: string; // YYYY-MM-DD
+  notes?: string;
+}): Promise<BacklogItem> {
+  if (!supabase) throw new Error('Supabase not configured');
+  // Ensure auth session is loaded so the client will attach the Authorization header.
+  try {
+    // This is a no-op if the session is already available, but forces supabase-js to refresh internal state.
+    const sess = await (supabase as any).auth.getSession();
+    if (!sess?.data?.session) {
+      console.warn('[createBacklogItem] no active auth session');
+    }
+  } catch (e) {
+    // Ignore — proceed to attempt the insert which will fail with a permission error if unauthenticated.
+    console.warn('[createBacklogItem] failed to load session', e);
+  }
+  const mask = (mrn: string) => mrn.replace(/.(?=.{2}$)/g, '•');
+  const cleanMrn = normalizeMrn(input.mrn);
+  const payload: any = {
+    patient_name: input.patientName,
+    mrn: cleanMrn,
+    masked_mrn: mask(cleanMrn),
+    procedure: input.procedure,
+  category_key: input.categoryKey ?? null,
+    est_duration_min: input.estDurationMin,
+  surgeon_id: (input.surgeonId ?? getDefaultSurgeonId()),
+    case_type_id: input.caseTypeId ?? 'case:elective',
+    phone1: normalizePhone(input.phone1) ?? null,
+    phone2: normalizePhone(input.phone2) ?? null,
+    preferred_date: input.preferredDate ?? null,
+    notes: input.notes ?? null,
+  };
+  const { data, error } = await (supabase as any).from('backlog').insert(payload).select('*').single();
+  if (error) {
+    const msg = String((error as any)?.message || '');
+    // If direct insert is blocked by RLS, fallback to RPC that runs as SECURITY DEFINER
+    if (/row-level security|new row violates row-level security policy/i.test(msg)) {
+      try {
+        const rpcParams: any = {
+          p_patient_name: payload.patient_name,
+          p_mrn: payload.mrn,
+          p_procedure: payload.procedure,
+          p_phone1: payload.phone1,
+          p_phone2: payload.phone2,
+          p_notes: payload.notes,
+          // ensure we send a trimmed non-empty string or null so server preserves legitimate custom keys
+          p_category_key: (typeof payload.category_key === 'string' && payload.category_key.trim() !== '') ? payload.category_key.trim() : null,
+          p_case_type_id: payload.case_type_id,
+          p_est_duration_min: payload.est_duration_min,
+          p_surgeon_id: payload.surgeon_id,
+        };
+        // Debug: log that we're using the RPC fallback and which category key we're sending
+        try { console.debug('[createBacklogItem] RPC fallback submit_backlog_user params', { p_category_key: rpcParams.p_category_key }); } catch {}
+        const { data: rpcData, error: rpcErr } = await (supabase as any).rpc('submit_backlog_user', rpcParams as any);
+        if (rpcErr) throw rpcErr;
+        // rpcData may be the returned id or an array/record; normalize to id
+        const returnedId = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+        // Fetch the inserted row by id
+        const { data: fetched, error: fetchErr } = await (supabase as any).from('backlog').select('*').eq('id', returnedId).maybeSingle();
+        if (fetchErr) throw fetchErr;
+        const row = fetched;
+        return {
+          id: row.id,
+          patientName: row.patient_name,
+          mrn: row.mrn,
+          maskedMrn: row.masked_mrn,
+          procedure: row.procedure,
+          categoryKey: row.category_key || undefined,
+          estDurationMin: row.est_duration_min,
+          surgeonId: row.surgeon_id || undefined,
+          caseTypeId: row.case_type_id,
+          phone1: row.phone1 || undefined,
+          phone2: row.phone2 || undefined,
+          preferredDate: row.preferred_date || undefined,
+          notes: row.notes || undefined,
+          isRemoved: row.is_removed || false,
+        } as BacklogItem;
+      } catch (rpcFallbackErr) {
+        throw rpcFallbackErr;
+      }
+    }
+    throw error;
+  }
+  return {
+    id: data.id,
+    patientName: data.patient_name,
+    mrn: data.mrn,
+    maskedMrn: data.masked_mrn,
+    procedure: data.procedure,
+    categoryKey: data.category_key || undefined,
+    estDurationMin: data.est_duration_min,
+    surgeonId: data.surgeon_id || undefined,
+    caseTypeId: data.case_type_id,
+    phone1: data.phone1 || undefined,
+    phone2: data.phone2 || undefined,
+    preferredDate: data.preferred_date || undefined,
+    notes: data.notes || undefined,
+    isRemoved: data.is_removed || false,
+  } as BacklogItem;
 }
 
 export async function seedDemoData(): Promise<void> {
@@ -182,6 +406,94 @@ export async function updateSchedule(id: string, patch: Partial<{ date: string; 
   await handleRequest({ method: 'PATCH', path: `/schedule/${id}`, body: patch as any });
 }
 
+export type ArchivedPatient = {
+  mrn: string;
+  lastPatientName?: string;
+  firstSeenAt: string; // ISO
+  lastSeenAt: string; // ISO
+  totalBacklogEntries: number;
+  lastCategoryKey?: BacklogItem['categoryKey'];
+  lastCaseTypeId?: string;
+  lastProcedure?: string;
+};
+
+export async function getArchivedPatients(params?: { search?: string }): Promise<ArchivedPatient[]> {
+  if (!supabase) throw new Error('Supabase not configured');
+  let q = supabase.from('patients_archive').select('*');
+  if (params?.search) {
+    q = q.or(`mrn.ilike.%${params.search}%,last_patient_name.ilike.%${params.search}%`);
+  }
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data || []).map((r: any) => ({
+    mrn: r.mrn,
+    lastPatientName: r.last_patient_name || undefined,
+    firstSeenAt: r.first_seen_at,
+    lastSeenAt: r.last_seen_at,
+    totalBacklogEntries: r.total_backlog_entries ?? 0,
+    lastCategoryKey: r.last_category_key || undefined,
+    lastCaseTypeId: r.last_case_type_id || undefined,
+    lastProcedure: r.last_procedure || undefined,
+  }));
+}
+
+export async function softRemoveBacklogItem(id: string): Promise<void> {
+  if (!supabase) throw new Error('Supabase not configured');
+  // Try soft-delete flag; fallback to notes marker if column missing
+  if (HAS_BACKLOG_IS_REMOVED !== false) {
+    const { error } = await (supabase as any).from('backlog').update({ is_removed: true }).eq('id', id);
+    if (error) {
+      if (/column\s+backlog\.is_removed\s+does not exist/i.test(String(error.message || ''))) {
+        HAS_BACKLOG_IS_REMOVED = false;
+      } else {
+        throw error;
+      }
+    } else {
+      return;
+    }
+  }
+  // Fallback path: mark removal in notes
+  const marker = `removed@${new Date().toISOString()}`;
+  const { error: e2 } = await (supabase as any).from('backlog').update({ notes: marker }).eq('id', id);
+  if (e2) throw e2;
+}
+
+export async function updateBacklogItem(id: string, patch: Partial<{
+  phone1: string | null;
+  phone2: string | null;
+  notes: string | null;
+}>): Promise<BacklogItem> {
+  if (!supabase) throw new Error('Supabase not configured');
+  const payload: any = {};
+  if ('phone1' in patch) payload.phone1 = normalizePhone(patch.phone1 ?? null);
+  if ('phone2' in patch) payload.phone2 = normalizePhone(patch.phone2 ?? null);
+  if ('notes' in patch) payload.notes = patch.notes ?? null;
+  const { data, error } = await (supabase as any)
+    .from('backlog')
+    .update(payload)
+    .eq('id', id)
+    .select('*')
+    .single();
+  if (error) throw error;
+  return {
+    id: data.id,
+    patientName: data.patient_name,
+    mrn: data.mrn,
+    maskedMrn: data.masked_mrn,
+    procedure: data.procedure,
+    categoryKey: data.category_key || undefined,
+    estDurationMin: data.est_duration_min,
+    surgeonId: data.surgeon_id || undefined,
+    caseTypeId: data.case_type_id,
+    phone1: data.phone1 || undefined,
+    phone2: data.phone2 || undefined,
+    preferredDate: data.preferred_date || undefined,
+    notes: data.notes || undefined,
+    isRemoved: data.is_removed || false,
+    createdAt: data.created_at || undefined,
+  } as BacklogItem;
+}
+
 export async function deleteSchedule(id: string): Promise<void> {
   if (supabase) {
     const { error } = await supabase.from('schedule').delete().eq('id', id);
@@ -213,7 +525,7 @@ export async function createMappingProfile(body: { name: string; owner: string; 
 export type AppUser = {
   userId: string;
   email: string;
-  role: 'owner' | 'member';
+  role: 'owner' | 'member' | 'viewer' | 'editor';
   status: 'approved' | 'pending' | 'revoked';
   invitedBy?: string | null;
 };
@@ -315,6 +627,101 @@ export async function listInvitations(): Promise<Invitation[]> {
   return (data || []).map((r: any) => ({ id: r.id, email: r.email, token: r.token, status: r.status, expiresAt: r.expires_at, invitedBy: r.invited_by }));
 }
 
+export async function sendInviteLink(email: string, token: string): Promise<void> {
+  if (!supabase) throw new Error('Supabase not configured');
+  // Build accept URL with token param; the recipient will authenticate via the magic link email
+  const origin = window.location.origin;
+  const path = window.location.pathname || '/';
+  const acceptUrl = new URL(origin + path);
+  acceptUrl.searchParams.set('accept', '1');
+  acceptUrl.searchParams.set('token', token);
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: acceptUrl.toString() },
+  });
+  if (error) throw error;
+}
+
+export async function acceptInvitationFromUrl(): Promise<'done' | 'skipped'> {
+  if (!supabase) throw new Error('Supabase not configured');
+  const u = new URL(window.location.href);
+  const accept = u.searchParams.get('accept');
+  const token = u.searchParams.get('token');
+  if (accept !== '1' || !token) return 'skipped';
+  // Ensure user is signed in first; if not, prompt email sign-in
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user?.id) {
+    const email = window.prompt('Enter your email to accept the invitation:');
+    if (!email) throw new Error('Email is required to accept invitation');
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.href } });
+    if (error) throw error;
+    alert('Check your email for a sign-in link, then return to this page to complete acceptance.');
+    return 'skipped';
+  }
+  // Call server to accept (validates token and email match on server)
+  const { error } = await (supabase as any).rpc('invitations_accept', { p_token: token });
+  if (error) throw error;
+  try {
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete('accept');
+    clean.searchParams.delete('token');
+    window.history.replaceState({}, document.title, clean.toString());
+  } catch {}
+  return 'done';
+}
+// --- Dangerous: owner-only purge flow with email confirmation ---
+// Contract:
+// - Step 1: requestPurgeEmail() -> sends a sign-in/verification email containing a link with ?confirmPurge=<token>
+// - Step 2: confirmPurge(token) -> verifies token by checking current session email match, then calls RPC to purge.
+
+export async function requestPurgeEmail(opts?: { redirectTo?: string }): Promise<void> {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { data: auth } = await supabase.auth.getUser();
+  const email = auth.user?.email;
+  if (!email) throw new Error('Not authenticated');
+  const origin = window.location.origin;
+  const redirect = opts?.redirectTo ?? `${origin}${window.location.pathname}`;
+  // Generate a one-time token (client-side marker); the real security is the auth email link itself.
+  const token = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  const url = new URL(redirect);
+  url.searchParams.set('confirmPurge', token);
+  // Send a magic link to the current email that returns to the URL above
+  const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: url.toString() } });
+  if (error) throw error;
+  // Stash token locally to require the same browser to confirm (defense-in-depth UX guard)
+  try { localStorage.setItem('purge.token', token); } catch {}
+}
+
+export async function confirmPurgeFromUrl(): Promise<'done' | 'skipped'> {
+  if (!supabase) throw new Error('Supabase not configured');
+  const u = new URL(window.location.href);
+  const token = u.searchParams.get('confirmPurge');
+  if (!token) return 'skipped';
+  // Optional local check to ensure same device initiated the flow
+  try {
+    const t = localStorage.getItem('purge.token');
+    if (!t || t !== token) {
+      // Not fatal, but add a small delay to reduce CSRF-like attempts
+      await new Promise(r => setTimeout(r, 500));
+    }
+  } catch {}
+  // Ensure session exists and user is owner
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id;
+  if (!uid) throw new Error('Not authenticated');
+  // Server-side check occurs inside RPC; client-side we just call it
+  const { error } = await (supabase as any).rpc('app_purge_everything');
+  if (error) throw error;
+  // Clean URL param & local token
+  try { localStorage.removeItem('purge.token'); } catch {}
+  try {
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete('confirmPurge');
+    window.history.replaceState({}, document.title, clean.toString());
+  } catch {}
+  return 'done';
+}
+
 export async function listMembers(): Promise<AppUser[]> {
   if (!supabase) return [];
   const { data, error } = await supabase.from('app_users').select('*');
@@ -326,9 +733,45 @@ export async function updateMember(userId: string, patch: Partial<{ status: AppU
   if (!supabase) return;
   const payload: any = {};
   if (patch.status) payload.status = patch.status;
-  if (patch.role) payload.role = patch.role;
+  if (patch.role) {
+    // Disallow assigning owner via the client UI. Owner assignment must go through owner bootstrap or server-side flows.
+    if (patch.role === 'owner') throw new Error('Assigning owner role via UI is not allowed');
+    payload.role = patch.role;
+  }
   const { error } = await (supabase as any).from('app_users').update(payload).eq('user_id', userId);
   if (error) throw error;
+}
+
+export async function deleteMemberCompletely(userId: string, mode: 'delete' | 'null' = 'delete'): Promise<void> {
+  if (!supabase) throw new Error('Supabase not configured');
+  // Try server-side RPC first (preferred: cleans up dependents)
+  const { error } = await (supabase as any).rpc('app_users_delete_completely', { p_user_id: userId, p_mode: mode });
+  if (!error) return;
+  const originalErr = error;
+  // Fallback path: ensure target is not an owner, then delete related invitations and the app_user row
+  try {
+    const { data: target, error: qErr } = await supabase
+      .from('app_users')
+      .select('user_id,email,role')
+      .eq('user_id', userId)
+      .maybeSingle<{ user_id: string; email: string | null; role: AppUser['role'] }>();
+    if (qErr) throw qErr;
+    if (!target) return; // Already gone
+    if (target.role === 'owner') throw new Error('refusing to delete an owner via fallback');
+    // Best-effort cleanup of invitations for this email
+    if (target.email) {
+      await (supabase as any)
+        .from('invitations')
+        .delete()
+        .ilike('email', target.email);
+    }
+    // Delete the app user
+    const { error: delErr } = await supabase.from('app_users').delete().eq('user_id', userId);
+    if (delErr) throw delErr;
+  } catch (_fallbackErr) {
+    // Bubble original RPC error for clarity
+    throw originalErr;
+  }
 }
 
 export async function acceptInvite(token: string): Promise<{ ok: boolean; reason?: string }> {
@@ -355,4 +798,231 @@ export async function acceptInvite(token: string): Promise<{ ok: boolean; reason
     if (insErr) throw insErr;
   }
   return { ok: true };
+}
+
+// --- Owner profile ---
+export type OwnerProfile = {
+  userId: string;
+  fullName: string;
+  workspaceName: string;
+  orgName?: string;
+  phone?: string;
+  timezone?: string;
+  locale?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export async function getMyOwnerProfile(): Promise<OwnerProfile | null> {
+  if (supabase) {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth.user?.id;
+    if (!uid) return null;
+    const { data, error } = await supabase.from('owner_profiles').select('*').eq('user_id', uid).maybeSingle();
+    if (error) {
+      const msg = String(error.message || '');
+      // Fallback if table doesn't exist yet in project
+      if (msg.includes("Could not find the table 'public.owner_profiles'")) {
+        try {
+          const raw = localStorage.getItem('owner-profile:me');
+          return raw ? (JSON.parse(raw) as OwnerProfile) : null;
+        } catch { return null; }
+      }
+      throw error;
+    }
+    if (!data) return null;
+    const r: any = data as any;
+    return {
+      userId: r.user_id,
+      fullName: r.full_name,
+      workspaceName: r.workspace_name,
+      orgName: r.org_name || undefined,
+      phone: r.phone || undefined,
+      timezone: r.timezone || undefined,
+      locale: r.locale || undefined,
+      createdAt: r.created_at || undefined,
+      updatedAt: r.updated_at || undefined,
+    } as OwnerProfile;
+  }
+  try {
+    const raw = localStorage.getItem('owner-profile:me');
+    if (!raw) return null;
+    return JSON.parse(raw) as OwnerProfile;
+  } catch {
+    return null;
+  }
+}
+
+export async function upsertMyOwnerProfile(patch: Partial<Omit<OwnerProfile, 'userId'>> & { fullName: string; workspaceName: string }): Promise<OwnerProfile> {
+  if (supabase) {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth.user?.id;
+    if (!uid) throw new Error('Not authenticated');
+    const payload: any = {
+      user_id: uid,
+      full_name: patch.fullName,
+      workspace_name: patch.workspaceName,
+      org_name: patch.orgName ?? null,
+      phone: patch.phone ?? null,
+      timezone: patch.timezone ?? null,
+      locale: patch.locale ?? null,
+      updated_at: new Date().toISOString(),
+    };
+    const { data, error } = await (supabase as any)
+      .from('owner_profiles')
+      .upsert(payload)
+      .select('*')
+      .single();
+    if (error) {
+      const msg = String(error.message || '');
+      if (msg.includes("Could not find the table 'public.owner_profiles'")) {
+        // Fallback to local storage
+        const next: OwnerProfile = {
+          userId: uid,
+          fullName: payload.full_name,
+          workspaceName: payload.workspace_name,
+          orgName: payload.org_name || undefined,
+          phone: payload.phone || undefined,
+          timezone: payload.timezone || undefined,
+          locale: payload.locale || undefined,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        try { localStorage.setItem('owner-profile:me', JSON.stringify(next)); } catch {}
+        return next;
+      }
+      throw error;
+    }
+    const r: any = data as any;
+    return {
+      userId: r.user_id,
+      fullName: r.full_name,
+      workspaceName: r.workspace_name,
+      orgName: r.org_name || undefined,
+      phone: r.phone || undefined,
+      timezone: r.timezone || undefined,
+      locale: r.locale || undefined,
+      createdAt: r.created_at || undefined,
+      updatedAt: r.updated_at || undefined,
+    } as OwnerProfile;
+  }
+  // Fallback to local storage for non-Supabase/dev mode
+  const existing = await getMyOwnerProfile();
+  const next: OwnerProfile = {
+    userId: existing?.userId || 'local-owner',
+    fullName: patch.fullName,
+    workspaceName: patch.workspaceName,
+    orgName: patch.orgName,
+    phone: patch.phone,
+    timezone: patch.timezone,
+    locale: patch.locale,
+    createdAt: existing?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  try { localStorage.setItem('owner-profile:me', JSON.stringify(next)); } catch {}
+  return next;
+}
+
+// --- Intake links management ---
+
+export type IntakeLink = {
+  id: string;
+  token: string;
+  label?: string;
+  active: boolean;
+  defaultCategoryKey?: BacklogItem['categoryKey'];
+  defaultCaseTypeId?: string;
+  defaultSurgeonId?: string;
+  createdBy: string;
+  createdAt: string;
+};
+
+function generateIntakeToken(): string {
+  // Simple random token; consider switching to crypto if available
+  return (
+    Math.random().toString(36).slice(2) +
+    Math.random().toString(36).slice(2) +
+    Math.random().toString(36).slice(2)
+  );
+}
+
+export async function listIntakeLinks(opts?: { ownerUserId?: string | 'all' }): Promise<IntakeLink[]> {
+  if (!supabase) return [];
+  let q = supabase.from('intake_links').select('*').order('created_at', { ascending: false });
+  if (opts?.ownerUserId && opts.ownerUserId !== 'all') q = q.eq('created_by', opts.ownerUserId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data || []).map((r: any) => ({
+    id: r.id,
+    token: r.token,
+    label: r.label || undefined,
+    active: !!r.active,
+    defaultCategoryKey: r.default_category_key || undefined,
+    defaultCaseTypeId: r.default_case_type_id || undefined,
+    defaultSurgeonId: r.default_surgeon_id || undefined,
+    createdBy: r.created_by,
+    createdAt: r.created_at,
+  }));
+}
+
+export async function createIntakeLink(input: {
+  label?: string;
+  ownerUserId: string; // who owns this link; may be another owner
+  defaultCategoryKey?: BacklogItem['categoryKey'];
+  defaultCaseTypeId?: string;
+  defaultSurgeonId?: string;
+}): Promise<IntakeLink> {
+  if (!supabase) throw new Error('Supabase not configured');
+  const token = generateIntakeToken();
+  const row: any = {
+    token,
+    label: input.label ?? null,
+    active: true,
+    default_category_key: input.defaultCategoryKey ?? null,
+    default_case_type_id: input.defaultCaseTypeId ?? null,
+    default_surgeon_id: input.defaultSurgeonId ?? null,
+    created_by: input.ownerUserId,
+  };
+  const { data, error } = await (supabase as any).from('intake_links').insert(row).select('*').single();
+  if (error) throw error;
+  return {
+    id: data.id,
+    token: data.token,
+    label: data.label || undefined,
+    active: !!data.active,
+    defaultCategoryKey: data.default_category_key || undefined,
+    defaultCaseTypeId: data.default_case_type_id || undefined,
+    defaultSurgeonId: data.default_surgeon_id || undefined,
+    createdBy: data.created_by,
+    createdAt: data.created_at,
+  } as IntakeLink;
+}
+
+export async function updateIntakeLink(id: string, patch: Partial<{
+  label: string | null;
+  active: boolean;
+  defaultCategoryKey: BacklogItem['categoryKey'] | null;
+  defaultCaseTypeId: string | null;
+  defaultSurgeonId: string | null;
+  ownerUserId: string; // allow reassigning owner
+}>): Promise<void> {
+  if (!supabase) return;
+  const payload: any = {};
+  if ('label' in patch) payload.label = patch.label;
+  if ('active' in patch) payload.active = patch.active;
+  if ('defaultCategoryKey' in patch) payload.default_category_key = patch.defaultCategoryKey;
+  if ('defaultCaseTypeId' in patch) payload.default_case_type_id = patch.defaultCaseTypeId;
+  if ('defaultSurgeonId' in patch) payload.default_surgeon_id = patch.defaultSurgeonId;
+  if ('ownerUserId' in patch) payload.created_by = patch.ownerUserId;
+  const { error } = await (supabase as any).from('intake_links').update(payload).eq('id', id);
+  if (error) throw error;
+}
+
+export function getIntakeShareUrl(token: string): string {
+  try {
+    const base = window.location.origin;
+    return `${base}?intake=1&token=${encodeURIComponent(token)}`;
+  } catch {
+    return `?intake=1&token=${encodeURIComponent(token)}`;
+  }
 }

@@ -14,6 +14,7 @@ export function useAppUserProfile(): AppUserState {
   useEffect(() => {
     let cancelled = false;
     let running = false;
+    let channel: any = null;
     // Simple promise timeout wrapper so any single call can't block the whole flow
     function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
       return Promise.race([
@@ -77,6 +78,13 @@ export function useAppUserProfile(): AppUserState {
               const { error } = upsertRes as { error: any };
               if (!error) {
                 try { localStorage.removeItem(key); } catch {}
+                // Defensive: ensure supabase-js loads the current session after becoming owner
+                try {
+                  const sess = await (supabase as any).auth.getSession();
+                  console.log('[profile] session refreshed after becomeOwner:', !!sess?.data?.session);
+                } catch (e) {
+                  console.warn('[profile] failed to refresh session after becomeOwner', e);
+                }
               }
             }
           }
@@ -91,6 +99,29 @@ export function useAppUserProfile(): AppUserState {
         if (cancelled) return;
         console.log('[profile] loaded:', profile);
         setState({ loading: false, profile, error: null });
+
+        // Subscribe to realtime changes for this user's app_users row to auto-refresh role/status
+        try {
+          channel?.unsubscribe?.();
+          channel = supabase?.channel?.(`app-users:${uid}`);
+          if (channel) {
+            channel.on(
+              'postgres_changes',
+              { event: '*', schema: 'public', table: 'app_users', filter: `user_id=eq.${uid}` },
+              async () => {
+                if (cancelled) return;
+                try {
+                  const fresh = await getCurrentAppUser();
+                  if (!cancelled) setState((s) => ({ ...s, profile: fresh }));
+                } catch (e) {
+                  // ignore transient errors
+                }
+              }
+            ).subscribe();
+          }
+        } catch (e) {
+          console.warn('[profile] realtime subscribe failed', e);
+        }
       } catch (err: any) {
         if (cancelled) return;
         console.error('[profile] error:', err);
@@ -102,7 +133,18 @@ export function useAppUserProfile(): AppUserState {
     }
     run();
     const { data: sub } = supabase?.auth.onAuthStateChange((_e) => run()) || { data: undefined } as any;
-    return () => { cancelled = true; clearTimeout(timeout); sub?.subscription?.unsubscribe(); };
+    function onFocus() {
+      // Opportunistic refresh when tab is focused again
+      run();
+    }
+    if (typeof window !== 'undefined') window.addEventListener('visibilitychange', onFocus);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+      sub?.subscription?.unsubscribe();
+      try { channel?.unsubscribe?.(); } catch {}
+      if (typeof window !== 'undefined') window.removeEventListener('visibilitychange', onFocus);
+    };
   }, []);
 
   return state;

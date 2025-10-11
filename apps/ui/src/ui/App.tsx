@@ -11,22 +11,40 @@ import { CategoryPref } from './categoryPrefs';
 import { supabase } from '../supabase/client';
 import { isGuest, disableGuest, GUEST_EVENT } from '../auth/guest';
 import { useAppUserProfile } from '../auth/useAppUserProfile';
-import { becomeOwner } from '../client/api';
+import { becomeOwner, getMyOwnerProfile } from '../client/api';
 import { AwaitingApprovalPage } from './AwaitingApprovalPage';
 import { AccessDeniedPage } from './AccessDeniedPage';
 import { AcceptInvitePage } from './AcceptInvitePage';
 import { MembersPage } from './MembersPage';
+import { ArchivePage } from './ArchivePage';
+import { ComprehensiveListPage } from './ComprehensiveListPage';
 import { AuthLandingPage } from './AuthLandingPage';
 import { SignInPage } from '../auth/SignInPage';
 import { EnvDebug } from './EnvDebug';
 import { CreateAccountPage } from './CreateAccountPage';
+import { IntakePage } from './IntakePage';
+import { IntakeLinksPage } from './IntakeLinksPage';
+import { CardRollerPage } from './CardRollerPage';
+import { OwnerSettingsPage } from './OwnerSettingsPage';
 
 const THEME_KEY = 'ui-theme';
 
 type ThemeMode = 'auto' | 'default' | 'warm' | 'high-contrast' | 'dark';
 
 export function App() {
-  const [tab, setTab] = useState<'backlog' | 'schedule' | 'mappings' | 'operated' | 'members'>('backlog');
+  type Tab = 'backlog' | 'schedule' | 'mappings' | 'operated' | 'list' | 'archive' | 'members' | 'intake-links' | 'roller' | 'owner-settings';
+  const TAB_KEY = 'ui-last-tab';
+  const isTab = (v: any): v is Tab => (
+    v === 'backlog' || v === 'schedule' || v === 'mappings' || v === 'operated' || v === 'list' || v === 'archive' || v === 'members' || v === 'intake-links' || v === 'roller' || v === 'owner-settings'
+  );
+  const [tab, setTab] = useState<Tab>(() => {
+    try {
+      const saved = localStorage.getItem(TAB_KEY);
+      return isTab(saved) ? saved : 'backlog';
+    } catch {
+      return 'backlog';
+    }
+  });
   const [theme, setTheme] = useState<ThemeMode>(() => {
     try { return (localStorage.getItem(THEME_KEY) as ThemeMode) || 'auto'; } catch { return 'auto'; }
   });
@@ -39,10 +57,12 @@ export function App() {
     };
   })();
   const [scheduleFull, setScheduleFull] = useState(false);
+  const [backlogReloadKey, setBacklogReloadKey] = useState(0);
   const { role, user } = useSupabaseAuth();
   const [guest, setGuest] = useState<boolean>(() => isGuest());
   const { loading: profileLoading, profile, error: profileError } = useAppUserProfile();
   const [ownerAction, setOwnerAction] = useState<{ pending: boolean; msg: string | null }>({ pending: false, msg: null });
+  const [ownerName, setOwnerName] = useState<string>('');
   // React to external changes to guest mode (e.g., SignInPage action)
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -147,6 +167,34 @@ export function App() {
     };
   }, [theme]);
 
+  // Persist last selected tab
+  useEffect(() => {
+    try { localStorage.setItem(TAB_KEY, tab); } catch {}
+  }, [tab]);
+
+  // Load owner profile name for header indicator
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (profile?.role !== 'owner') { setOwnerName(''); return; }
+        const p = await getMyOwnerProfile();
+        if (!cancelled) setOwnerName(p?.fullName || user?.email || '');
+      } catch {
+        if (!cancelled) setOwnerName(user?.email || '');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [profile?.role, user?.email]);
+
+  // If a restricted tab is saved but user isn't owner, fall back
+  useEffect(() => {
+    const isOwner = profile?.role === 'owner';
+    if (!isOwner && (tab === 'members' || tab === 'intake-links')) {
+      setTab('backlog');
+    }
+  }, [profile, tab]);
+
   if (signingOut) {
     return (
       <div style={{ display: 'grid', placeItems: 'center', minHeight: '70vh' }}>
@@ -161,6 +209,7 @@ export function App() {
   if (supabase && !user && !guest) {
     // Show landing first; it will route to sign-in, owner create, or accept invite
     const url = new URL(window.location.href);
+    if (url.searchParams.get('intake') === '1') return <IntakePage />;
     if (url.searchParams.get('create') === '1') return <CreateAccountPage />;
     if (url.searchParams.get('accept') === '1') return <AcceptInvitePage />;
     if (url.searchParams.get('signin') === '1') return <SignInPage />;
@@ -179,6 +228,9 @@ export function App() {
     const url = new URL(window.location.href);
     if (url.searchParams.get('accept') === '1') {
       return <AcceptInvitePage />;
+    }
+    if (url.searchParams.get('intake') === '1') {
+      return <IntakePage />;
     }
   }
   // If signed in, gate by app_users profile
@@ -260,40 +312,95 @@ export function App() {
   }
   return (
     <div style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
-      <header style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', gap: 12, alignItems: 'center', padding: 16, background: 'var(--surface-3)', borderBottom: '1px solid var(--border)', boxShadow: `0 2px 6px var(--shadow)` }}>
-        <strong>OR Waiting & Scheduling</strong>
+      <style>{`
+        /* Global form control contrast adjustments (especially for dark mode) */
+        select, input, textarea {
+          background: var(--surface-1);
+          color: var(--text);
+          border: 1px solid var(--border);
+        }
+        select:disabled, input:disabled, textarea:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+        }
+        option { color: var(--text); background: var(--surface-1); }
+        ::placeholder { color: color-mix(in srgb, var(--text), transparent 45%); }
+      `}</style>
+      <header style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', gap: 12, alignItems: 'center', padding: 12, background: 'var(--surface-3)', borderBottom: '1px solid var(--border)', boxShadow: `0 2px 6px var(--shadow)` }}>
+  <strong style={{ whiteSpace: 'nowrap', color: 'var(--text)' }}>OR Waiting & Scheduling</strong>
         {typeof window !== 'undefined' && new URL(window.location.href).searchParams.get('debug') === '1' && (
           <div style={{ marginLeft: 8 }}>
             <EnvDebug />
           </div>
         )}
-        <nav style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => setTab('backlog')}>Backlog</button>
-          <button onClick={() => setTab('schedule')}>Schedule</button>
-          {tab === 'schedule' && (
+  <nav style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setTab('backlog')}
+            aria-current={tab === 'backlog' ? 'page' : undefined}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'backlog' ? 'var(--surface-2)' : 'transparent', fontWeight: tab === 'backlog' ? 600 : 500, color: 'var(--text)' }}
+          >
+            Backlog
+          </button>
+          <button
+            onClick={() => setTab('roller')}
+            aria-current={tab === 'roller' ? 'page' : undefined}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'roller' ? 'var(--surface-2)' : 'transparent', fontWeight: tab === 'roller' ? 600 : 500, color: 'var(--text)' }}
+          >
+            Roller
+          </button>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <button
-              title={scheduleFull ? 'Exit full screen calendar' : 'Full screen calendar'}
-              aria-label={scheduleFull ? 'Exit full screen calendar' : 'Full screen calendar'}
-              aria-pressed={scheduleFull}
-              onClick={() => setScheduleFull(v => !v)}
-              style={{ width: 32, height: 32, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+              onClick={() => setTab('schedule')}
+              aria-current={tab === 'schedule' ? 'page' : undefined}
+              style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'schedule' ? 'var(--surface-2)' : 'transparent', fontWeight: tab === 'schedule' ? 600 : 500, color: 'var(--text)' }}
             >
-              <span aria-hidden="true" style={{ fontSize: 16, lineHeight: '1' }}>
-                {scheduleFull ? '⤢' : '⛶'}
-              </span>
+              Schedule
             </button>
-          )}
-          <button onClick={() => setTab('mappings')}>Mapping Profiles</button>
-          <button onClick={() => setTab('operated')}>Operated</button>
-          {profile?.role === 'owner' && (
-            <button onClick={() => setTab('members')}>Members</button>
-          )}
+            {tab === 'schedule' && (
+              <button
+                title={scheduleFull ? 'Exit full screen calendar' : 'Full screen calendar'}
+                aria-label={scheduleFull ? 'Exit full screen calendar' : 'Full screen calendar'}
+                aria-pressed={scheduleFull}
+                onClick={() => setScheduleFull(v => !v)}
+                style={{ width: 32, height: 32, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid var(--border)' }}
+              >
+                <span aria-hidden="true" style={{ fontSize: 16, lineHeight: '1' }}>
+                  {scheduleFull ? '⤢' : '⛶'}
+                </span>
+              </button>
+            )}
+          </span>
+          <button
+            onClick={() => setTab('list')}
+            aria-current={tab === 'list' ? 'page' : undefined}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'list' ? 'var(--surface-2)' : 'transparent', fontWeight: tab === 'list' ? 600 : 500, color: 'var(--text)' }}
+          >
+            List
+          </button>
+          <details style={{ position: 'relative' }}>
+            <summary style={{ listStyle: 'none', cursor: 'pointer', padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', color: 'var(--text)' }}>More ▾</summary>
+            <div style={{ position: 'absolute', marginTop: 6, minWidth: 180, background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 6px 18px var(--shadow)', padding: 8, display: 'grid', gap: 6 }}>
+              <button onClick={() => setTab('archive')} style={{ textAlign: 'left' }}>Archive</button>
+              <button onClick={() => setTab('operated')} style={{ textAlign: 'left' }}>Operated</button>
+              <button onClick={() => setTab('mappings')} style={{ textAlign: 'left' }}>Mapping Profiles</button>
+              {profile?.role === 'owner' && (
+                <>
+                  <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '6px 0' }} />
+                  <button onClick={() => setTab('members')} style={{ textAlign: 'left' }}>Members</button>
+                  <button onClick={() => setTab('intake-links')} style={{ textAlign: 'left' }}>Intake Links</button>
+                  <button onClick={() => setTab('owner-settings')} style={{ textAlign: 'left' }}>Owner Settings</button>
+                </>
+              )}
+            </div>
+          </details>
         </nav>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-          {tab === 'backlog' && (
-            <input placeholder="Search name/procedure" value={nameQuery} onChange={e => setNameQuery(e.target.value)} />
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
+          {profile?.role === 'owner' && ownerName && (
+            <span title="Owner" style={{ fontSize: 12, padding: '2px 6px', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)' }}>
+              {ownerName}
+            </span>
           )}
-          <span style={{ fontSize: 12, opacity: 0.7 }}>{role ? `role: ${role}` : ''}</span>
+          <span style={{ fontSize: 12, color: 'var(--text)', opacity: role ? 0.85 : 0 }}>{role ? `role: ${role}` : ''}</span>
           {guest && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '2px 6px', border: '1px dashed var(--border)', borderRadius: 6, fontSize: 12 }}>
               Guest
@@ -304,17 +411,26 @@ export function App() {
           <AuthBox />
         </div>
       </header>
-      <div style={{ display: 'grid', gridTemplateColumns: (tab === 'schedule' && scheduleFull) || tab === 'operated' ? '1fr' : 'auto 1fr', gap: 8, padding: 16 }}>
-        {!(tab === 'schedule' && scheduleFull) && tab !== 'operated' && (
-          <CategorySidebar onChange={setCategoryPrefs} />
+      <div style={{ display: 'grid', gridTemplateColumns: (tab === 'schedule' && scheduleFull) || tab === 'operated' || tab === 'roller' || tab === 'owner-settings' ? '1fr' : 'auto 1fr', gap: 8, padding: 16 }}>
+        {!(tab === 'schedule' && scheduleFull) && tab !== 'operated' && tab !== 'roller' && tab !== 'owner-settings' && (
+          <CategorySidebar
+            onChange={setCategoryPrefs}
+            onAddedCase={() => setBacklogReloadKey(k => k + 1)}
+            onSearchChange={(q) => setNameQuery(q)}
+          />
         )}
         <div style={{ minWidth: 0, overflow: 'auto' }}>
           {/* Legend removed per request */}
-          {tab === 'backlog' && <BacklogPage search={nameQuery} canConfirm={false} />}
+          {tab === 'backlog' && <BacklogPage search={nameQuery} canConfirm={false} reloadKey={backlogReloadKey} />}
+          {tab === 'roller' && <CardRollerPage />}
           {tab === 'schedule' && <SchedulePage isFull={scheduleFull} />}
           {tab === 'mappings' && <MappingProfilesPage />}
           {tab === 'operated' && <OperatedTablePage />}
           {tab === 'members' && <MembersPage />}
+          {tab === 'intake-links' && <IntakeLinksPage />}
+          {tab === 'list' && <ComprehensiveListPage />}
+          {tab === 'archive' && <ArchivePage />}
+          {tab === 'owner-settings' && <OwnerSettingsPage />}
         </div>
       </div>
     </div>
