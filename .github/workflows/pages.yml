@@ -41,10 +41,13 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # Optional: override Backlog tab label via environment secret; defaults to 'Dashboard'
+          VITE_BACKLOG_TAB_LABEL: ${{ secrets.VITE_BACKLOG_TAB_LABEL }}
         run: |
           set -euo pipefail
           printf "VITE_SUPABASE_URL=%s\n" "$VITE_SUPABASE_URL" > .env
           printf "VITE_SUPABASE_ANON_KEY=%s\n" "$VITE_SUPABASE_ANON_KEY" >> .env
+          printf "VITE_BACKLOG_TAB_LABEL=%s\n" "${VITE_BACKLOG_TAB_LABEL:-Dashboard}" >> .env
           printf "VITE_BUILD_SHA=%s\n" "${{ github.sha }}" >> .env
           printf "VITE_BUILD_TIME=%s\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> .env
 
