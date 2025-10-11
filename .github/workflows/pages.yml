@@ -19,7 +19,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Use the 'preview' environment so environment-scoped secrets are available
+    # Bind to the 'preview' environment so environment-scoped secrets are available
     environment: preview
     steps:
       - name: Checkout
@@ -30,13 +30,16 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-
-      - name: Install root deps
-        run: npm ci
+          cache-dependency-path: apps/ui/package-lock.json
 
       - name: Install UI deps
         run: npm ci
         working-directory: apps/ui
+
+      - name: Debug env presence (masked)
+        run: |
+          echo "VITE_SUPABASE_URL set: ${{ secrets.VITE_SUPABASE_URL != '' }}"
+          echo "VITE_SUPABASE_ANON_KEY set: ${{ secrets.VITE_SUPABASE_ANON_KEY != '' }}"
 
       - name: Build UI (Vite)
         env:
