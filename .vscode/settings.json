@@ -1,0 +1,19 @@
+{
+  "statusbar-commands.commands": [
+    {
+      "text": "$(debug-start) Dev UI",
+      "alignment": "left",
+      "color": "#22c55e",
+      "tooltip": "Start Vite dev server",
+      "command": "workbench.action.tasks.runTask",
+      "arguments": ["Dev UI (Vite)"]
+    },
+    {
+      "text": "$(debug-stop) Stop Dev UI",
+      "alignment": "left",
+      "color": "#ef4444",
+      "tooltip": "Terminate all running tasks",
+      "command": "workbench.action.tasks.terminate"
+    }
+  ]
+}

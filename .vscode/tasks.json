@@ -1,132 +1,43 @@
 {
-	"version": "2.0.0",
-	"tasks": [
-		{
-			"label": "Build UI (apps/ui)",
-			"type": "shell",
-			"command": "bash",
-			"args": [
-				"-lc",
-				"cd 'apps/ui' && npm run -s build"
-			],
-			"problemMatcher": [
-				"$tsc"
-			],
-			"group": "build"
-		},
-		{
-			"label": "Build UI (apps/ui)",
-			"type": "shell",
-			"command": "bash",
-			"args": [
-				"-lc",
-				"cd 'apps/ui' && npm run -s build"
-			],
-			"problemMatcher": [
-				"$tsc"
-			],
-			"group": "build"
-		},
-		{
-			"label": "Build UI (apps/ui)",
-			"type": "shell",
-			"command": "bash",
-			"args": [
-				"-lc",
-				"cd 'apps/ui' && npm run -s build"
-			],
-			"problemMatcher": [
-				"$tsc"
-			],
-			"group": "build"
-		},
-		{
-			"label": "Build UI (apps/ui)",
-			"type": "shell",
-			"command": "bash",
-			"args": [
-				"-lc",
-				"cd 'apps/ui' && npm run -s build"
-			],
-			"problemMatcher": [
-				"$tsc"
-			],
-			"group": "build"
-		},
-		{
-			"label": "Build UI (apps/ui)",
-			"type": "shell",
-			"command": "bash",
-			"args": [
-				"-lc",
-				"cd 'apps/ui' && npm run -s build"
-			],
-			"problemMatcher": [
-				"$tsc"
-			],
-			"group": "build"
-		},
-		{
-			"label": "Build UI (apps/ui)",
-			"type": "shell",
-			"command": "bash",
-			"args": [
-				"-lc",
-				"cd 'apps/ui' && npm run -s build"
-			],
-			"problemMatcher": [
-				"$tsc"
-			],
-			"group": "build"
-		},
-		{
-			"label": "Build UI (apps/ui)",
-			"type": "shell",
-			"command": "bash",
-			"args": [
-				"-lc",
-				"cd 'apps/ui' && npm run -s build"
-			],
-			"problemMatcher": [
-				"$tsc"
-			],
-			"group": "build"
-		},
-		{
-			"label": "Install supabase-js",
-			"type": "shell",
-			"command": "bash",
-			"args": [
-				"-lc",
-				"cd 'apps/ui' && npm install @supabase/supabase-js"
-			],
-			"group": "build"
-		},
-		{
-			"label": "Build UI (apps/ui)",
-			"type": "shell",
-			"command": "bash",
-			"args": [
-				"-lc",
-				"cd 'apps/ui' && npm run -s build"
-			],
-			"problemMatcher": [
-				"$tsc"
-			],
-			"group": "build"
-		},
-		{
-			"label": "Build UI (apps/ui)",
-			"type": "shell",
-			"command": "bash",
-			"args": [
-				"-lc",
-				"cd 'apps/ui' && npm run -s build"
-			],
-			"problemMatcher": [
-				"$tsc"
-			],
-			"group": "build"
-		}
-	]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Dev UI (Vite)",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "apps/ui"
+      },
+      "isBackground": true,
+      "problemMatcher": [
+        {
+          "owner": "vite",
+          "pattern": [
+            {
+              "regexp": "^(.*):(\\d+):(\\d+):\\s+(.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "message": 4
+            }
+          ],
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": "VITE v\\d+\\.\\d+\\.\\d+",
+            "endsPattern": "Local:\\s+http://localhost:5173/"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Build UI",
+      "type": "shell",
+      "command": "npm run build",
+      "options": {
+        "cwd": "apps/ui"
+      },
+      "group": "build",
+      "problemMatcher": ["$tsc"]
+    }
+  ]
 }
