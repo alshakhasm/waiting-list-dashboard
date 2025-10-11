@@ -73,7 +73,12 @@ export function App() {
   const [theme, setTheme] = useState<ThemeMode>(() => {
     try { return (localStorage.getItem(THEME_KEY) as ThemeMode) || 'auto'; } catch { return 'auto'; }
   });
-  const [nameQuery, setNameQuery] = useState('');
+  const [nameQuery, setNameQuery] = useState<string>(() => {
+    try { return localStorage.getItem('backlog.search') || ''; } catch { return ''; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('backlog.search', nameQuery); } catch {}
+  }, [nameQuery]);
   const [signingOut, setSigningOut] = useState(false);
   const setCategoryPrefs = (() => {
     // Keep sidebar changes persisted without storing a local copy
@@ -81,8 +86,22 @@ export function App() {
       try { localStorage.setItem('category-prefs', JSON.stringify(prefs)); } catch {}
     };
   })();
-  const [scheduleFull, setScheduleFull] = useState(false);
+  const [scheduleFull, setScheduleFull] = useState<boolean>(() => {
+    try { return (localStorage.getItem('schedule.full') === '1'); } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('schedule.full', scheduleFull ? '1' : '0'); } catch {}
+  }, [scheduleFull]);
   const [backlogReloadKey, setBacklogReloadKey] = useState(0);
+  const [selectedBacklogId, setSelectedBacklogId] = useState<string | undefined>(() => {
+    try { return localStorage.getItem('backlog.selectedId') || undefined; } catch { return undefined; }
+  });
+  useEffect(() => {
+    try {
+      if (selectedBacklogId) localStorage.setItem('backlog.selectedId', selectedBacklogId);
+      else localStorage.removeItem('backlog.selectedId');
+    } catch {}
+  }, [selectedBacklogId]);
   const { role, user } = useSupabaseAuth();
   const [guest, setGuest] = useState<boolean>(() => isGuest());
   const { loading: profileLoading, profile, error: profileError } = useAppUserProfile();
@@ -470,7 +489,15 @@ export function App() {
         )}
   <div style={{ minWidth: 0, overflow: 'auto', paddingLeft: 0 }}>
           {/* Legend removed per request */}
-          {tab === 'backlog' && <BacklogPage search={nameQuery} canConfirm={false} reloadKey={backlogReloadKey} />}
+          {tab === 'backlog' && (
+            <BacklogPage
+              search={nameQuery}
+              canConfirm={false}
+              reloadKey={backlogReloadKey}
+              selectedId={selectedBacklogId}
+              onSelect={(it) => setSelectedBacklogId(it?.id)}
+            />
+          )}
           {tab === 'roller' && <CardRollerPage />}
           {tab === 'schedule' && <SchedulePage isFull={scheduleFull} />}
           {tab === 'mappings' && <MappingProfilesPage />}

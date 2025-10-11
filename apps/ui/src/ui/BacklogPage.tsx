@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { getBacklog, seedDemoData, BacklogItem, softRemoveBacklogItem } from '../client/api';
 import { classifyProcedure, GROUP_LABELS, GROUP_ORDER, GROUP_COLORS, ProcedureGroupKey } from './procedureGroups';
 import { loadCategoryPrefs, defaultCategoryPrefs, saveCategoryPrefs } from './categoryPrefs';
@@ -264,6 +264,23 @@ export function BacklogPage({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  // Persist horizontal scroll of the columns area
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const key = 'backlog.scroll.left';
+    const el = scrollRef.current;
+    if (!el) return;
+    try {
+      const saved = parseInt(localStorage.getItem(key) || '0', 10);
+      if (Number.isFinite(saved) && saved > 0) el.scrollLeft = saved;
+    } catch {}
+    const onScroll = () => {
+      try { localStorage.setItem(key, String(el.scrollLeft)); } catch {}
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [items.length]);
+
   return (
     <div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
@@ -304,7 +321,7 @@ export function BacklogPage({
       {loading ? (
         <div>Loading backlog…</div>
       ) : (
-      <div style={{ overflow: 'auto' }}>
+  <div ref={scrollRef} style={{ overflow: 'auto' }}>
         <div
           style={{
             transform: `scale(${scaleFactor})`,
