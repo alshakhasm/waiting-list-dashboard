@@ -42,14 +42,22 @@ export function App() {
   const ENV_BACKLOG_LABEL = (import.meta as any)?.env?.VITE_BACKLOG_TAB_LABEL as string | undefined;
   const [backlogLabel, setBacklogLabel] = useState<string>(() => {
     try {
-      return localStorage.getItem('ui-backlog-label') || ENV_BACKLOG_LABEL || 'Backlog';
+      return (ENV_BACKLOG_LABEL || localStorage.getItem('ui-backlog-label') || 'Dashboard');
     } catch {
-      return ENV_BACKLOG_LABEL || 'Backlog';
+      return ENV_BACKLOG_LABEL || 'Dashboard';
     }
   });
+  // If a build-time label is provided, prefer it on initial mount and persist it into localStorage
+  useEffect(() => {
+    if (ENV_BACKLOG_LABEL && backlogLabel !== ENV_BACKLOG_LABEL) {
+      setBacklogLabel(ENV_BACKLOG_LABEL);
+      try { localStorage.setItem('ui-backlog-label', ENV_BACKLOG_LABEL); } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
-      if (e.key === 'ui-backlog-label') setBacklogLabel(e.newValue || 'Backlog');
+      if (e.key === 'ui-backlog-label') setBacklogLabel(e.newValue || ENV_BACKLOG_LABEL || 'Dashboard');
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
@@ -415,11 +423,11 @@ export function App() {
                     <input
                       value={backlogLabel}
                       onChange={(e) => {
-                        const v = e.target.value || 'Backlog';
+                        const v = e.target.value || 'Dashboard';
                         setBacklogLabel(v);
                         try { localStorage.setItem('ui-backlog-label', v); } catch {}
                       }}
-                      placeholder="Backlog"
+                      placeholder={backlogLabel || 'Dashboard'}
                       style={{ padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 8 }}
                     />
                   </div>
