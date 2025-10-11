@@ -15,11 +15,7 @@ export default defineConfig(({ mode }) => {
     base: mode === 'production' ? './' : '/',
     // Ensure Vite reads env files from this directory (apps/ui)
     envDir: __dirname_esm,
-    // Explicitly define env to guarantee availability in both dev and build
-    define: {
-      'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL || ''),
-      'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY || ''),
-    },
+    // Do not hard-override import.meta.env.*; let Vite expose VITE_* from .env and CI process.env
     plugins: [react()],
     resolve: {
       alias: {
