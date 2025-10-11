@@ -67,3 +67,37 @@ Verify locally
 - Sign in: `/?signin=1` supports email + password and magic link.
 - Accept invite: `/?accept=1&token=...` links add you as a pending member; the owner approves in Members.
 
+
+## Deploying to GitHub Pages with Supabase
+
+This repo includes a Pages workflow that builds the UI (`apps/ui`) and deploys to GitHub Pages.
+
+Prereqs
+- Supabase project URL and anon key (Project Settings → API)
+- GitHub repository permissions to create environment secrets
+
+Steps
+1. In GitHub → Settings → Environments → create or open `preview`.
+2. Add secrets:
+	 - `VITE_SUPABASE_URL` = `https://YOUR-REF.supabase.co`
+	 - `VITE_SUPABASE_ANON_KEY` = anon public key
+3. In Supabase → Authentication → URL Configuration:
+	 - Site URL: `https://<user>.github.io/waiting-list-dashboard/`
+	 - Redirect URLs:
+		 - `https://<user>.github.io/waiting-list-dashboard/`
+		 - `https://<user>.github.io`
+4. Push to `main` or run the Pages workflow manually.
+
+How it works
+- The workflow writes `apps/ui/.env` from the secrets before `vite build`.
+- Vite uses a relative base so assets load under the repo subpath.
+
+Verify
+- Open `https://<user>.github.io/waiting-list-dashboard/?debug=1` and in DevTools console run:
+	- `window.__SUPABASE_DEBUG__` → should show `hasUrl: true`, `hasAnon: true`.
+- The UI footer shows the deploy commit and time.
+
+Troubleshooting
+- "Authentication not configured": ensure secrets exist in the `preview` environment.
+- Magic link issues: double‑check Site URL and Redirect URLs (exact, https, trailing slash).
+

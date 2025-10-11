@@ -26,6 +26,7 @@ import { IntakePage } from './IntakePage';
 import { IntakeLinksPage } from './IntakeLinksPage';
 import { CardRollerPage } from './CardRollerPage';
 import { OwnerSettingsPage } from './OwnerSettingsPage';
+import { BUILD_INFO } from '../buildInfo';
 
 const THEME_KEY = 'ui-theme';
 
@@ -433,6 +434,18 @@ export function App() {
           {tab === 'owner-settings' && <OwnerSettingsPage />}
         </div>
       </div>
+      {/* Build footer */}
+      <footer style={{ padding: '8px 12px', borderTop: '1px solid var(--border)', background: 'var(--surface-3)', color: 'var(--text)', fontSize: 12, display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+        <span>
+          Deployed
+          {BUILD_INFO.time ? ` ${new Date(BUILD_INFO.time).toLocaleString()}` : ''}
+        </span>
+        {BUILD_INFO.hash && (
+          <span title={BUILD_INFO.hash} style={{ fontFamily: 'ui-monospace, Menlo, monospace' }}>
+            {BUILD_INFO.hash.slice(0, 7)}
+          </span>
+        )}
+      </footer>
     </div>
   );
 }
