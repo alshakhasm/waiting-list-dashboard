@@ -156,6 +156,7 @@ export function BacklogPage({
 
   function reorderPrefs(fromKey: string, toKey: string | null) {
     try {
+      if (toKey && toKey === fromKey) return; // no-op
       const current = loadCategoryPrefs(defaultCategoryPrefs());
       const fromIndex = current.findIndex((p) => p.key === fromKey);
       if (fromIndex === -1) return;
@@ -341,7 +342,7 @@ export function BacklogPage({
                 try { console.debug('[BacklogPage] drop target', key); } catch {}
                 const from = dragColKey || (e.dataTransfer.getData('text/plain') || null);
                 try { console.debug('[BacklogPage] drop from', from); } catch {}
-                if (from) reorderPrefs(from, key);
+                if (from && from !== key) reorderPrefs(from, key);
                 setDragColKey(null);
                 setDragOverColKey(null);
               }}
