@@ -56,6 +56,24 @@ export function CategorySidebar({
   function toggleHidden(key: string) {
     setPrefs((prev) => prev.map((p) => (p.key === key ? { ...p, hidden: !p.hidden } : p)));
   }
+  function moveUp(key: string) {
+    setPrefs((prev) => {
+      const i = prev.findIndex(p => p.key === key);
+      if (i <= 0) return prev;
+      const out = prev.slice();
+      const tmp = out[i-1]; out[i-1] = out[i]; out[i] = tmp;
+      return out;
+    });
+  }
+  function moveDown(key: string) {
+    setPrefs((prev) => {
+      const i = prev.findIndex(p => p.key === key);
+      if (i === -1 || i >= prev.length - 1) return prev;
+      const out = prev.slice();
+      const tmp = out[i+1]; out[i+1] = out[i]; out[i] = tmp;
+      return out;
+    });
+  }
   function updateColor(key: string, color: string) {
     setPrefs((prev) => prev.map((p) => (p.key === key ? { ...p, color } : p)));
   }
@@ -330,6 +348,14 @@ export function CategorySidebar({
                   title={`Color for ${p.label}`}
                   style={{ width: 18, height: 18, border: '1px solid var(--border)', borderRadius: 4, background: p.color, cursor: 'pointer', padding: 0 }}
                 />
+                <div style={{ display: 'inline-flex', gap: 4, marginLeft: 6 }}>
+                  <button title="Move up" onClick={() => moveUp(p.key)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border)', cursor: 'pointer', height: 20 }}>
+                    ↑
+                  </button>
+                  <button title="Move down" onClick={() => moveDown(p.key)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border)', cursor: 'pointer', height: 20 }}>
+                    ↓
+                  </button>
+                </div>
                 {openColorKey === p.key && (
                   <div
                     data-color-popover
@@ -376,6 +402,14 @@ export function CategorySidebar({
                   title={`Color for ${p.label}`}
                   style={{ width: 18, height: 18, border: '1px solid var(--border)', borderRadius: 4, background: p.color, cursor: 'pointer', padding: 0 }}
                 />
+                <div style={{ display: 'inline-flex', gap: 4, marginLeft: 6 }}>
+                  <button title="Move up" onClick={() => moveUp(p.key)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border)', cursor: 'pointer', height: 20 }}>
+                    ↑
+                  </button>
+                  <button title="Move down" onClick={() => moveDown(p.key)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border)', cursor: 'pointer', height: 20 }}>
+                    ↓
+                  </button>
+                </div>
                 {openColorKey === p.key && (
                   <div
                     data-color-popover
