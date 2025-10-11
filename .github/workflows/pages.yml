@@ -36,11 +36,6 @@ jobs:
         run: npm ci
         working-directory: apps/ui
 
-      - name: Debug env presence (masked)
-        run: |
-          echo "VITE_SUPABASE_URL set: ${{ secrets.VITE_SUPABASE_URL != '' }}"
-          echo "VITE_SUPABASE_ANON_KEY set: ${{ secrets.VITE_SUPABASE_ANON_KEY != '' }}"
-
       - name: Write .env for Vite (no logging)
         working-directory: apps/ui
         env:
