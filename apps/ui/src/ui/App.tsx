@@ -62,7 +62,6 @@ export function App() {
       setBacklogLabel(ENV_BACKLOG_LABEL);
       try { localStorage.setItem('ui-backlog-label', ENV_BACKLOG_LABEL); } catch {}
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // Prefer build-time app title on mount
   useEffect(() => {
@@ -70,7 +69,6 @@ export function App() {
       setAppTitle(ENV_APP_TITLE);
       try { localStorage.setItem('ui-app-title', ENV_APP_TITLE); } catch {}
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // Keep document.title in sync
   useEffect(() => {

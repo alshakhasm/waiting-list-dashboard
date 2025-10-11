@@ -41,8 +41,8 @@ export function useAppUserProfile(): AppUserState {
         let data: any;
         try {
           ({ data } = await withTimeout(supabase.auth.getSession(), 5000, 'getSession'));
-        } catch (e: any) {
-          console.warn('[profile] getSession failed/timed out -> treating as signed-out', e);
+        } catch (err) {
+          console.warn('[profile] getSession failed/timed out -> treating as signed-out', err);
           setState((s) => ({ ...s, loading: false }));
           return;
         }
@@ -82,8 +82,8 @@ export function useAppUserProfile(): AppUserState {
                 try {
                   const sess = await (supabase as any).auth.getSession();
                   console.log('[profile] session refreshed after becomeOwner:', !!sess?.data?.session);
-                } catch (e) {
-                  console.warn('[profile] failed to refresh session after becomeOwner', e);
+                } catch (err) {
+                  console.warn('[profile] failed to refresh session after becomeOwner', err);
                 }
               }
             }
@@ -113,14 +113,14 @@ export function useAppUserProfile(): AppUserState {
                 try {
                   const fresh = await getCurrentAppUser();
                   if (!cancelled) setState((s) => ({ ...s, profile: fresh }));
-                } catch (e) {
+                } catch {
                   // ignore transient errors
                 }
               }
             ).subscribe();
           }
-        } catch (e) {
-          console.warn('[profile] realtime subscribe failed', e);
+        } catch (err) {
+          console.warn('[profile] realtime subscribe failed', err);
         }
       } catch (err: any) {
         if (cancelled) return;

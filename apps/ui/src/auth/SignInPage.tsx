@@ -109,7 +109,7 @@ export function SignInPage() {
                 }
               }
             }
-          } catch (e: any) {
+          } catch {
             // ignore fallback failures and continue — user will see an error if session isn't established
           }
         }
