@@ -119,33 +119,25 @@ export function BacklogPage({
     return map;
   }, [filtered]);
 
-  // Build the ordered list of columns: built-in groups first, then any custom
-  // category keys discovered either in the loaded backlog items or in the
-  // persisted category preferences. This ensures newly-created sidebar
-  // categories appear as columns immediately (unless hidden) even before any
-  // backlog row uses them.
+  // Build the ordered list of columns:
+  // 1) Use the order from saved prefs for ALL categories (built-in and custom), excluding hidden
+  // 2) Append any extra category keys discovered in data that aren't present in prefs
   const columnKeys = useMemo(() => {
-    const base = GROUP_ORDER.filter((k) => !hiddenKeys.has(k));
+    // Order driven by prefs (persisted and updated by drag/drop)
+    const orderedFromPrefs = prefs
+      .filter((p) => !p.hidden)
+      .map((p) => p.key);
 
-    // Collect extras from backlog data and from category prefs (preserve prefs order)
-    const extrasSet = new Set<string>();
-    // from backlog rows
+    const known = new Set(orderedFromPrefs);
+
+    // Discover any category keys present in data that aren't in prefs yet
+    const extras: string[] = [];
     for (const k of Array.from(grouped.keys())) {
-      if (!GROUP_ORDER.includes(k as ProcedureGroupKey) && !hiddenKeys.has(k)) extrasSet.add(k as string);
+      if (!hiddenKeys.has(k) && !known.has(k)) extras.push(k);
     }
-    // from persisted prefs (ensure the sidebar order is respected)
-    try {
-      const prefsAll = loadCategoryPrefs(defaultCategoryPrefs());
-      for (const p of prefsAll) {
-        if (p.builtIn) continue;
-        if (hiddenKeys.has(p.key)) continue;
-        extrasSet.add(p.key);
-      }
-    } catch {}
 
-    const extras = Array.from(extrasSet);
-    return [...base, ...extras];
-  }, [grouped, hiddenKeys]);
+    return [...orderedFromPrefs, ...extras];
+  }, [prefs, grouped, hiddenKeys]);
 
   // Expose a runtime helper to inspect the columnKeys computed by the page.
   useEffect(() => {
@@ -300,6 +292,11 @@ export function BacklogPage({
             title="Reset to 100%"
             style={{ padding: '2px 8px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface-1)', cursor: 'pointer' }}
           >100%</button>
+          {/* Reorder fallback UI */}
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginLeft: 8 }}>
+            <input type="checkbox" checked={!!(dragColKey === '__reorder_mode__')} onChange={(e) => { if (e.target.checked) setDragColKey('__reorder_mode__'); else setDragColKey(null); }} />
+            <span style={{ fontSize: 12 }}>Reorder columns</span>
+          </label>
         </div>
       </div>
 
@@ -334,20 +331,20 @@ export function BacklogPage({
           const bodyText = headerText;
           const colBg = `color-mix(in srgb, ${bg}, white 78%)`;
           const cardBg = `color-mix(in srgb, ${bg}, white 78%)`;
-          const borderCol = `color-mix(in srgb, ${bg}, white 55%)`;
+    const borderCol = `color-mix(in srgb, ${bg}, white 55%)`;
           return (
             <div
               key={key}
               onDragOver={(e) => { e.preventDefault(); try { console.debug('[BacklogPage] dragover', key); } catch {} setDragOverColKey(key); }}
               onDrop={(e) => {
-                  e.preventDefault();
-                  try { console.debug('[BacklogPage] drop target', key); } catch {}
-                  const from = dragColKey || (e.dataTransfer.getData('text/plain') || null);
-                  try { console.debug('[BacklogPage] drop from', from); } catch {}
-                  if (from) reorderPrefs(from, key);
-                  setDragColKey(null);
-                  setDragOverColKey(null);
-                }}
+                e.preventDefault();
+                try { console.debug('[BacklogPage] drop target', key); } catch {}
+                const from = dragColKey || (e.dataTransfer.getData('text/plain') || null);
+                try { console.debug('[BacklogPage] drop from', from); } catch {}
+                if (from) reorderPrefs(from, key);
+                setDragColKey(null);
+                setDragOverColKey(null);
+              }}
               style={{
                 // Draw a single-pixel seam between columns without doubling borders
                 borderTop: `1px solid ${borderCol}`,
@@ -357,6 +354,7 @@ export function BacklogPage({
                 borderRadius: 0,
                 overflow: 'hidden',
                 background: colBg,
+                outline: dragOverColKey === key ? `3px solid ${headerText}55` : 'none',
               }}
             >
               <div
@@ -375,7 +373,6 @@ export function BacklogPage({
                 onDragStart={(e) => {
                   try { console.debug('[BacklogPage] dragstart', key); } catch {}
                   try { e.dataTransfer.setData('text/plain', key); } catch {}
-                  // set a tiny drag image so it feels responsive
                   try {
                     const img = document.createElement('canvas');
                     img.width = 1; img.height = 1;
@@ -384,13 +381,22 @@ export function BacklogPage({
                   setDragColKey(key);
                 }}
                 onDragEnd={() => { setDragColKey(null); setDragOverColKey(null); }}
+                onMouseDown={(e) => {
+                  if (dragColKey !== '__reorder_mode__') return;
+                  setDragColKey(`__reorder_source__:${key}`);
+                }}
               >
                 {/* drag handle visual (still visible) */}
                 <div title="Drag to reorder columns" style={{ width: 18, height: 18, display: 'grid', gap: 2, alignContent: 'center' }} aria-hidden>
                   <div style={{ height: 2, background: headerText, borderRadius: 1 }} />
                   <div style={{ height: 2, background: headerText, borderRadius: 1 }} />
                 </div>
-                <div style={{ flex: 1 }}>{pref?.label || (GROUP_LABELS as any)[key] || key} <span style={{ opacity: 0.7 }}>({list.length})</span></div>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>{pref?.label || (GROUP_LABELS as any)[key] || key} <span style={{ opacity: 0.7 }}>({list.length})</span></div>
+                  {dragColKey && (dragColKey as string).startsWith('__reorder_source__:') && (
+                    <button onClick={() => { const src = (dragColKey as string).split(':', 2)[1]; reorderPrefs(src, key); setDragColKey(null); }} style={{ marginLeft: 8, padding: '4px 6px', fontSize: 12 }}>Move here</button>
+                  )}
+                </div>
               </div>
               <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8, color: bodyText }}>
                 {list.length === 0 ? (
