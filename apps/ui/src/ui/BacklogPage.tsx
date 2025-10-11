@@ -338,14 +338,16 @@ export function BacklogPage({
           return (
             <div
               key={key}
-              onDragOver={(e) => { e.preventDefault(); setDragOverColKey(key); }}
+              onDragOver={(e) => { e.preventDefault(); try { console.debug('[BacklogPage] dragover', key); } catch {} setDragOverColKey(key); }}
               onDrop={(e) => {
-                e.preventDefault();
-                const from = dragColKey || (e.dataTransfer.getData('text/plain') || null);
-                if (from) reorderPrefs(from, key);
-                setDragColKey(null);
-                setDragOverColKey(null);
-              }}
+                  e.preventDefault();
+                  try { console.debug('[BacklogPage] drop target', key); } catch {}
+                  const from = dragColKey || (e.dataTransfer.getData('text/plain') || null);
+                  try { console.debug('[BacklogPage] drop from', from); } catch {}
+                  if (from) reorderPrefs(from, key);
+                  setDragColKey(null);
+                  setDragOverColKey(null);
+                }}
               style={{
                 // Draw a single-pixel seam between columns without doubling borders
                 borderTop: `1px solid ${borderCol}`,
@@ -371,6 +373,7 @@ export function BacklogPage({
                 }}
                 draggable
                 onDragStart={(e) => {
+                  try { console.debug('[BacklogPage] dragstart', key); } catch {}
                   try { e.dataTransfer.setData('text/plain', key); } catch {}
                   // set a tiny drag image so it feels responsive
                   try {
