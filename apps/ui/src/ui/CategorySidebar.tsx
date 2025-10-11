@@ -23,6 +23,7 @@ export function CategorySidebar({
   const [newColor, setNewColor] = useState('#e5e7eb');
   const [openColorKey, setOpenColorKey] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [toast, setToast] = useState<{ id: string; text: string } | null>(null);
 
   // Add Case form state
   const [adding, setAdding] = useState(false);
@@ -32,7 +33,7 @@ export function CategorySidebar({
   const [caseMinutes, setCaseMinutes] = useState(60);
   const [caseErr, setCaseErr] = useState<string | null>(null);
   const [caseTypeId, setCaseTypeId] = useState<'case:elective' | 'case:urgent' | 'case:emergency'>('case:elective');
-  const [categoryKey, setCategoryKey] = useState<'dental' | 'minorPath' | 'majorPath' | 'tmj' | 'orthognathic' | 'uncategorized'>('dental');
+  const [categoryKey, setCategoryKey] = useState<string>('dental');
 
   const presetColors = useMemo(() => {
     const base = defaultCategoryPrefs().map((p) => p.color);
@@ -62,7 +63,17 @@ export function CategorySidebar({
     if (!label) return;
     const id = 'custom:' + Math.random().toString(36).slice(2, 8);
     const keywords = newKeywords.split(',').map((s) => s.trim()).filter(Boolean);
-    setPrefs((prev) => [...prev, { key: id, label, color: newColor, hidden: false, keywords }]);
+    const next = { key: id, label, color: newColor, hidden: false, keywords };
+    setPrefs((prev) => {
+      const out = [...prev, next];
+      try { console.debug('[CategorySidebar] added custom category', next, 'resultingPrefsLength:', out.length); } catch {}
+      return out;
+    });
+    // Show a small toast confirming creation
+    try {
+      setToast({ id, text: `Category "${label}" added` });
+      window.setTimeout(() => setToast(null), 3000);
+    } catch {}
     setNewLabel('');
     setNewKeywords('');
     setNewColor('#e5e7eb');
@@ -197,7 +208,15 @@ export function CategorySidebar({
           {/* Chevron removed: panel icons now control expand/collapse */}
         </div>
         {/* Panel content */}
-  <div style={{ flex: 1, minWidth: 0, overflow: 'auto', display: expanded ? 'block' : 'none', background: 'var(--surface-3)' }}>
+        <div style={{ flex: 1, minWidth: 0, overflow: 'auto', display: expanded ? 'block' : 'none', background: 'var(--surface-3)' }}>
+          {/* Toast */}
+          {toast && (
+            <div style={{ position: 'absolute', right: 12, top: 12, zIndex: 60 }}>
+              <div style={{ background: 'rgba(0,0,0,0.75)', color: '#fff', padding: '6px 10px', borderRadius: 6, fontSize: 13 }}>
+                {toast.text}
+              </div>
+            </div>
+          )}
           <div style={{ display: 'flex', alignItems: 'center', padding: 8 }}>
             <strong style={{ fontSize: 13 }}>{panel === 'add' ? 'Quick Add Case' : panel === 'categories' ? 'Categories' : panel === 'search' ? 'Search' : ''}</strong>
           </div>
@@ -230,13 +249,10 @@ export function CategorySidebar({
             </label>
             <label style={{ display: 'grid', gap: 4 }}>
               <span style={{ fontSize: 11, opacity: 0.7 }}>Category</span>
-              <select value={categoryKey} onChange={(e) => setCategoryKey(e.target.value as any)} style={{ height: 28, padding: '4px 6px', fontSize: 13 }}>
-                <option value="dental">Dental extraction</option>
-                <option value="minorPath">Minor pathology</option>
-                <option value="majorPath">Major pathology</option>
-                <option value="tmj">TMJ</option>
-                <option value="orthognathic">Orthognathic</option>
-                <option value="uncategorized">Uncategorized</option>
+              <select value={categoryKey} onChange={(e) => setCategoryKey(e.target.value)} style={{ height: 28, padding: '4px 6px', fontSize: 13 }}>
+                {categoryPrefs.map((p) => (
+                  <option key={p.key} value={p.key}>{p.label}</option>
+                ))}
               </select>
             </label>
             <label style={{ display: 'grid', gap: 4 }}>
@@ -263,6 +279,8 @@ export function CategorySidebar({
                     caseTypeId,
                     categoryKey,
                   });
+                  // Success: inform console which categoryKey we attempted to save
+                  try { console.debug('[CategorySidebar] createBacklogItem succeeded, requested categoryKey:', categoryKey); } catch {}
                   setCaseName('');
                   setCaseMrn('');
                   setCaseProc('');

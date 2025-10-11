@@ -66,7 +66,7 @@ begin
     v_mrn,
     regexp_replace(v_mrn, '.(?=..$)', '•', 'g'),
     trim(p_procedure),
-    p_category_key,
+    nullif(trim(coalesce(p_category_key, '')),''),
     coalesce(p_est_duration_min, 60),
     v_surgeon,
     coalesce(p_case_type_id, 'case:elective'),

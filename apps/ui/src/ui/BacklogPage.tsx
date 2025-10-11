@@ -102,6 +102,45 @@ export function BacklogPage({
     return map;
   }, [filtered]);
 
+  // Build the ordered list of columns: built-in groups first, then any custom
+  // category keys discovered either in the loaded backlog items or in the
+  // persisted category preferences. This ensures newly-created sidebar
+  // categories appear as columns immediately (unless hidden) even before any
+  // backlog row uses them.
+  const columnKeys = useMemo(() => {
+    const base = GROUP_ORDER.filter((k) => !hiddenKeys.has(k));
+
+    // Collect extras from backlog data and from category prefs (preserve prefs order)
+    const extrasSet = new Set<string>();
+    // from backlog rows
+    for (const k of Array.from(grouped.keys())) {
+      if (!GROUP_ORDER.includes(k as ProcedureGroupKey) && !hiddenKeys.has(k)) extrasSet.add(k as string);
+    }
+    // from persisted prefs (ensure the sidebar order is respected)
+    try {
+      const prefsAll = loadCategoryPrefs(defaultCategoryPrefs());
+      for (const p of prefsAll) {
+        if (p.builtIn) continue;
+        if (hiddenKeys.has(p.key)) continue;
+        extrasSet.add(p.key);
+      }
+    } catch {}
+
+    const extras = Array.from(extrasSet);
+    return [...base, ...extras];
+  }, [grouped, hiddenKeys]);
+
+  // Expose a runtime helper to inspect the columnKeys computed by the page.
+  useEffect(() => {
+    try {
+      (window as any).appDebug = { ...(window as any).appDebug, dumpBacklogColumns: () => {
+        try { console.log('[dumpBacklogColumns]', columnKeys); } catch {}
+        return columnKeys;
+      } };
+    } catch {}
+    return () => {};
+  }, [columnKeys]);
+
   // Close open menu on outside click
   useEffect(() => {
     if (!openMenuId) return;
@@ -239,14 +278,14 @@ export function BacklogPage({
               // Edge-to-edge columns: no gaps between
               gap: 0,
               alignItems: 'start',
-              gridTemplateColumns: `repeat(${GROUP_ORDER.filter((k) => !hiddenKeys.has(k)).length}, minmax(220px, 1fr))`,
+              gridTemplateColumns: `repeat(${columnKeys.length}, minmax(220px, 1fr))`,
             }}
           >
-        {GROUP_ORDER.filter((key) => !hiddenKeys.has(key)).map((key, idx, arr) => {
-          const list = grouped.get(key) || [];
+        {columnKeys.map((key, idx) => {
+          const list = grouped.get(key as ProcedureGroupKey) || [];
           // Derive a soft tint for the whole column based on the header color
           const pref = prefs.find(p => p.key === key);
-          const bg = (pref?.color) || GROUP_COLORS[key];
+          const bg = (pref?.color) || (GROUP_COLORS as any)[key];
           const headerText = pref?.textColor || getContrastText(bg);
           // Ensure readable text on light tints (especially in dark mode where default text is light)
           const bodyText = headerText;
@@ -276,7 +315,7 @@ export function BacklogPage({
                   borderBottom: `1px solid ${borderCol}`,
                 }}
               >
-                {GROUP_LABELS[key]} <span style={{ opacity: 0.7 }}>({list.length})</span>
+                {pref?.label || (GROUP_LABELS as any)[key] || key} <span style={{ opacity: 0.7 }}>({list.length})</span>
               </div>
               <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8, color: bodyText }}>
                 {list.length === 0 ? (

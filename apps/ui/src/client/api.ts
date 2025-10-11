@@ -45,6 +45,31 @@ export async function debugCurrentAccess(): Promise<{
 try {
   if (typeof window !== 'undefined') {
     (window as any).appDebug = { ...(window as any).appDebug, debugCurrentAccess };
+    // Attach a small helper to dump backlog items and their category keys
+    (window as any).appDebug.dumpBacklogWithCategories = async () => {
+      try {
+        const items = await getBacklog();
+        console.table((items || []).map(i => ({ id: i.id, patientName: i.patientName, categoryKey: i.categoryKey })));
+        return items;
+      } catch (e) {
+        console.error('dumpBacklogWithCategories failed', e);
+        throw e;
+      }
+    };
+    // Expose persisted category prefs for debugging
+    (window as any).appDebug.dumpCategoryPrefs = () => {
+      try {
+        const raw = localStorage.getItem('category-prefs-v1');
+        console.log('[dumpCategoryPrefs] raw:', raw);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        console.table((parsed || []).map((p: any) => ({ key: p.key, label: p.label, color: p.color, hidden: p.hidden })));
+        return parsed;
+      } catch (e) {
+        console.error('dumpCategoryPrefs failed', e);
+        return null;
+      }
+    };
   }
 } catch {}
 export type BacklogItem = {
@@ -53,7 +78,8 @@ export type BacklogItem = {
   mrn: string;
   maskedMrn: string;
   procedure: string;
-  categoryKey?: 'dental' | 'minorPath' | 'majorPath' | 'tmj' | 'orthognathic' | 'uncategorized';
+  // allow built-in and custom category keys
+  categoryKey?: string;
   estDurationMin: number;
   surgeonId?: string;
   caseTypeId: string;
@@ -143,7 +169,7 @@ export async function createBacklogItem(input: {
   patientName: string;
   mrn: string;
   procedure: string;
-  categoryKey?: 'dental' | 'minorPath' | 'majorPath' | 'tmj' | 'orthognathic' | 'uncategorized';
+  categoryKey?: string;
   estDurationMin: number;
   caseTypeId?: string;
   surgeonId?: string;
@@ -193,11 +219,14 @@ export async function createBacklogItem(input: {
           p_phone1: payload.phone1,
           p_phone2: payload.phone2,
           p_notes: payload.notes,
-          p_category_key: payload.category_key,
+          // ensure we send a trimmed non-empty string or null so server preserves legitimate custom keys
+          p_category_key: (typeof payload.category_key === 'string' && payload.category_key.trim() !== '') ? payload.category_key.trim() : null,
           p_case_type_id: payload.case_type_id,
           p_est_duration_min: payload.est_duration_min,
           p_surgeon_id: payload.surgeon_id,
         };
+        // Debug: log that we're using the RPC fallback and which category key we're sending
+        try { console.debug('[createBacklogItem] RPC fallback submit_backlog_user params', { p_category_key: rpcParams.p_category_key }); } catch {}
         const { data: rpcData, error: rpcErr } = await (supabase as any).rpc('submit_backlog_user', rpcParams as any);
         if (rpcErr) throw rpcErr;
         // rpcData may be the returned id or an array/record; normalize to id
