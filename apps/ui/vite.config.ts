@@ -10,8 +10,9 @@ export default defineConfig(({ mode }) => {
   // Load only VITE_ variables from env files in apps/ui
   const env = loadEnv(mode, __dirname_esm, 'VITE_');
   return {
-    // GitHub Pages: use relative base when building in Actions so main and PR previews work
-    base: process.env.GITHUB_ACTIONS ? './' : '/',
+    // Use a relative base in production so it works on GitHub Pages (project subpath)
+    // and any static hosting where the app is not served from domain root.
+    base: mode === 'production' ? './' : '/',
     // Ensure Vite reads env files from this directory (apps/ui)
     envDir: __dirname_esm,
     // Explicitly define env to guarantee availability in both dev and build
