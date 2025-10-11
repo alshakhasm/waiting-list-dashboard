@@ -415,8 +415,8 @@ export function App() {
       <div style={{
         display: 'grid',
         gridTemplateColumns: (tab === 'schedule' && scheduleFull) || tab === 'operated' || tab === 'roller' || tab === 'owner-settings' ? '1fr' : 'auto 1fr',
-        gap: 8,
-        padding: 16,
+        gap: 0,
+  padding: 12,
         // Ensure the content area (including sidebar) fills the viewport below the header
         minHeight: 'calc(100vh - 64px)'
       }}>
@@ -427,7 +427,7 @@ export function App() {
             onSearchChange={(q) => setNameQuery(q)}
           />
         )}
-        <div style={{ minWidth: 0, overflow: 'auto' }}>
+  <div style={{ minWidth: 0, overflow: 'auto', paddingLeft: 0 }}>
           {/* Legend removed per request */}
           {tab === 'backlog' && <BacklogPage search={nameQuery} canConfirm={false} reloadKey={backlogReloadKey} />}
           {tab === 'roller' && <CardRollerPage />}

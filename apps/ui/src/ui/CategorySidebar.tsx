@@ -108,7 +108,7 @@ export function CategorySidebar({
       style={{
         width: expanded ? 260 : 48,
         transition: 'width 160ms ease',
-        borderRight: '1px solid var(--border)',
+        borderRight: '1px solid color-mix(in srgb, var(--border), transparent 40%)',
         background: 'var(--surface-3)',
         minWidth: 0,
         // Fill the available vertical space from the parent grid row
