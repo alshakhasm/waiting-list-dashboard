@@ -56,21 +56,23 @@ export function CategorySidebar({
   function toggleHidden(key: string) {
     setPrefs((prev) => prev.map((p) => (p.key === key ? { ...p, hidden: !p.hidden } : p)));
   }
-  function moveUp(key: string) {
+  // Drag state for DnD reordering
+  const [dragKey, setDragKey] = useState<string | null>(null);
+  const [dragOverKey, setDragOverKey] = useState<string | null>(null);
+
+  function performReorder(fromKey: string, toKey: string | null) {
     setPrefs((prev) => {
-      const i = prev.findIndex(p => p.key === key);
-      if (i <= 0) return prev;
+      const fromIndex = prev.findIndex((p) => p.key === fromKey);
+      if (fromIndex === -1) return prev;
       const out = prev.slice();
-      const tmp = out[i-1]; out[i-1] = out[i]; out[i] = tmp;
-      return out;
-    });
-  }
-  function moveDown(key: string) {
-    setPrefs((prev) => {
-      const i = prev.findIndex(p => p.key === key);
-      if (i === -1 || i >= prev.length - 1) return prev;
-      const out = prev.slice();
-      const tmp = out[i+1]; out[i+1] = out[i]; out[i] = tmp;
+      const [item] = out.splice(fromIndex, 1);
+      if (!toKey) {
+        out.push(item);
+      } else {
+        const toIndex = out.findIndex((p) => p.key === toKey);
+        if (toIndex === -1) out.push(item);
+        else out.splice(toIndex, 0, item);
+      }
       return out;
     });
   }
@@ -330,7 +332,18 @@ export function CategorySidebar({
           {/* Categories (built-ins) */}
           <div style={{ padding: 8, display: panel === 'categories' ? 'grid' : 'none', gap: 6 }}>
             {builtIns.map((p) => (
-              <div key={p.key} style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}>
+              <div
+                key={p.key}
+                onDragOver={(e) => { e.preventDefault(); setDragOverKey(p.key); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const from = dragKey || (e.dataTransfer.getData('text/plain') || null);
+                  if (from) performReorder(from, p.key);
+                  setDragKey(null);
+                  setDragOverKey(null);
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}
+              >
                 <span title={p.label} style={{ width: 12, height: 12, background: p.color, borderRadius: 3, display: 'inline-block', outline: '1px solid color-mix(in srgb, var(--border), black 25%)' }} />
                 <span style={{ flex: 1, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label}</span>
                 <input
@@ -348,13 +361,22 @@ export function CategorySidebar({
                   title={`Color for ${p.label}`}
                   style={{ width: 18, height: 18, border: '1px solid var(--border)', borderRadius: 4, background: p.color, cursor: 'pointer', padding: 0 }}
                 />
-                <div style={{ display: 'inline-flex', gap: 4, marginLeft: 6 }}>
-                  <button title="Move up" onClick={() => moveUp(p.key)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border)', cursor: 'pointer', height: 20 }}>
-                    ↑
-                  </button>
-                  <button title="Move down" onClick={() => moveDown(p.key)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border)', cursor: 'pointer', height: 20 }}>
-                    ↓
-                  </button>
+                {/* Drag handle */}
+                <div
+                  draggable
+                  onDragStart={(e) => {
+                    try { e.dataTransfer.setData('text/plain', p.key); } catch {}
+                    setDragKey(p.key);
+                  }}
+                  onDragEnd={() => { setDragKey(null); setDragOverKey(null); }}
+                  style={{ display: 'inline-flex', alignItems: 'center', marginLeft: 6, cursor: 'grab' }}
+                  title="Drag to reorder"
+                >
+                  <div style={{ width: 18, height: 18, display: 'grid', gap: 2, alignContent: 'center' }} aria-hidden>
+                    <div style={{ height: 2, background: 'color-mix(in srgb, var(--border), black 20%)', borderRadius: 1 }} />
+                    <div style={{ height: 2, background: 'color-mix(in srgb, var(--border), black 20%)', borderRadius: 1 }} />
+                    <div style={{ height: 2, background: 'color-mix(in srgb, var(--border), black 20%)', borderRadius: 1 }} />
+                  </div>
                 </div>
                 {openColorKey === p.key && (
                   <div
@@ -381,10 +403,25 @@ export function CategorySidebar({
             ))}
           </div>
           {/* Custom categories */}
-          <div style={{ padding: 8, borderTop: '1px solid var(--border)', display: panel === 'categories' ? 'grid' : 'none', gap: 6 }}>
+          <div
+            style={{ padding: 8, borderTop: '1px solid var(--border)', display: panel === 'categories' ? 'grid' : 'none', gap: 6 }}
+            onDragOver={(e) => { e.preventDefault(); setDragOverKey(null); }}
+            onDrop={(e) => { e.preventDefault(); const from = dragKey || (e.dataTransfer.getData('text/plain') || null); if (from) performReorder(from, null); setDragKey(null); setDragOverKey(null); }}
+          >
             <strong style={{ fontSize: 11, opacity: 0.7 }}>Custom</strong>
             {customs.map((p) => (
-              <div key={p.key} style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}>
+              <div
+                key={p.key}
+                onDragOver={(e) => { e.preventDefault(); setDragOverKey(p.key); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const from = dragKey || (e.dataTransfer.getData('text/plain') || null);
+                  if (from) performReorder(from, p.key);
+                  setDragKey(null);
+                  setDragOverKey(null);
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}
+              >
                 <span title={p.label} style={{ width: 12, height: 12, background: p.color, borderRadius: 3, display: 'inline-block', outline: '1px solid color-mix(in srgb, var(--border), black 25%)' }} />
                 <span style={{ flex: 1, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label}</span>
                 <input
@@ -402,13 +439,22 @@ export function CategorySidebar({
                   title={`Color for ${p.label}`}
                   style={{ width: 18, height: 18, border: '1px solid var(--border)', borderRadius: 4, background: p.color, cursor: 'pointer', padding: 0 }}
                 />
-                <div style={{ display: 'inline-flex', gap: 4, marginLeft: 6 }}>
-                  <button title="Move up" onClick={() => moveUp(p.key)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border)', cursor: 'pointer', height: 20 }}>
-                    ↑
-                  </button>
-                  <button title="Move down" onClick={() => moveDown(p.key)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border)', cursor: 'pointer', height: 20 }}>
-                    ↓
-                  </button>
+                {/* Drag handle for custom items */}
+                <div
+                  draggable
+                  onDragStart={(e) => {
+                    try { e.dataTransfer.setData('text/plain', p.key); } catch {}
+                    setDragKey(p.key);
+                  }}
+                  onDragEnd={() => { setDragKey(null); setDragOverKey(null); }}
+                  style={{ display: 'inline-flex', alignItems: 'center', marginLeft: 6, cursor: 'grab' }}
+                  title="Drag to reorder"
+                >
+                  <div style={{ width: 18, height: 18, display: 'grid', gap: 2, alignContent: 'center' }} aria-hidden>
+                    <div style={{ height: 2, background: 'color-mix(in srgb, var(--border), black 20%)', borderRadius: 1 }} />
+                    <div style={{ height: 2, background: 'color-mix(in srgb, var(--border), black 20%)', borderRadius: 1 }} />
+                    <div style={{ height: 2, background: 'color-mix(in srgb, var(--border), black 20%)', borderRadius: 1 }} />
+                  </div>
                 </div>
                 {openColorKey === p.key && (
                   <div
