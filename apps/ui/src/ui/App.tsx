@@ -40,6 +40,15 @@ export function App() {
   );
   // Backlog label can be overridden via env (build-time) or localStorage (runtime)
   const ENV_BACKLOG_LABEL = (import.meta as any)?.env?.VITE_BACKLOG_TAB_LABEL as string | undefined;
+  // App title can be overridden via env or localStorage
+  const ENV_APP_TITLE = (import.meta as any)?.env?.VITE_APP_TITLE as string | undefined;
+  const [appTitle, setAppTitle] = useState<string>(() => {
+    try {
+      return localStorage.getItem('ui-app-title') || ENV_APP_TITLE || 'Surgery Schedule';
+    } catch {
+      return ENV_APP_TITLE || 'Surgery Schedule';
+    }
+  });
   const [backlogLabel, setBacklogLabel] = useState<string>(() => {
     try {
       return (ENV_BACKLOG_LABEL || localStorage.getItem('ui-backlog-label') || 'Dashboard');
@@ -55,6 +64,18 @@ export function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Prefer build-time app title on mount
+  useEffect(() => {
+    if (ENV_APP_TITLE && appTitle !== ENV_APP_TITLE) {
+      setAppTitle(ENV_APP_TITLE);
+      try { localStorage.setItem('ui-app-title', ENV_APP_TITLE); } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Keep document.title in sync
+  useEffect(() => {
+    try { document.title = appTitle; } catch {}
+  }, [appTitle]);
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === 'ui-backlog-label') setBacklogLabel(e.newValue || ENV_BACKLOG_LABEL || 'Dashboard');
@@ -374,8 +395,8 @@ export function App() {
         option { color: var(--text); background: var(--surface-1); }
         ::placeholder { color: color-mix(in srgb, var(--text), transparent 45%); }
       `}</style>
-      <header style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', gap: 12, alignItems: 'center', padding: 12, background: 'var(--surface-3)', borderBottom: '1px solid var(--border)', boxShadow: `0 2px 6px var(--shadow)` }}>
-  <strong style={{ whiteSpace: 'nowrap', color: 'var(--text)' }}>OR Waiting & Scheduling</strong>
+    <header style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', gap: 12, alignItems: 'center', padding: 12, background: 'var(--surface-3)', borderBottom: '1px solid var(--border)', boxShadow: `0 2px 6px var(--shadow)` }}>
+  <strong style={{ whiteSpace: 'nowrap', color: 'var(--text)' }}>{appTitle}</strong>
         {typeof window !== 'undefined' && new URL(window.location.href).searchParams.get('debug') === '1' && (
           <div style={{ marginLeft: 8 }}>
             <EnvDebug />
@@ -447,6 +468,19 @@ export function App() {
                         try { localStorage.setItem('ui-backlog-label', v); } catch {}
                       }}
                       placeholder={backlogLabel || 'Dashboard'}
+                      style={{ padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 8 }}
+                    />
+                  </div>
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <label style={{ fontSize: 12, opacity: 0.8 }}>App title</label>
+                    <input
+                      value={appTitle}
+                      onChange={(e) => {
+                        const v = e.target.value || 'Surgery Schedule';
+                        setAppTitle(v);
+                        try { localStorage.setItem('ui-app-title', v); } catch {}
+                      }}
+                      placeholder="Surgery Schedule"
                       style={{ padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 8 }}
                     />
                   </div>
