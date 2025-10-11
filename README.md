@@ -101,3 +101,6 @@ Troubleshooting
 - "Authentication not configured": ensure secrets exist in the `preview` environment.
 - Magic link issues: double‑check Site URL and Redirect URLs (exact, https, trailing slash).
 
+
+<!-- ci: pages ping 2025-10-11 -->
+
