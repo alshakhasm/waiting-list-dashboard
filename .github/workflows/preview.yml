@@ -33,6 +33,16 @@ jobs:
           echo "VITE_SUPABASE_URL set: ${{ secrets.VITE_SUPABASE_URL != '' }}"
           echo "VITE_SUPABASE_ANON_KEY set: ${{ secrets.VITE_SUPABASE_ANON_KEY != '' }}"
 
+      - name: Write .env for Vite (no logging)
+        working-directory: apps/ui
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          printf "VITE_SUPABASE_URL=%s\n" "$VITE_SUPABASE_URL" > .env
+          printf "VITE_SUPABASE_ANON_KEY=%s\n" "$VITE_SUPABASE_ANON_KEY" >> .env
+
       - name: Build UI (Vite)
         env:
           # Inject from repository or environment-level secrets
