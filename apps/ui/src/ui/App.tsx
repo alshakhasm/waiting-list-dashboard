@@ -314,6 +314,10 @@ export function App() {
   return (
     <div style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
       <style>{`
+        /* Global reset to remove UA margins and ensure full-bleed layout */
+        html, body, #root { margin: 0; padding: 0; height: 100%; }
+        body { background: var(--surface-2, #ffffff); color: var(--text, #111111); }
+
         /* Global form control contrast adjustments (especially for dark mode) */
         select, input, textarea {
           background: var(--surface-1);
