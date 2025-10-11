@@ -44,6 +44,10 @@ export function CategorySidebar({
   useEffect(() => {
     saveCategoryPrefs(categoryPrefs);
     onChange?.(categoryPrefs);
+    // Notify other components in this window that prefs changed so they can update without a full reload
+    try {
+      window.dispatchEvent(new CustomEvent('category-prefs-changed', { detail: categoryPrefs }));
+    } catch {}
   }, [categoryPrefs, onChange]);
 
   const builtIns = useMemo(() => categoryPrefs.filter((p) => p.builtIn), [categoryPrefs]);

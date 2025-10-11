@@ -81,8 +81,24 @@ export function BacklogPage({
   }, [reloadKey]);
 
   // Sidebar category preferences (hidden + color overrides)
-  const prefs = useMemo(() => loadCategoryPrefs(defaultCategoryPrefs()), []);
+  const [prefs, setPrefs] = useState(() => loadCategoryPrefs(defaultCategoryPrefs()));
   const hiddenKeys = useMemo(() => new Set(prefs.filter((p) => p.hidden).map((p) => p.key)), [prefs]);
+
+  useEffect(() => {
+    function onPrefs(e: Event) {
+      try {
+        const detail = (e as CustomEvent).detail as any[] | undefined;
+        if (Array.isArray(detail)) {
+          setPrefs(detail as any);
+          return;
+        }
+      } catch {}
+      // fallback: reload persisted prefs
+      try { setPrefs(loadCategoryPrefs(defaultCategoryPrefs())); } catch {}
+    }
+    window.addEventListener('category-prefs-changed', onPrefs as EventListener);
+    return () => window.removeEventListener('category-prefs-changed', onPrefs as EventListener);
+  }, []);
 
   const filtered = useMemo(
     () =>
@@ -93,11 +109,12 @@ export function BacklogPage({
   );
 
   const grouped = useMemo(() => {
-    const map = new Map<ProcedureGroupKey, BacklogItem[]>();
-    for (const key of GROUP_ORDER) map.set(key, []);
+    // Use string keys so custom category keys are supported
+    const map = new Map<string, BacklogItem[]>();
+    for (const key of GROUP_ORDER) map.set(key as string, []);
     for (const it of filtered) {
-      const key = it.categoryKey || classifyProcedure(it.procedure);
-      map.set(key, [...(map.get(key) || []), it]);
+      const k = it.categoryKey || classifyProcedure(it.procedure);
+      map.set(k, [...(map.get(k) || []), it]);
     }
     return map;
   }, [filtered]);
