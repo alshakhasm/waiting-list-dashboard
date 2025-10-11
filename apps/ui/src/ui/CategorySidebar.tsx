@@ -344,7 +344,23 @@ export function CategorySidebar({
                 }}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}
               >
-                <span title={p.label} style={{ width: 12, height: 12, background: p.color, borderRadius: 3, display: 'inline-block', outline: '1px solid color-mix(in srgb, var(--border), black 25%)' }} />
+                {/* drag handle moved to the start */}
+                <div
+                  draggable
+                  onDragStart={(e) => {
+                    try { e.dataTransfer.setData('text/plain', p.key); } catch {}
+                    setDragKey(p.key);
+                  }}
+                  onDragEnd={() => { setDragKey(null); setDragOverKey(null); }}
+                  style={{ display: 'inline-flex', alignItems: 'center', marginRight: 6, cursor: 'grab' }}
+                  title="Drag to reorder"
+                >
+                  <div style={{ width: 18, height: 18, display: 'grid', gap: 2, alignContent: 'center' }} aria-hidden>
+                    <div style={{ height: 2, background: 'color-mix(in srgb, var(--border), black 20%)', borderRadius: 1 }} />
+                    <div style={{ height: 2, background: 'color-mix(in srgb, var(--border), black 20%)', borderRadius: 1 }} />
+                    <div style={{ height: 2, background: 'color-mix(in srgb, var(--border), black 20%)', borderRadius: 1 }} />
+                  </div>
+                </div>
                 <span style={{ flex: 1, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label}</span>
                 <input
                   type="checkbox"
@@ -422,7 +438,23 @@ export function CategorySidebar({
                 }}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}
               >
-                <span title={p.label} style={{ width: 12, height: 12, background: p.color, borderRadius: 3, display: 'inline-block', outline: '1px solid color-mix(in srgb, var(--border), black 25%)' }} />
+                {/* drag handle moved to the start */}
+                <div
+                  draggable
+                  onDragStart={(e) => {
+                    try { e.dataTransfer.setData('text/plain', p.key); } catch {}
+                    setDragKey(p.key);
+                  }}
+                  onDragEnd={() => { setDragKey(null); setDragOverKey(null); }}
+                  style={{ display: 'inline-flex', alignItems: 'center', marginRight: 6, cursor: 'grab' }}
+                  title="Drag to reorder"
+                >
+                  <div style={{ width: 18, height: 18, display: 'grid', gap: 2, alignContent: 'center' }} aria-hidden>
+                    <div style={{ height: 2, background: 'color-mix(in srgb, var(--border), black 20%)', borderRadius: 1 }} />
+                    <div style={{ height: 2, background: 'color-mix(in srgb, var(--border), black 20%)', borderRadius: 1 }} />
+                    <div style={{ height: 2, background: 'color-mix(in srgb, var(--border), black 20%)', borderRadius: 1 }} />
+                  </div>
+                </div>
                 <span style={{ flex: 1, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label}</span>
                 <input
                   type="checkbox"
