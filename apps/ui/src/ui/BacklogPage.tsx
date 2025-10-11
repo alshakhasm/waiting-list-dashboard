@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { getBacklog, seedDemoData, BacklogItem, softRemoveBacklogItem } from '../client/api';
 import { classifyProcedure, GROUP_LABELS, GROUP_ORDER, GROUP_COLORS, ProcedureGroupKey } from './procedureGroups';
-import { loadCategoryPrefs, defaultCategoryPrefs } from './categoryPrefs';
+import { loadCategoryPrefs, defaultCategoryPrefs, saveCategoryPrefs } from './categoryPrefs';
 import { getContrastText } from './color';
 
 export function BacklogPage({
@@ -158,6 +158,32 @@ export function BacklogPage({
     return () => {};
   }, [columnKeys]);
 
+  // Drag state for column reordering
+  const [dragColKey, setDragColKey] = useState<string | null>(null);
+  const [dragOverColKey, setDragOverColKey] = useState<string | null>(null);
+
+  function reorderPrefs(fromKey: string, toKey: string | null) {
+    try {
+      const current = loadCategoryPrefs(defaultCategoryPrefs());
+      const fromIndex = current.findIndex((p) => p.key === fromKey);
+      if (fromIndex === -1) return;
+      const out = current.slice();
+      const [item] = out.splice(fromIndex, 1);
+      if (!toKey) {
+        out.push(item);
+      } else {
+        const toIndex = out.findIndex((p) => p.key === toKey);
+        if (toIndex === -1) out.push(item);
+        else out.splice(toIndex, 0, item);
+      }
+      saveCategoryPrefs(out);
+      // Notify other components
+      try { window.dispatchEvent(new CustomEvent('category-prefs-changed', { detail: out })); } catch {}
+    } catch (e) {
+      console.warn('reorderPrefs failed', e);
+    }
+  }
+
   // Close open menu on outside click
   useEffect(() => {
     if (!openMenuId) return;
@@ -312,6 +338,14 @@ export function BacklogPage({
           return (
             <div
               key={key}
+              onDragOver={(e) => { e.preventDefault(); setDragOverColKey(key); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const from = dragColKey || (e.dataTransfer.getData('text/plain') || null);
+                if (from) reorderPrefs(from, key);
+                setDragColKey(null);
+                setDragOverColKey(null);
+              }}
               style={{
                 // Draw a single-pixel seam between columns without doubling borders
                 borderTop: `1px solid ${borderCol}`,
@@ -330,9 +364,23 @@ export function BacklogPage({
                   background: bg,
                   color: headerText,
                   borderBottom: `1px solid ${borderCol}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
                 }}
               >
-                {pref?.label || (GROUP_LABELS as any)[key] || key} <span style={{ opacity: 0.7 }}>({list.length})</span>
+                {/* drag handle for column */}
+                <div
+                  draggable
+                  onDragStart={(e) => { try { e.dataTransfer.setData('text/plain', key); } catch {}; setDragColKey(key); }}
+                  onDragEnd={() => { setDragColKey(null); setDragOverColKey(null); }}
+                  title="Drag to reorder columns"
+                  style={{ width: 18, height: 18, display: 'grid', gap: 2, alignContent: 'center', cursor: 'grab' }}
+                >
+                  <div style={{ height: 2, background: headerText, borderRadius: 1 }} />
+                  <div style={{ height: 2, background: headerText, borderRadius: 1 }} />
+                </div>
+                <div style={{ flex: 1 }}>{pref?.label || (GROUP_LABELS as any)[key] || key} <span style={{ opacity: 0.7 }}>({list.length})</span></div>
               </div>
               <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8, color: bodyText }}>
                 {list.length === 0 ? (
