@@ -250,13 +250,7 @@ export function App() {
     return () => { cancelled = true; };
   }, [profile?.role, user?.email]);
 
-  // If a restricted tab is saved but user isn't owner, fall back
-  useEffect(() => {
-    const isOwner = profile?.role === 'owner';
-    if (!isOwner && (tab === 'members' || tab === 'intake-links')) {
-      setTab('backlog');
-    }
-  }, [profile, tab]);
+  // Do not auto-switch tabs; restricted tabs will render an AccessDenied page for non-owners
 
   if (signingOut) {
     return (
@@ -534,8 +528,8 @@ export function App() {
           {tab === 'schedule' && <SchedulePage isFull={scheduleFull} />}
           {tab === 'mappings' && <MappingProfilesPage />}
           {tab === 'operated' && <OperatedTablePage />}
-          {tab === 'members' && <MembersPage />}
-          {tab === 'intake-links' && <IntakeLinksPage />}
+          {tab === 'members' && (profile?.role === 'owner' ? <MembersPage /> : <AccessDeniedPage />)}
+          {tab === 'intake-links' && (profile?.role === 'owner' ? <IntakeLinksPage /> : <AccessDeniedPage />)}
           {tab === 'list' && <ComprehensiveListPage />}
           {tab === 'archive' && <ArchivePage />}
           {tab === 'owner-settings' && <OwnerSettingsPage />}
