@@ -55,9 +55,11 @@ export function ComprehensiveListPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const base = q ? rows.filter(r => (
+    // Always hide soft-deleted/archived items
+    const active = rows.filter(r => !r.isRemoved);
+    const base = q ? active.filter(r => (
       (r.patientName + ' ' + r.procedure + ' ' + r.mrn + ' ' + (r.phone1 || '') + ' ' + (r.phone2 || '') + ' ' + (r.notes || '')).toLowerCase().includes(q)
-    )) : rows;
+    )) : active;
     const sorted = [...base].sort((a, b) => {
       const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
