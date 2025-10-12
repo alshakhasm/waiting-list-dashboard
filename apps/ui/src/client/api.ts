@@ -118,7 +118,7 @@ export async function getBacklog(params?: { caseTypeId?: string; surgeonId?: str
     let error: any = null;
     if (HAS_BACKLOG_IS_REMOVED !== false) {
       try {
-        let q = supabase.from('backlog').select('*').eq('is_removed', false);
+          let q = supabase.from('backlog').select('*').eq('is_removed', false);
         if (params?.search) q = q.or(`patient_name.ilike.%${params.search}%,procedure.ilike.%${params.search}%`);
         const res = await q;
         data = res.data as any[];
@@ -130,12 +130,18 @@ export async function getBacklog(params?: { caseTypeId?: string; surgeonId?: str
       // If column missing, retry without filter
       if (error && /column\s+backlog\.is_removed\s+does not exist/i.test(String(error.message || ''))) {
         HAS_BACKLOG_IS_REMOVED = false;
-        const res2 = await supabase.from('backlog').select('*');
+          // Fallback: hide rows marked as removed via notes marker
+          let q2 = supabase.from('backlog').select('*').not('notes','ilike','removed@%');
+          if (params?.search) q2 = q2.or(`patient_name.ilike.%${params.search}%,procedure.ilike.%${params.search}%`);
+          const res2 = await q2;
         data = res2.data as any[];
         error = res2.error;
       }
     } else {
-      const res = await supabase.from('backlog').select('*');
+      // When we know the is_removed column is absent, exclude rows tagged as removed via notes
+      let q = supabase.from('backlog').select('*').not('notes','ilike','removed@%');
+      if (params?.search) q = q.or(`patient_name.ilike.%${params.search}%,procedure.ilike.%${params.search}%`);
+      const res = await q;
       data = res.data as any[];
       error = res.error;
     }
@@ -153,8 +159,9 @@ export async function getBacklog(params?: { caseTypeId?: string; surgeonId?: str
       phone1: r.phone1 || undefined,
       phone2: r.phone2 || undefined,
       preferredDate: r.preferred_date || undefined,
-      notes: r.notes || undefined,
-      isRemoved: r.is_removed || false,
+        notes: r.notes || undefined,
+        // Consider row removed if boolean flag is true, or (fallback) notes starts with our marker
+        isRemoved: Boolean(r.is_removed) || (typeof r.notes === 'string' && /^removed@/i.test(r.notes)),
       createdAt: r.created_at || undefined,
     }));
   }
