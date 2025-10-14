@@ -26,7 +26,7 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
       if (!id) continue;
       const status = entry.status || 'tentative';
       if (status === 'tentative' || status === 'scheduled') pending.add(id);
-      if (status === 'confirmed' || status === 'operated') hidden.add(id);
+      if (status === 'operated') hidden.add(id);
     }
     setPendingIds(Array.from(pending));
     setHiddenIds(Array.from(hidden));
