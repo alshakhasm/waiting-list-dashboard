@@ -419,8 +419,12 @@ export function BacklogPage({
                 {list.length === 0 ? (
                   <div style={{ opacity: 0.6, fontSize: 12 }}>No items</div>
                 ) : (
-                  list.map((i) => (
-                    <div
+                  list.map((i) => {
+                    const isPending = pendingIds.includes(i.id);
+                    const cardBackground = isPending ? '#e5e7eb' : cardBg;
+                    const cardText = isPending ? '#374151' : bodyText;
+                    return (
+                      <div
                       key={i.id}
                       draggable
                       onDragStart={(e) => {
@@ -436,9 +440,13 @@ export function BacklogPage({
                         border: selectedId === i.id ? `2px solid var(--primary)` : `1px solid ${borderCol}`,
                         borderRadius: 6,
                         padding: 8,
-                        background: cardBg,
+                        background: cardBackground,
                         cursor: onSelect ? 'pointer' : 'default',
                         position: 'relative',
+                        color: cardText,
+                        boxShadow: isPending ? 'inset 0 0 0 1px #cbd5f5' : undefined,
+                        opacity: isPending ? 0.9 : 1,
+                        filter: isPending ? 'grayscale(0.15)' : 'none',
                       }}
                       title={onSelect ? 'Click to select' : undefined}
                     >
@@ -471,16 +479,23 @@ export function BacklogPage({
                       <div style={{ opacity: 0.9 }}>{i.procedure}</div>
                       <div style={{ fontVariantNumeric: 'tabular-nums', opacity: 0.8, fontSize: 12 }}>{i.maskedMrn}</div>
                       <div style={{ opacity: 0.8, fontSize: 12 }}>{i.estDurationMin} min</div>
-                      {pendingIds.includes(i.id) && canConfirm && (
+                      {isPending && (
                         <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <input id={`confirm-${i.id}`} type="checkbox" onChange={() => onConfirm?.(i)} />
-                          <label htmlFor={`confirm-${i.id}`} style={{ fontSize: 12 }}>
-                            Awaiting confirmation — tick to remove from Dashboard
-                          </label>
+                          {canConfirm ? (
+                            <>
+                              <input id={`confirm-${i.id}`} type="checkbox" onChange={() => onConfirm?.(i)} />
+                              <label htmlFor={`confirm-${i.id}`} style={{ fontSize: 12 }}>
+                                Awaiting confirmation — tick to remove from Dashboard
+                              </label>
+                            </>
+                          ) : (
+                            <span style={{ fontSize: 12, opacity: 0.8 }}>Awaiting confirmation</span>
+                          )}
                         </div>
                       )}
-                    </div>
-                  ))
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>

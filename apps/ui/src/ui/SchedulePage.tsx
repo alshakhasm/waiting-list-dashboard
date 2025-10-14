@@ -18,11 +18,23 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
   const { role } = useSupabaseAuth();
   const canConfirm = role ? role === 'senior' : true; // allow by default when no role system
 
+  function syncBacklogVisibility(entries: ScheduleEntry[]) {
+    const pending = new Set<string>();
+    const hidden = new Set<string>();
+    for (const entry of entries) {
+      const id = entry.waitingListItemId;
+      if (!id) continue;
+      const status = entry.status || 'tentative';
+      if (status === 'tentative' || status === 'scheduled') pending.add(id);
+      if (status === 'confirmed' || status === 'operated') hidden.add(id);
+    }
+    setPendingIds(Array.from(pending));
+    setHiddenIds(Array.from(hidden));
+  }
+
   useEffect(() => {
-    (async () => {
-      const s = await getSchedule({ date });
-      setSchedule(s);
-    })();
+    refreshSchedule(date);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date]);
 
   useEffect(() => {
@@ -36,25 +48,17 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
 
   async function refreshSchedule(targetDate?: string) {
     const s = await getSchedule({ date: targetDate ?? date });
-    setSchedule(s);
-    return s;
-  }
-
-  function hideBacklogForEntry(entryId: string, entries: ScheduleEntry[]) {
-    const entry = entries.find(e => e.id === entryId);
-    const itemId = entry?.waitingListItemId;
-    if (itemId) {
-      setHiddenIds((h) => (h.includes(itemId) ? h : [...h, itemId]));
-      setPendingIds((ids) => ids.filter(x => x !== itemId));
-    }
+    const visible = s.filter(entry => entry.status !== 'cancelled');
+    setSchedule(visible);
+    syncBacklogVisibility(visible);
+    return visible;
   }
 
   async function handleToggleConfirm(id: string, confirmed: boolean) {
     try {
       if (confirmed) await confirmSchedule(id);
       else await updateSchedule(id, { status: 'tentative' });
-      const s = await refreshSchedule();
-      if (confirmed) hideBacklogForEntry(id, s);
+      await refreshSchedule();
     } catch (e) {
       console.error('Failed to toggle confirmation', e);
       window.alert?.((e as any)?.message || 'Failed to update confirmation');
@@ -64,8 +68,7 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
   async function handleToggleOperated(id: string, operated: boolean) {
     try {
       await markScheduleOperated(id, operated);
-      const s = await refreshSchedule();
-      if (operated) hideBacklogForEntry(id, s);
+      await refreshSchedule();
     } catch (e) {
       console.error('Failed to toggle operated', e);
       window.alert?.((e as any)?.message || 'Failed to update operated status');
@@ -80,7 +83,6 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
     const surgeonId = selectedItem.surgeonId || 's:1';
     await createSchedule({ waitingListItemId: selectedItem.id, roomId, surgeonId, date, startTime: start, endTime: end });
     await refreshSchedule(date);
-    if (!pendingIds.includes(selectedItem.id)) setPendingIds((ids) => [...ids, selectedItem.id]);
   }
 
   return (
@@ -115,7 +117,6 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
                   if (!itemId) return;
                   await createSchedule({ waitingListItemId: itemId, roomId, surgeonId, date: d, startTime, endTime });
                   await refreshSchedule(d);
-                  if (!pendingIds.includes(itemId)) setPendingIds((ids) => [...ids, itemId]);
                 } catch (e) {
                   console.error('Failed to create schedule from drop', e);
                   const msg = (e as any)?.message || 'Failed to create schedule (check availability)';
@@ -152,17 +153,14 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
                     // Confirm all tentative entries for this backlog item in the current view
                     const toConfirm = schedule.filter(e => e.waitingListItemId === i.id && e.status !== 'confirmed' && e.status !== 'operated');
                     if (toConfirm.length === 0) {
-                      // Nothing to confirm; just hide from dashboard
-                      setHiddenIds((h) => (h.includes(i.id) ? h : [...h, i.id]));
-                      setPendingIds((ids) => ids.filter(id => id !== i.id));
+                      // Nothing to confirm; refresh to ensure derived state updates
+                      await refreshSchedule();
                       return;
                     }
                     for (const entry of toConfirm) {
                       await confirmSchedule(entry.id);
                     }
-                    const s = await refreshSchedule();
-                    setHiddenIds((h) => (h.includes(i.id) ? h : [...h, i.id]));
-                    setPendingIds((ids) => ids.filter(id => id !== i.id));
+                    await refreshSchedule();
                   } catch (e: any) {
                     console.error('Failed to confirm schedule', e);
                     window.alert?.(e?.message || 'Failed to confirm schedule');
@@ -190,7 +188,6 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
                       if (!itemId) return;
                       await createSchedule({ waitingListItemId: itemId, roomId, surgeonId, date: d, startTime, endTime });
                       await refreshSchedule(d);
-                      if (!pendingIds.includes(itemId)) setPendingIds((ids) => [...ids, itemId]);
                     } catch (e) {
                       console.error('Failed to create schedule from drop', e);
                       const msg = (e as any)?.message || 'Failed to create schedule (check availability)';
