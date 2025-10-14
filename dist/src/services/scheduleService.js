@@ -11,6 +11,10 @@ export const ScheduleService = {
         return all;
     },
     create(input) {
+        const today = new Date().toISOString().slice(0, 10);
+        if (input.date <= today) {
+            throw new Error('Scheduled date must be in the future');
+        }
         // basic availability checks (room+surgeon not double-booked same date)
         const allEntries = Array.from(db.schedule.values());
         const candidates = allEntries.filter(e => e.waitingListItemId === input.waitingListItemId);

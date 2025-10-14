@@ -401,6 +401,10 @@ export async function getSchedule(params?: { date?: string }): Promise<ScheduleE
 }
 
 export async function createSchedule(input: { waitingListItemId: string; roomId: string; surgeonId: string; date: string; startTime: string; endTime: string; notes?: string }): Promise<ScheduleEntry> {
+  const today = new Date().toISOString().slice(0, 10);
+  if (input.date <= today) {
+    throw new Error('Scheduled date must be in the future');
+  }
   if (supabase) {
     const mapRow = (row: any): ScheduleEntry => ({
       id: row.id,

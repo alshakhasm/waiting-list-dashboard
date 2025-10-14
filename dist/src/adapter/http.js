@@ -107,6 +107,10 @@ const routes = [
             }
             catch (e) {
                 const msg = e?.message || 'Error creating schedule';
+                if (msg.includes('future'))
+                    return badRequest(msg);
+                if (msg.includes('past'))
+                    return badRequest(msg);
                 if (msg.includes('unavailable'))
                     return conflict(msg);
                 return serverError(msg);

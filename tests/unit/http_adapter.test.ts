@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach } from '@jest/globals';
 import { handleRequest } from '../../src/index';
 import { resetDb, db } from '../../src/lib/store';
 
+const futureDate = (days = 7) => new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
 describe('HTTP adapter', () => {
   beforeEach(() => resetDb());
 
@@ -20,6 +22,17 @@ describe('HTTP adapter', () => {
     // Missing fields
     const bad = await handleRequest({ method: 'POST', path: '/schedule', body: {} });
     expect(bad.status).toBe(400);
+  });
+
+  it('POST /schedule rejects past or current dates', async () => {
+    await handleRequest({ method: 'POST', path: '/imports/excel', body: { fileName: 'seed.xlsx', rows: [ { patientName: 'A', mrn: '1', procedure: 'P', estDurationMin: 10, surgeonId: 's:1' } ] } });
+    const w = Array.from(db.waiting.values())[0];
+    const today = new Date().toISOString().slice(0, 10);
+    const todayRes = await handleRequest({ method: 'POST', path: '/schedule', body: { waitingListItemId: w.id, roomId: 'or:1', surgeonId: 's:1', date: today, startTime: '08:00', endTime: '09:00' } });
+    expect(todayRes.status).toBe(400);
+    const past = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const pastRes = await handleRequest({ method: 'POST', path: '/schedule', body: { waitingListItemId: w.id, roomId: 'or:1', surgeonId: 's:1', date: past, startTime: '08:00', endTime: '09:00' } });
+    expect(pastRes.status).toBe(400);
   });
 
   it('POST /imports/excel and GET /backlog', async () => {
@@ -45,7 +58,7 @@ describe('HTTP adapter', () => {
     // seed one waiting item & schedule
     await handleRequest({ method: 'POST', path: '/imports/excel', body: { fileName: 'seed.xlsx', rows: [ { patientName: 'A', mrn: '1', procedure: 'P', estDurationMin: 10, surgeonId: 's:1' } ] } });
     const w = Array.from(db.waiting.values())[0];
-    const created = await handleRequest({ method: 'POST', path: '/schedule', body: { waitingListItemId: w.id, roomId: 'or:1', surgeonId: 's:1', date: '2025-01-01', startTime: '08:00', endTime: '09:00' } });
+    const created = await handleRequest({ method: 'POST', path: '/schedule', body: { waitingListItemId: w.id, roomId: 'or:1', surgeonId: 's:1', date: futureDate(7), startTime: '08:00', endTime: '09:00' } });
     const id = created.body.id as string;
     const v = created.body.version as number;
     const ok = await handleRequest({ method: 'PATCH', path: `/schedule/${id}`, body: { version: v, startTime: '09:00', endTime: '10:00' } });
