@@ -57,11 +57,6 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
   const itemLookup = useMemo(() => Object.fromEntries(items.map(i => [i.id, i])), [items]);
 
   async function handleToggleConfirm(id: string, confirmed: boolean) {
-    setSchedule(prev => {
-      const next = prev.map(entry => entry.id === id ? { ...entry, status: confirmed ? 'confirmed' : 'tentative' } : entry);
-      syncBacklogVisibility(next);
-      return next;
-    });
     try {
       if (confirmed) await confirmSchedule(id);
       else await updateSchedule(id, { status: 'tentative' });
@@ -73,11 +68,6 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
   }
 
   async function handleToggleOperated(id: string, operated: boolean) {
-    setSchedule(prev => {
-      const next = prev.map(entry => entry.id === id ? { ...entry, status: operated ? 'operated' : 'confirmed' } : entry);
-      syncBacklogVisibility(next);
-      return next;
-    });
     try {
       await markScheduleOperated(id, operated);
       await refreshSchedule();
