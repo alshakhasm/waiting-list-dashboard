@@ -371,6 +371,43 @@ export async function getSchedule(params?: { date?: string }): Promise<ScheduleE
 
 export async function createSchedule(input: { waitingListItemId: string; roomId: string; surgeonId: string; date: string; startTime: string; endTime: string; notes?: string }): Promise<ScheduleEntry> {
   if (supabase) {
+    const mapRow = (row: any): ScheduleEntry => ({
+      id: row.id,
+      waitingListItemId: row.waiting_list_item_id,
+      roomId: row.room_id,
+      surgeonId: row.surgeon_id,
+      date: row.date,
+      startTime: row.start_time,
+      endTime: row.end_time,
+      status: row.status || 'scheduled',
+      version: (row.version as number | undefined) ?? 1,
+      notes: row.notes || undefined,
+    });
+    const { data: existingRows, error: existingError } = await (supabase as any)
+      .from('schedule')
+      .select('*')
+      .eq('waiting_list_item_id', input.waitingListItemId);
+    if (existingError) throw existingError;
+    const existing = (existingRows || []).find((row: any) => row.status !== 'cancelled') || null;
+    if (existing) {
+      const payload: Record<string, any> = {
+        room_id: input.roomId,
+        surgeon_id: input.surgeonId,
+        date: input.date,
+        start_time: input.startTime,
+        end_time: input.endTime,
+        status: 'scheduled',
+        notes: input.notes ?? existing.notes ?? null,
+      };
+      const { data, error } = await (supabase as any)
+        .from('schedule')
+        .update(payload)
+        .eq('id', existing.id)
+        .select('*')
+        .single();
+      if (error) throw error;
+      return mapRow(data);
+    }
     const { data, error } = await (supabase as any).from('schedule').insert({
       waiting_list_item_id: input.waitingListItemId,
       room_id: input.roomId,
@@ -378,22 +415,11 @@ export async function createSchedule(input: { waitingListItemId: string; roomId:
       date: input.date,
       start_time: input.startTime,
       end_time: input.endTime,
-      status: 'tentative',
+      status: 'scheduled',
       notes: input.notes ?? null,
     }).select('*').single();
     if (error) throw error;
-    return {
-      id: data!.id,
-      waitingListItemId: data!.waiting_list_item_id,
-      roomId: data!.room_id,
-      surgeonId: data!.surgeon_id,
-      date: data!.date,
-      startTime: data!.start_time,
-      endTime: data!.end_time,
-      status: data!.status,
-      version: 1,
-      notes: data!.notes || undefined,
-    } as ScheduleEntry;
+    return mapRow(data);
   }
   const handleRequest = await getHandleRequest();
   const res = await handleRequest({ method: 'POST', path: '/schedule', body: input });

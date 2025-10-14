@@ -14,10 +14,29 @@ export const ScheduleService = {
   },
   create(input: { waitingListItemId: WaitingListItemId; roomId: ORRoomId; surgeonId: SurgeonId; date: string; startTime: string; endTime: string; notes?: string }): ScheduleEntry {
     // basic availability checks (room+surgeon not double-booked same date)
-    const entries = Array.from(db.schedule.values()).filter(e => e.date === input.date);
+    const allEntries = Array.from(db.schedule.values());
+    const existing = allEntries.find(e => e.waitingListItemId === input.waitingListItemId && e.status !== 'cancelled');
+    const entries = allEntries.filter(e => e.date === input.date && (!existing || e.id !== existing.id));
     for (const e of entries) {
       if (e.roomId === input.roomId && overlaps(e.startTime, e.endTime, input.startTime, input.endTime)) throw new Error('Room unavailable');
       if (e.surgeonId === input.surgeonId && overlaps(e.startTime, e.endTime, input.startTime, input.endTime)) throw new Error('Surgeon unavailable');
+    }
+    const now = new Date().toISOString();
+    if (existing) {
+      const updated: ScheduleEntry = {
+        ...existing,
+        roomId: input.roomId,
+        surgeonId: input.surgeonId,
+        date: input.date,
+        startTime: input.startTime,
+        endTime: input.endTime,
+        notes: input.notes ?? existing.notes,
+        status: 'scheduled',
+        updatedAt: now,
+        version: existing.version + 1,
+      };
+      db.schedule.set(existing.id, updated);
+      return updated;
     }
     const id = newId('sch');
     const entry: ScheduleEntry = {
@@ -30,7 +49,7 @@ export const ScheduleService = {
       endTime: input.endTime,
       status: 'scheduled',
       notes: input.notes,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
       version: 1,
     };
     db.schedule.set(id, entry);
