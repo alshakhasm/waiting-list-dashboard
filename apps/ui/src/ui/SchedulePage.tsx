@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { getSchedule, createSchedule, BacklogItem, ScheduleEntry, confirmSchedule, deleteSchedule, getBacklog, updateSchedule, markScheduleOperated } from '../client/api';
 import { SplitPane } from './SplitPane';
 import { CompactCalendar } from './CompactCalendar';
@@ -55,6 +55,10 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
   }, []);
 
   const itemLookup = useMemo(() => Object.fromEntries(items.map(i => [i.id, i])), [items]);
+  const scheduleRef = useRef<ScheduleEntry[]>([]);
+  useEffect(() => {
+    scheduleRef.current = schedule;
+  }, [schedule]);
 
   async function handleToggleConfirm(id: string, confirmed: boolean) {
     try {
@@ -117,8 +121,15 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
                   const surgeonId = data?.surgeonId || 's:1';
                   const itemId = data?.itemId;
                   if (!itemId) return;
+                  const previousIds = new Set(scheduleRef.current.map(e => e.id));
                   await createSchedule({ waitingListItemId: itemId, roomId, surgeonId, date: d, startTime, endTime });
                   await refreshSchedule(d);
+                  setSchedule(prev => {
+                    if (prev.length === 0) return prev;
+                    const filtered = prev.filter(entry => previousIds.has(entry.id) || entry.waitingListItemId === itemId);
+                    if (filtered.length !== prev.length) syncBacklogVisibility(filtered);
+                    return filtered;
+                  });
                 } catch (e) {
                   console.error('Failed to create schedule from drop', e);
                   const msg = (e as any)?.message || 'Failed to create schedule (check availability)';
@@ -188,8 +199,15 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
                       const surgeonId = data?.surgeonId || 's:1';
                       const itemId = data?.itemId;
                       if (!itemId) return;
+                      const previousIds = new Set(scheduleRef.current.map(e => e.id));
                       await createSchedule({ waitingListItemId: itemId, roomId, surgeonId, date: d, startTime, endTime });
                       await refreshSchedule(d);
+                      setSchedule(prev => {
+                        if (prev.length === 0) return prev;
+                        const filtered = prev.filter(entry => previousIds.has(entry.id) || entry.waitingListItemId === itemId);
+                        if (filtered.length !== prev.length) syncBacklogVisibility(filtered);
+                        return filtered;
+                      });
                     } catch (e) {
                       console.error('Failed to create schedule from drop', e);
                       const msg = (e as any)?.message || 'Failed to create schedule (check availability)';
