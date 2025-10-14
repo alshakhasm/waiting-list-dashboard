@@ -21,8 +21,9 @@ export function CompactCalendar(props: {
   canEdit?: boolean;
   itemById?: Record<string, BacklogItem | undefined>;
   onToggleConfirm?: (id: string, confirmed: boolean) => void | Promise<void>;
+  onToggleOperated?: (id: string, operated: boolean) => void | Promise<void>;
 }) {
-  const { date, view = 'week', entries, onDrop, onRemoveEntry, canEdit = true, itemById, onToggleConfirm } = props;
+  const { date, view = 'week', entries, onDrop, onRemoveEntry, canEdit = true, itemById, onToggleConfirm, onToggleOperated } = props;
 
   const days: string[] = useMemo(() => buildDays(date, view), [date, view]);
 
@@ -92,14 +93,32 @@ export function CompactCalendar(props: {
                         </div>
                         {canEdit && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-                              <input
-                                type="checkbox"
-                                checked={(en.status || 'tentative') === 'confirmed'}
-                                onChange={(e) => onToggleConfirm?.(en.id, e.target.checked)}
-                              />
-                              Confirmed
-                            </label>
+                            {(() => {
+                              const isOperated = (en.status || 'tentative') === 'operated';
+                              const isConfirmed = isOperated || (en.status || 'tentative') === 'confirmed';
+                              return (
+                                <>
+                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={isConfirmed}
+                                      disabled={isOperated}
+                                      onChange={(e) => onToggleConfirm?.(en.id, e.target.checked)}
+                                    />
+                                    Confirmed
+                                  </label>
+                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={isOperated}
+                                      disabled={!isConfirmed && !isOperated}
+                                      onChange={(e) => onToggleOperated?.(en.id, e.target.checked)}
+                                    />
+                                    Operated
+                                  </label>
+                                </>
+                              );
+                            })()}
                             {onRemoveEntry && (
                               <div style={{ marginLeft: 'auto' }}>
                                 <button onClick={() => onRemoveEntry(en.id)} style={{ fontSize: 12 }}>Remove</button>

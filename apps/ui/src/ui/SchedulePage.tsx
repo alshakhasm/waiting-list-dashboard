@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getSchedule, createSchedule, BacklogItem, ScheduleEntry, confirmSchedule, deleteSchedule, getBacklog, updateSchedule } from '../client/api';
+import { getSchedule, createSchedule, BacklogItem, ScheduleEntry, confirmSchedule, deleteSchedule, getBacklog, updateSchedule, markScheduleOperated } from '../client/api';
 import { SplitPane } from './SplitPane';
 import { CompactCalendar } from './CompactCalendar';
 import { BacklogPage } from './BacklogPage';
@@ -32,6 +32,46 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
     })();
   }, []);
 
+  const itemLookup = useMemo(() => Object.fromEntries(items.map(i => [i.id, i])), [items]);
+
+  async function refreshSchedule(targetDate?: string) {
+    const s = await getSchedule({ date: targetDate ?? date });
+    setSchedule(s);
+    return s;
+  }
+
+  function hideBacklogForEntry(entryId: string, entries: ScheduleEntry[]) {
+    const entry = entries.find(e => e.id === entryId);
+    const itemId = entry?.waitingListItemId;
+    if (itemId) {
+      setHiddenIds((h) => (h.includes(itemId) ? h : [...h, itemId]));
+      setPendingIds((ids) => ids.filter(x => x !== itemId));
+    }
+  }
+
+  async function handleToggleConfirm(id: string, confirmed: boolean) {
+    try {
+      if (confirmed) await confirmSchedule(id);
+      else await updateSchedule(id, { status: 'tentative' });
+      const s = await refreshSchedule();
+      if (confirmed) hideBacklogForEntry(id, s);
+    } catch (e) {
+      console.error('Failed to toggle confirmation', e);
+      window.alert?.((e as any)?.message || 'Failed to update confirmation');
+    }
+  }
+
+  async function handleToggleOperated(id: string, operated: boolean) {
+    try {
+      await markScheduleOperated(id, operated);
+      const s = await refreshSchedule();
+      if (operated) hideBacklogForEntry(id, s);
+    } catch (e) {
+      console.error('Failed to toggle operated', e);
+      window.alert?.((e as any)?.message || 'Failed to update operated status');
+    }
+  }
+
   async function scheduleSelected() {
     if (!selectedItem) return;
     const start = '08:00';
@@ -39,8 +79,7 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
     const roomId = 'or:1';
     const surgeonId = selectedItem.surgeonId || 's:1';
     await createSchedule({ waitingListItemId: selectedItem.id, roomId, surgeonId, date, startTime: start, endTime: end });
-    const s = await getSchedule({ date });
-    setSchedule(s);
+    await refreshSchedule(date);
     if (!pendingIds.includes(selectedItem.id)) setPendingIds((ids) => [...ids, selectedItem.id]);
   }
 
@@ -61,30 +100,13 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
         <div style={{ flex: 1, minHeight: 0 }}>
           <h3 style={{ marginTop: 0 }}>Schedule {view} of {date}</h3>
           <div style={{ position: 'relative', height: '100%' }}>
-              <CompactCalendar
-                  date={date}
-                  view={view}
-                  entries={schedule}
-                  itemById={useMemo(() => Object.fromEntries(items.map(i => [i.id, i])), [items])}
-                  onToggleConfirm={async (id, confirmed) => {
-                    try {
-                      if (confirmed) await confirmSchedule(id);
-                      else await updateSchedule(id, { status: 'tentative' });
-                      const s = await getSchedule({ date });
-                      setSchedule(s);
-                      // If confirmed, hide related backlog card from Dashboard
-                      if (confirmed) {
-                        const entry = (schedule || []).find(e => e.id === id) || s.find(e => e.id === id);
-                        const itemId = entry?.waitingListItemId;
-                        if (itemId) {
-                          setHiddenIds((h) => (h.includes(itemId) ? h : [...h, itemId]));
-                          setPendingIds((ids) => ids.filter(x => x !== itemId));
-                        }
-                      }
-                    } catch (e) {
-                      console.error('Failed to toggle confirmation', e);
-                    }
-                  }}
+            <CompactCalendar
+              date={date}
+              view={view}
+              entries={schedule}
+              itemById={itemLookup}
+              onToggleConfirm={handleToggleConfirm}
+              onToggleOperated={handleToggleOperated}
               onDrop={async ({ date: d, startTime, endTime, data }) => {
                 try {
                   const roomId = 'or:1';
@@ -92,8 +114,7 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
                   const itemId = data?.itemId;
                   if (!itemId) return;
                   await createSchedule({ waitingListItemId: itemId, roomId, surgeonId, date: d, startTime, endTime });
-                  const s = await getSchedule({ date: d });
-                  setSchedule(s);
+                  await refreshSchedule(d);
                   if (!pendingIds.includes(itemId)) setPendingIds((ids) => [...ids, itemId]);
                 } catch (e) {
                   console.error('Failed to create schedule from drop', e);
@@ -104,8 +125,7 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
               onRemoveEntry={async (id) => {
                 try {
                   await deleteSchedule(id);
-                  const s = await getSchedule({ date });
-                  setSchedule(s);
+                  await refreshSchedule();
                 } catch (e) {
                   console.error('Failed to remove entry', e);
                   window.alert?.('Failed to remove entry');
@@ -130,7 +150,7 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
                 onConfirm={async (i) => {
                   try {
                     // Confirm all tentative entries for this backlog item in the current view
-                    const toConfirm = schedule.filter(e => e.waitingListItemId === i.id && e.status !== 'confirmed');
+                    const toConfirm = schedule.filter(e => e.waitingListItemId === i.id && e.status !== 'confirmed' && e.status !== 'operated');
                     if (toConfirm.length === 0) {
                       // Nothing to confirm; just hide from dashboard
                       setHiddenIds((h) => (h.includes(i.id) ? h : [...h, i.id]));
@@ -140,8 +160,7 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
                     for (const entry of toConfirm) {
                       await confirmSchedule(entry.id);
                     }
-                    const s = await getSchedule({ date });
-                    setSchedule(s);
+                    const s = await refreshSchedule();
                     setHiddenIds((h) => (h.includes(i.id) ? h : [...h, i.id]));
                     setPendingIds((ids) => ids.filter(id => id !== i.id));
                   } catch (e: any) {
@@ -160,26 +179,9 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
                   date={date}
                   view={view}
                   entries={schedule}
-                  itemById={useMemo(() => Object.fromEntries(items.map(i => [i.id, i])), [items])}
-                  onToggleConfirm={async (id, confirmed) => {
-                    try {
-                      if (confirmed) await confirmSchedule(id);
-                      else await updateSchedule(id, { status: 'tentative' });
-                      const s = await getSchedule({ date });
-                      setSchedule(s);
-                      // If confirmed, hide related backlog card from Dashboard
-                      if (confirmed) {
-                        const entry = (schedule || []).find(e => e.id === id) || s.find(e => e.id === id);
-                        const itemId = entry?.waitingListItemId;
-                        if (itemId) {
-                          setHiddenIds((h) => (h.includes(itemId) ? h : [...h, itemId]));
-                          setPendingIds((ids) => ids.filter(x => x !== itemId));
-                        }
-                      }
-                    } catch (e) {
-                      console.error('Failed to toggle confirmation', e);
-                    }
-                  }}
+                  itemById={itemLookup}
+                  onToggleConfirm={handleToggleConfirm}
+                  onToggleOperated={handleToggleOperated}
                   onDrop={async ({ date: d, startTime, endTime, data }) => {
                     try {
                       const roomId = 'or:1';
@@ -187,8 +189,7 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
                       const itemId = data?.itemId;
                       if (!itemId) return;
                       await createSchedule({ waitingListItemId: itemId, roomId, surgeonId, date: d, startTime, endTime });
-                      const s = await getSchedule({ date: d });
-                      setSchedule(s);
+                      await refreshSchedule(d);
                       if (!pendingIds.includes(itemId)) setPendingIds((ids) => [...ids, itemId]);
                     } catch (e) {
                       console.error('Failed to create schedule from drop', e);
@@ -199,8 +200,7 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
                   onRemoveEntry={async (id) => {
                     try {
                       await deleteSchedule(id);
-                      const s = await getSchedule({ date });
-                      setSchedule(s);
+                      await refreshSchedule();
                     } catch (e) {
                       console.error('Failed to remove entry', e);
                       window.alert?.('Failed to remove entry');

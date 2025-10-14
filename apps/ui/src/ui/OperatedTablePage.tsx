@@ -48,7 +48,7 @@ export function OperatedTablePage() {
     const f = new Date(from + 'T00:00:00');
     const t = new Date(to + 'T23:59:59');
     return schedule
-      .filter(e => e.status === 'confirmed')
+      .filter(e => e.status === 'operated')
       .filter(e => {
         const d = new Date(e.date + 'T00:00:00');
         return d >= f && d <= t;

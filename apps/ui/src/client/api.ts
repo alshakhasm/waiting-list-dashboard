@@ -435,13 +435,18 @@ export async function createSchedule(input: { waitingListItemId: string; roomId:
       if (cleanupError) throw cleanupError;
     }
     if (existing) {
+      const nextStatus = existing.status === 'operated'
+        ? 'operated'
+        : existing.status === 'confirmed'
+          ? 'confirmed'
+          : 'scheduled';
       const payload: Record<string, any> = {
         room_id: input.roomId,
         surgeon_id: input.surgeonId,
         date: input.date,
         start_time: input.startTime,
         end_time: input.endTime,
-        status: existing.status === 'confirmed' ? 'confirmed' : 'scheduled',
+        status: nextStatus,
         notes: input.notes ?? existing.notes ?? null,
       };
       const { data, error } = await (supabase as any)
@@ -480,6 +485,17 @@ export async function confirmSchedule(id: string): Promise<void> {
   }
   const handleRequest = await getHandleRequest();
   await handleRequest({ method: 'PATCH', path: `/schedule/${id}`, body: { status: 'confirmed' } });
+}
+
+export async function markScheduleOperated(id: string, operated: boolean): Promise<void> {
+  if (supabase) {
+    const status = operated ? 'operated' : 'confirmed';
+    const { error } = await (supabase as any).from('schedule').update({ status }).eq('id', id);
+    if (error) throw error;
+    return;
+  }
+  const handleRequest = await getHandleRequest();
+  await handleRequest({ method: 'PATCH', path: `/schedule/${id}`, body: { status: operated ? 'operated' : 'confirmed' } });
 }
 
 export async function updateSchedule(id: string, patch: Partial<{ date: string; startTime: string; endTime: string; roomId: string; surgeonId: string; notes: string; status: string }>): Promise<void> {

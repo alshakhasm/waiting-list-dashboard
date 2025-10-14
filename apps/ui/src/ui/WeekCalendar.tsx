@@ -237,6 +237,10 @@ export function WeekCalendar({ date, entries, startHour = 8, endHour = 18, onDro
   const endM = toMinutes(e.endTime) - startHour * 60;
   const topPx = Math.max(0, (startM / 60) * rowHeight);
   const heightPx = Math.max(8, ((endM - startM) / 60) * rowHeight);
+        const isOperated = e.status === 'operated';
+        const isConfirmed = isOperated || e.status === 'confirmed';
+        const cardBg = isOperated ? '#DCFCE7' : isConfirmed ? '#E6F4EA' : '#FEF3C7';
+        const borderColor = isOperated ? '#16a34a' : isConfirmed ? '#84cc16' : '#F59E0B';
         return (
           <div
             key={e.id}
@@ -254,8 +258,8 @@ export function WeekCalendar({ date, entries, startHour = 8, endHour = 18, onDro
                 left: 6,
                 right: 6,
                 height: heightPx,
-                background: e.status === 'confirmed' ? '#E6F4EA' : '#FEF3C7',
-                border: `1px solid ${e.status === 'confirmed' ? '#84cc16' : '#F59E0B'}`,
+                background: cardBg,
+                border: `1px solid ${borderColor}`,
                 borderRadius: 6,
                 padding: 6,
                 fontSize: 12,
@@ -264,7 +268,11 @@ export function WeekCalendar({ date, entries, startHour = 8, endHour = 18, onDro
               title={`OR ${e.roomId} ${e.startTime}-${e.endTime}`}
             >
               <div style={{ fontWeight: 600 }}>OR {e.roomId}</div>
-              <div style={{ opacity: 0.8 }}>{e.startTime}–{e.endTime} {e.status !== 'confirmed' && <em style={{ color: '#92400e' }}>(tentative)</em>}</div>
+              <div style={{ opacity: 0.8 }}>
+                {e.startTime}–{e.endTime}{' '}
+                {!isConfirmed && <em style={{ color: '#92400e' }}>(tentative)</em>}
+                {isOperated && <em style={{ color: '#047857', marginLeft: 4 }}>(operated)</em>}
+              </div>
               <div style={{ opacity: 0.7 }}>Surgeon {e.surgeonId}</div>
             </div>
           </div>
