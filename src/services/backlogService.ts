@@ -9,5 +9,22 @@ export const BacklogService = {
     if (params?.surgeonId) items = items.filter(i => i.surgeonId === params.surgeonId);
     if (params?.search) items = items.filter(i => (i.patientName + ' ' + i.procedure).toLowerCase().includes(params.search!.toLowerCase()));
     return items.map(i => ({ ...i, maskedMrn: maskMRN(i.mrn) }));
-  }
+  },
+  softRemove(id: string): boolean {
+    if (!db.waiting.has(id)) return false;
+    db.waiting.delete(id);
+    return true;
+  },
+  update(id: string, patch: Partial<Pick<WaitingListItem,
+    'patientName' | 'mrn' | 'procedure' | 'estDurationMin' | 'surgeonId' | 'caseTypeId' |
+    'phone1' | 'phone2' | 'preferredDate' | 'notes'>>): (WaitingListItem & { maskedMrn: string }) | null {
+    const current = db.waiting.get(id);
+    if (!current) return null;
+    const updated: WaitingListItem = {
+      ...current,
+      ...patch,
+    };
+    db.waiting.set(id, updated);
+    return { ...updated, maskedMrn: maskMRN(updated.mrn) };
+  },
 };

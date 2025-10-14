@@ -5,6 +5,56 @@ async function getHandleRequest(): Promise<(_req: any) => Promise<any>> {
 }
 import { supabase } from '../supabase/client';
 
+const LOCAL_SOFT_REMOVED_KEY = 'backlog.softRemoved.v1';
+
+function readSoftRemovedSet(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = window.localStorage.getItem(LOCAL_SOFT_REMOVED_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((id: any) => typeof id === 'string' && id));
+  } catch {
+    return new Set();
+  }
+}
+
+function writeSoftRemovedSet(set: Set<string>) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(LOCAL_SOFT_REMOVED_KEY, JSON.stringify(Array.from(set)));
+  } catch {}
+}
+
+function rememberSoftRemovedId(id: string) {
+  if (!id) return;
+  const set = readSoftRemovedSet();
+  if (!set.has(id)) {
+    set.add(id);
+    writeSoftRemovedSet(set);
+  }
+}
+
+function getSoftRemovedSet(existingIds: Iterable<string>): Set<string> {
+  const set = readSoftRemovedSet();
+  const existing = new Set(existingIds);
+  let changed = false;
+  for (const id of Array.from(set)) {
+    if (!existing.has(id)) {
+      set.delete(id);
+      changed = true;
+    }
+  }
+  if (changed) writeSoftRemovedSet(set);
+  return set;
+}
+
+function filterLocallyRemoved<T extends { id: string }>(items: T[]): T[] {
+  const suppressed = getSoftRemovedSet(items.map((item) => item.id));
+  if (suppressed.size === 0) return items;
+  return items.filter((item) => !suppressed.has(item.id));
+}
 
 // --- Debug helpers ---
 export async function debugCurrentAccess(): Promise<{
@@ -146,7 +196,14 @@ export async function getBacklog(params?: { caseTypeId?: string; surgeonId?: str
       error = res.error;
     }
     if (error) throw error;
-    return (data || []).map((r: any) => ({
+    const sanitized = (data || []).filter((r: any) => {
+      // Always hide rows that were soft-removed, whether flagged via column or legacy note marker
+      const note = typeof r?.notes === 'string' ? r.notes : '';
+      if (/^removed@/i.test(note.trim())) return false;
+      if (r?.is_removed === true) return false;
+      return true;
+    });
+    const mapped = sanitized.map((r: any) => ({
       id: r.id,
       patientName: r.patient_name,
       mrn: r.mrn,
@@ -164,12 +221,13 @@ export async function getBacklog(params?: { caseTypeId?: string; surgeonId?: str
         isRemoved: Boolean(r.is_removed) || (typeof r.notes === 'string' && /^removed@/i.test(r.notes)),
       createdAt: r.created_at || undefined,
     }));
+    return filterLocallyRemoved(mapped);
   }
   const url = '/backlog';
   const handleRequest = await getHandleRequest();
   const res = await handleRequest({ method: 'GET', path: url, query: params as any });
   if (res.status !== 200) throw new Error('Failed to fetch backlog');
-  return res.body as BacklogItem[];
+  return filterLocallyRemoved(res.body as BacklogItem[]);
 }
 
 export async function createBacklogItem(input: {
@@ -280,48 +338,6 @@ export async function createBacklogItem(input: {
     notes: data.notes || undefined,
     isRemoved: data.is_removed || false,
   } as BacklogItem;
-}
-
-export async function seedDemoData(): Promise<void> {
-  // Seed a small demo import
-  const rows = [
-    { patientName: 'Alice', mrn: '123456', procedure: 'Molar extraction', estDurationMin: 30, caseTypeName: 'case:elective', surgeonId: 's:1' },
-    { patientName: 'Bob', mrn: '987654', procedure: 'Lesion excision (minor pathology)', estDurationMin: 40, caseTypeName: 'case:urgent', surgeonId: 's:2' },
-    { patientName: 'Carla', mrn: '11119999', procedure: 'Mandibulectomy (major pathology)', estDurationMin: 180, caseTypeName: 'case:elective', surgeonId: 's:1' },
-    { patientName: 'Dan', mrn: '22223333', procedure: 'Le Fort I orthognathic', estDurationMin: 150, caseTypeName: 'case:elective', surgeonId: 's:3' },
-    { patientName: 'Eve', mrn: '33334444', procedure: 'Appendectomy', estDurationMin: 60, caseTypeName: 'case:elective', surgeonId: 's:4' },
-    { patientName: 'Fay', mrn: '44445555', procedure: 'TMJ wash (arthrocentesis)', estDurationMin: 35, caseTypeName: 'case:elective', surgeonId: 's:5' },
-    { patientName: 'Gus', mrn: '55556666', procedure: 'TMJ open surgery', estDurationMin: 120, caseTypeName: 'case:elective', surgeonId: 's:6' },
-  ];
-  if (supabase) {
-    // Only seed once: skip if backlog already has any rows
-    const { count, error: countErr } = await supabase.from('backlog').select('*', { count: 'exact', head: true });
-    if (countErr) throw countErr;
-    if ((count ?? 0) > 0) return;
-    const mask = (mrn: string) => mrn.replace(/.(?=.{2}$)/g, '•');
-    const inserts = rows.map(r => ({
-      patient_name: r.patientName,
-      mrn: r.mrn,
-      masked_mrn: mask(r.mrn),
-      procedure: r.procedure,
-      est_duration_min: r.estDurationMin,
-      surgeon_id: r.surgeonId ?? null,
-      case_type_id: r.caseTypeName ?? 'case:elective',
-    }));
-    const { error } = await (supabase as any).from('backlog').insert(inserts);
-    if (error) {
-      const msg = String((error as any)?.message || '');
-      // If RLS prevents inserts (e.g., no backlog insert policy), ignore and continue without demo data
-      if (msg.toLowerCase().includes('row-level security') || msg.toLowerCase().includes('permission denied')) {
-        console.warn('[seedDemoData] skipped due to RLS/permissions');
-        return;
-      }
-      throw error;
-    }
-    return;
-  }
-  const handleRequest = await getHandleRequest();
-  await handleRequest({ method: 'POST', path: '/imports/excel', body: { fileName: 'demo.xlsx', rows } });
 }
 
 export type ScheduleEntry = {
@@ -445,24 +461,40 @@ export async function getArchivedPatients(params?: { search?: string }): Promise
 }
 
 export async function softRemoveBacklogItem(id: string): Promise<void> {
-  if (!supabase) throw new Error('Supabase not configured');
-  // Try soft-delete flag; fallback to notes marker if column missing
-  if (HAS_BACKLOG_IS_REMOVED !== false) {
-    const { error } = await (supabase as any).from('backlog').update({ is_removed: true }).eq('id', id);
-    if (error) {
-      if (/column\s+backlog\.is_removed\s+does not exist/i.test(String(error.message || ''))) {
-        HAS_BACKLOG_IS_REMOVED = false;
+  if (supabase) {
+    // Try soft-delete flag; fallback to notes marker if column missing
+    if (HAS_BACKLOG_IS_REMOVED !== false) {
+      const { error } = await (supabase as any).from('backlog').update({ is_removed: true }).eq('id', id);
+      if (error) {
+        if (/column\s+backlog\.is_removed\s+does not exist/i.test(String(error.message || ''))) {
+          HAS_BACKLOG_IS_REMOVED = false;
+        } else {
+          rememberSoftRemovedId(id);
+          throw error;
+        }
       } else {
-        throw error;
+        HAS_BACKLOG_IS_REMOVED = true;
+        rememberSoftRemovedId(id);
+        return;
       }
-    } else {
-      return;
     }
+    // Fallback path: mark removal in notes
+    const marker = `removed@${new Date().toISOString()}`;
+    const { error: e2 } = await (supabase as any).from('backlog').update({ notes: marker }).eq('id', id);
+    if (e2) {
+      rememberSoftRemovedId(id);
+      throw e2;
+    }
+    rememberSoftRemovedId(id);
+    return;
   }
-  // Fallback path: mark removal in notes
-  const marker = `removed@${new Date().toISOString()}`;
-  const { error: e2 } = await (supabase as any).from('backlog').update({ notes: marker }).eq('id', id);
-  if (e2) throw e2;
+  const handleRequest = await getHandleRequest();
+  const res = await handleRequest({ method: 'DELETE', path: `/backlog/${id}` });
+  if (res.status !== 204) {
+    rememberSoftRemovedId(id);
+    throw new Error((res.body && (res.body as any).error) || 'Failed to remove backlog item');
+  }
+  rememberSoftRemovedId(id);
 }
 
 export async function updateBacklogItem(id: string, patch: Partial<{
@@ -470,34 +502,56 @@ export async function updateBacklogItem(id: string, patch: Partial<{
   phone2: string | null;
   notes: string | null;
 }>): Promise<BacklogItem> {
-  if (!supabase) throw new Error('Supabase not configured');
   const payload: any = {};
   if ('phone1' in patch) payload.phone1 = normalizePhone(patch.phone1 ?? null);
   if ('phone2' in patch) payload.phone2 = normalizePhone(patch.phone2 ?? null);
   if ('notes' in patch) payload.notes = patch.notes ?? null;
-  const { data, error } = await (supabase as any)
-    .from('backlog')
-    .update(payload)
-    .eq('id', id)
-    .select('*')
-    .single();
-  if (error) throw error;
+  if (supabase) {
+    const { data, error } = await (supabase as any)
+      .from('backlog')
+      .update(payload)
+      .eq('id', id)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return {
+      id: data.id,
+      patientName: data.patient_name,
+      mrn: data.mrn,
+      maskedMrn: data.masked_mrn,
+      procedure: data.procedure,
+      categoryKey: data.category_key || undefined,
+      estDurationMin: data.est_duration_min,
+      surgeonId: data.surgeon_id || undefined,
+      caseTypeId: data.case_type_id,
+      phone1: data.phone1 || undefined,
+      phone2: data.phone2 || undefined,
+      preferredDate: data.preferred_date || undefined,
+      notes: data.notes || undefined,
+      isRemoved: data.is_removed || false,
+      createdAt: data.created_at || undefined,
+    } as BacklogItem;
+  }
+  const handleRequest = await getHandleRequest();
+  const res = await handleRequest({ method: 'PATCH', path: `/backlog/${id}`, body: payload });
+  if (res.status !== 200) throw new Error((res.body && (res.body as any).error) || 'Failed to update backlog item');
+  const r = res.body as any;
   return {
-    id: data.id,
-    patientName: data.patient_name,
-    mrn: data.mrn,
-    maskedMrn: data.masked_mrn,
-    procedure: data.procedure,
-    categoryKey: data.category_key || undefined,
-    estDurationMin: data.est_duration_min,
-    surgeonId: data.surgeon_id || undefined,
-    caseTypeId: data.case_type_id,
-    phone1: data.phone1 || undefined,
-    phone2: data.phone2 || undefined,
-    preferredDate: data.preferred_date || undefined,
-    notes: data.notes || undefined,
-    isRemoved: data.is_removed || false,
-    createdAt: data.created_at || undefined,
+    id: r.id,
+    patientName: r.patientName,
+    mrn: r.mrn,
+    maskedMrn: r.maskedMrn || (r.mrn ? `••••${String(r.mrn).slice(-4)}` : ''),
+    procedure: r.procedure,
+    categoryKey: r.categoryKey || undefined,
+    estDurationMin: r.estDurationMin,
+    surgeonId: r.surgeonId || undefined,
+    caseTypeId: r.caseTypeId,
+    phone1: r.phone1 || undefined,
+    phone2: r.phone2 || undefined,
+    preferredDate: r.preferredDate || undefined,
+    notes: r.notes || undefined,
+    isRemoved: r.isRemoved || false,
+    createdAt: r.createdAt || undefined,
   } as BacklogItem;
 }
 

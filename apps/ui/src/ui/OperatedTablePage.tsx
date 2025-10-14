@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BacklogItem, ScheduleEntry, getBacklog, getSchedule, seedDemoData } from '../client/api';
+import { BacklogItem, ScheduleEntry, getBacklog, getSchedule } from '../client/api';
 
 type Row = {
   id: string;
@@ -32,7 +32,6 @@ export function OperatedTablePage() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      await seedDemoData();
       const [bl, sc] = await Promise.all([
         getBacklog(),
         getSchedule(),

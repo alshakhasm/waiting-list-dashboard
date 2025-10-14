@@ -30,6 +30,17 @@ describe('HTTP adapter', () => {
     expect(backlog.body.length).toBe(1);
   });
 
+  it('DELETE /backlog/:id removes waiting item from store', async () => {
+    await handleRequest({ method: 'POST', path: '/imports/excel', body: { fileName: 'seed.xlsx', rows: [ { patientName: 'A', mrn: '1', procedure: 'P', estDurationMin: 10 } ] } });
+    const [id] = Array.from(db.waiting.keys());
+    expect(typeof id).toBe('string');
+    const res = await handleRequest({ method: 'DELETE', path: `/backlog/${id}` });
+    expect(res.status).toBe(204);
+    expect(db.waiting.has(id)).toBe(false);
+    const after = await handleRequest({ method: 'GET', path: '/backlog' });
+    expect(after.body.length).toBe(0);
+  });
+
   it('PATCH /schedule/:id maps version conflict to 409', async () => {
     // seed one waiting item & schedule
     await handleRequest({ method: 'POST', path: '/imports/excel', body: { fileName: 'seed.xlsx', rows: [ { patientName: 'A', mrn: '1', procedure: 'P', estDurationMin: 10, surgeonId: 's:1' } ] } });

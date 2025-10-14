@@ -10,5 +10,11 @@ export const BacklogService = {
         if (params?.search)
             items = items.filter(i => (i.patientName + ' ' + i.procedure).toLowerCase().includes(params.search.toLowerCase()));
         return items.map(i => ({ ...i, maskedMrn: maskMRN(i.mrn) }));
-    }
+    },
+    softRemove(id) {
+        if (!db.waiting.has(id))
+            return false;
+        db.waiting.delete(id);
+        return true;
+    },
 };

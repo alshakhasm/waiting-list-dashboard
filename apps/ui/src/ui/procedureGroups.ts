@@ -95,12 +95,11 @@ export function classifyProcedure(procedure: string | undefined | null): Procedu
   return found ? found.key : 'uncategorized';
 }
 
-// Optional simple colors per group (can be aligned with /legend later)
 export const GROUP_COLORS: Record<ProcedureGroupKey, string> = {
-  dental: '#E6F4EA', // light green
-  minorPath: '#E8F0FE', // light blue
-  majorPath: '#FDE8E8', // light red
-  tmj: '#EDE9FE', // light purple
-  orthognathic: '#FFF4E5', // light orange
-  uncategorized: '#F3F4F6', // light gray
+  dental: '#00B894', // vivid emerald
+  minorPath: '#0984E3', // bold azure
+  majorPath: '#EB5757', // strong crimson
+  tmj: '#9B51E0', // saturated violet
+  orthognathic: '#F2C94C', // bright amber
+  uncategorized: '#6366F1', // lively indigo fallback
 };

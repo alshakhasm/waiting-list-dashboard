@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BacklogItem, createSchedule, getBacklog, seedDemoData, softRemoveBacklogItem } from '../client/api';
+import { BacklogItem, createSchedule, getBacklog, softRemoveBacklogItem } from '../client/api';
 import { GROUP_LABELS, ProcedureGroupKey, classifyProcedure, GROUP_ORDER } from './procedureGroups';
 import { loadCategoryPrefs, defaultCategoryPrefs } from './categoryPrefs';
 import { CardRollerCard } from './CardRollerCard';
@@ -31,7 +31,6 @@ export function CardRollerPage() {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      await seedDemoData();
       const data = await getBacklog();
       if (!cancelled) {
         setItems(data);

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getSchedule, createSchedule, BacklogItem, ScheduleEntry, confirmSchedule, deleteSchedule, getBacklog, seedDemoData, updateSchedule } from '../client/api';
+import { getSchedule, createSchedule, BacklogItem, ScheduleEntry, confirmSchedule, deleteSchedule, getBacklog, updateSchedule } from '../client/api';
 import { SplitPane } from './SplitPane';
 import { CompactCalendar } from './CompactCalendar';
 import { BacklogPage } from './BacklogPage';
@@ -27,7 +27,6 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
 
   useEffect(() => {
     (async () => {
-      await seedDemoData();
       const data = await getBacklog();
       setItems(data);
     })();
@@ -62,21 +61,30 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
         <div style={{ flex: 1, minHeight: 0 }}>
           <h3 style={{ marginTop: 0 }}>Schedule {view} of {date}</h3>
           <div style={{ position: 'relative', height: '100%' }}>
-            <CompactCalendar
-              date={date}
-              view={view}
-              entries={schedule}
-              itemById={useMemo(() => Object.fromEntries(items.map(i => [i.id, i])), [items])}
-              onToggleConfirm={async (id, confirmed) => {
-                try {
-                  if (confirmed) await confirmSchedule(id);
-                  else await updateSchedule(id, { status: 'tentative' });
-                  const s = await getSchedule({ date });
-                  setSchedule(s);
-                } catch (e) {
-                  console.error('Failed to toggle confirmation', e);
-                }
-              }}
+              <CompactCalendar
+                  date={date}
+                  view={view}
+                  entries={schedule}
+                  itemById={useMemo(() => Object.fromEntries(items.map(i => [i.id, i])), [items])}
+                  onToggleConfirm={async (id, confirmed) => {
+                    try {
+                      if (confirmed) await confirmSchedule(id);
+                      else await updateSchedule(id, { status: 'tentative' });
+                      const s = await getSchedule({ date });
+                      setSchedule(s);
+                      // If confirmed, hide related backlog card from Dashboard
+                      if (confirmed) {
+                        const entry = (schedule || []).find(e => e.id === id) || s.find(e => e.id === id);
+                        const itemId = entry?.waitingListItemId;
+                        if (itemId) {
+                          setHiddenIds((h) => (h.includes(itemId) ? h : [...h, itemId]));
+                          setPendingIds((ids) => ids.filter(x => x !== itemId));
+                        }
+                      }
+                    } catch (e) {
+                      console.error('Failed to toggle confirmation', e);
+                    }
+                  }}
               onDrop={async ({ date: d, startTime, endTime, data }) => {
                 try {
                   const roomId = 'or:1';
@@ -159,6 +167,15 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
                       else await updateSchedule(id, { status: 'tentative' });
                       const s = await getSchedule({ date });
                       setSchedule(s);
+                      // If confirmed, hide related backlog card from Dashboard
+                      if (confirmed) {
+                        const entry = (schedule || []).find(e => e.id === id) || s.find(e => e.id === id);
+                        const itemId = entry?.waitingListItemId;
+                        if (itemId) {
+                          setHiddenIds((h) => (h.includes(itemId) ? h : [...h, itemId]));
+                          setPendingIds((ids) => ids.filter(x => x !== itemId));
+                        }
+                      }
                     } catch (e) {
                       console.error('Failed to toggle confirmation', e);
                     }

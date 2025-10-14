@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { getBacklog, seedDemoData, BacklogItem, softRemoveBacklogItem } from '../client/api';
+import { getBacklog, BacklogItem, softRemoveBacklogItem } from '../client/api';
 import { classifyProcedure, GROUP_LABELS, GROUP_ORDER, GROUP_COLORS, ProcedureGroupKey } from './procedureGroups';
 import { loadCategoryPrefs, defaultCategoryPrefs, saveCategoryPrefs } from './categoryPrefs';
 import { getContrastText } from './color';
@@ -70,7 +70,6 @@ export function BacklogPage({
     let cancelled = false;
     (async () => {
       setLoading(true);
-      await seedDemoData();
       const data = await getBacklog();
       if (!cancelled) {
         setItems(data);

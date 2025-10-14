@@ -1,6 +1,6 @@
 import { listMappingProfiles, createMappingProfile } from '../api/mappingProfiles';
 import { postImportsExcel } from '../api/imports';
-import { listBacklog } from '../api/backlog';
+import { listBacklog, softRemoveBacklog } from '../api/backlog';
 import { deleteSchedule, patchSchedule, postSchedule, getScheduleList } from '../api/schedule';
 import { getWeeklyExport } from '../api/exports';
 import { getLegend } from '../api/legend';
@@ -57,6 +57,14 @@ const routes = [
             const { caseTypeId, surgeonId, search } = req.query || {};
             const items = listBacklog({ caseTypeId, surgeonId, search });
             return ok(items);
+        }
+    },
+    {
+        method: 'DELETE', pattern: '/backlog/:id', handler: (_req, params) => {
+            const removed = softRemoveBacklog(params.id);
+            if (!removed)
+                return notFound('Backlog item not found');
+            return noContent();
         }
     },
     // Schedule

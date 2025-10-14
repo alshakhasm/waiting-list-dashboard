@@ -1,6 +1,6 @@
 import { listMappingProfiles, createMappingProfile } from '../api/mappingProfiles';
 import { postImportsExcel } from '../api/imports';
-import { listBacklog } from '../api/backlog';
+import { listBacklog, softRemoveBacklog, updateBacklog } from '../api/backlog';
 import { deleteSchedule, patchSchedule, postSchedule, getScheduleList } from '../api/schedule';
 import { getWeeklyExport } from '../api/exports';
 import { getLegend } from '../api/legend';
@@ -79,6 +79,34 @@ const routes: Route[] = [
       return ok(items);
     }
   },
+  {
+    method: 'DELETE', pattern: '/backlog/:id', handler: (_req, params) => {
+      const removed = softRemoveBacklog(params.id);
+      if (!removed) return notFound('Backlog item not found');
+      return noContent();
+    }
+  },
+  {
+    method: 'PATCH', pattern: '/backlog/:id', handler: (req, params) => {
+      const id = params.id;
+      const body = req.body as Partial<{
+        patientName: string;
+        mrn: string;
+        procedure: string;
+        estDurationMin: number;
+        surgeonId?: string;
+        caseTypeId: string;
+        phone1?: string;
+        phone2?: string;
+        preferredDate?: string;
+        notes?: string;
+      }> | undefined;
+      if (!body || Object.keys(body).length === 0) return badRequest('No fields to update');
+      const updated = updateBacklog(id, body as any);
+      if (!updated) return notFound('Backlog item not found');
+      return ok(updated);
+    }
+  },
 
   // Schedule
   {
@@ -118,9 +146,16 @@ const routes: Route[] = [
     method: 'PATCH', pattern: '/schedule/:id', handler: (req, params) => {
       const id = params.id;
       const body = req.body as { version?: number; startTime?: string; endTime?: string; status?: string; notes?: string } | undefined;
-      if (!body || typeof body.version !== 'number') return badRequest('version is required');
+      if (!body) return badRequest('Missing body');
       try {
-        const updated = patchSchedule(id, body as any);
+        if (typeof body.version === 'number') {
+          const updated = patchSchedule(id, body as any);
+          return ok(updated);
+        }
+        // Permit simple status/notes updates without explicit version by reading current and applying
+        const existing = getScheduleList().find(e => e.id === id);
+        if (!existing) return notFound('Not found');
+        const updated = patchSchedule(id, { version: existing.version, startTime: body.startTime, endTime: body.endTime, status: body.status as any, notes: body.notes } as any);
         return ok(updated);
       } catch (e: any) {
         const msg = e?.message || 'Error updating schedule';
