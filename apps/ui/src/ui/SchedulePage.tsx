@@ -35,21 +35,9 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
   const refreshSchedule = useCallback(async (targetDate?: string) => {
     const s = await getSchedule({ date: targetDate ?? date });
     const visible = s.filter(entry => entry.status !== 'cancelled');
-    const dedup = new Map<string, ScheduleEntry>();
-    for (const entry of visible) {
-      const key = entry.waitingListItemId || entry.id;
-      const existing = dedup.get(key);
-      if (!existing) {
-        dedup.set(key, entry);
-        continue;
-      }
-      const existingStamp = existing.updatedAt ? Date.parse(existing.updatedAt) : NaN;
-      const currentStamp = entry.updatedAt ? Date.parse(entry.updatedAt) : NaN;
-      const existingScore = Number.isNaN(existingStamp) ? existing.version ?? 0 : existingStamp;
-      const currentScore = Number.isNaN(currentStamp) ? entry.version ?? 0 : currentStamp;
-      if (currentScore >= existingScore) dedup.set(key, entry);
-    }
-    const normalized = Array.from(dedup.values());
+    const byId = new Map<string, ScheduleEntry>();
+    for (const entry of visible) byId.set(entry.id, entry);
+    const normalized = Array.from(byId.values());
     setSchedule(normalized);
     syncBacklogVisibility(normalized);
     return normalized;
