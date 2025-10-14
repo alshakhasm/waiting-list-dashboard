@@ -13,7 +13,9 @@ export const ScheduleService = {
     create(input) {
         // basic availability checks (room+surgeon not double-booked same date)
         const allEntries = Array.from(db.schedule.values());
-        const existing = allEntries.find(e => e.waitingListItemId === input.waitingListItemId && e.status !== 'cancelled');
+        const candidates = allEntries.filter(e => e.waitingListItemId === input.waitingListItemId);
+        const existing = candidates.find(e => e.status !== 'cancelled');
+        const duplicates = candidates.filter(e => e.id !== (existing === null || existing === void 0 ? void 0 : existing.id));
         const entries = allEntries.filter(e => e.date === input.date && (!existing || e.id !== existing.id));
         for (const e of entries) {
             if (e.roomId === input.roomId && overlaps(e.startTime, e.endTime, input.startTime, input.endTime))
@@ -23,6 +25,9 @@ export const ScheduleService = {
         }
         const now = new Date().toISOString();
         if (existing) {
+            for (const dup of duplicates) {
+                db.schedule.delete(dup.id);
+            }
             const updated = {
                 ...existing,
                 roomId: input.roomId,
@@ -37,6 +42,10 @@ export const ScheduleService = {
             };
             db.schedule.set(existing.id, updated);
             return updated;
+        }
+        // clean up any residual duplicates before creating a new entry
+        for (const dup of duplicates) {
+            db.schedule.delete(dup.id);
         }
         const id = newId('sch');
         const entry = {

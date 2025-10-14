@@ -388,7 +388,16 @@ export async function createSchedule(input: { waitingListItemId: string; roomId:
       .select('*')
       .eq('waiting_list_item_id', input.waitingListItemId);
     if (existingError) throw existingError;
-    const existing = (existingRows || []).find((row: any) => row.status !== 'cancelled') || null;
+    const rows = existingRows || [];
+    const existing = rows.find((row: any) => row.status !== 'cancelled') || rows[0] || null;
+    const duplicates = rows.filter((row: any) => !existing || row.id !== existing.id);
+    if (duplicates.length > 0) {
+      const { error: cleanupError } = await (supabase as any)
+        .from('schedule')
+        .delete()
+        .in('id', duplicates.map((row: any) => row.id));
+      if (cleanupError) throw cleanupError;
+    }
     if (existing) {
       const payload: Record<string, any> = {
         room_id: input.roomId,
@@ -396,7 +405,7 @@ export async function createSchedule(input: { waitingListItemId: string; roomId:
         date: input.date,
         start_time: input.startTime,
         end_time: input.endTime,
-        status: 'scheduled',
+        status: existing.status === 'confirmed' ? 'confirmed' : 'scheduled',
         notes: input.notes ?? existing.notes ?? null,
       };
       const { data, error } = await (supabase as any)

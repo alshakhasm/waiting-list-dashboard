@@ -23,6 +23,9 @@ describe('Create schedule entry → calendar', () => {
     ]);
     const w = Array.from(db.waiting.values())[0];
     const first = postSchedule({ waitingListItemId: w.id, roomId: 'or:2', surgeonId: 's:2', date: '2025-02-01', startTime: '09:00', endTime: '09:45' });
+    // Simulate a stale duplicate lingering in the schedule store
+    const dupId = 'sch-dup';
+    db.schedule.set(dupId, { ...first, id: dupId, startTime: '09:30', endTime: '10:10', version: first.version, updatedAt: first.updatedAt });
     const second = postSchedule({ waitingListItemId: w.id, roomId: 'or:3', surgeonId: 's:3', date: '2025-02-02', startTime: '10:00', endTime: '11:00' });
     expect(second.id).toBe(first.id);
     expect(second.version).toBe(first.version + 1);
