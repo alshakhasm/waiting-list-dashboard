@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { getSchedule, createSchedule, BacklogItem, ScheduleEntry, confirmSchedule, deleteSchedule, getBacklog, updateSchedule, markScheduleOperated } from '../client/api';
 import { SplitPane } from './SplitPane';
 import { CompactCalendar } from './CompactCalendar';
@@ -18,7 +18,7 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
   const { role } = useSupabaseAuth();
   const canConfirm = role ? role === 'senior' : true; // allow by default when no role system
 
-  function syncBacklogVisibility(entries: ScheduleEntry[]) {
+  const syncBacklogVisibility = useCallback((entries: ScheduleEntry[]) => {
     const pending = new Set<string>();
     const hidden = new Set<string>();
     for (const entry of entries) {
@@ -30,12 +30,19 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
     }
     setPendingIds(Array.from(pending));
     setHiddenIds(Array.from(hidden));
-  }
+  }, []);
+
+  const refreshSchedule = useCallback(async (targetDate?: string) => {
+    const s = await getSchedule({ date: targetDate ?? date });
+    const visible = s.filter(entry => entry.status !== 'cancelled');
+    setSchedule(visible);
+    syncBacklogVisibility(visible);
+    return visible;
+  }, [date, syncBacklogVisibility]);
 
   useEffect(() => {
     refreshSchedule(date);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date]);
+  }, [date, refreshSchedule]);
 
   useEffect(() => {
     (async () => {
@@ -45,14 +52,6 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
   }, []);
 
   const itemLookup = useMemo(() => Object.fromEntries(items.map(i => [i.id, i])), [items]);
-
-  async function refreshSchedule(targetDate?: string) {
-    const s = await getSchedule({ date: targetDate ?? date });
-    const visible = s.filter(entry => entry.status !== 'cancelled');
-    setSchedule(visible);
-    syncBacklogVisibility(visible);
-    return visible;
-  }
 
   async function handleToggleConfirm(id: string, confirmed: boolean) {
     try {
