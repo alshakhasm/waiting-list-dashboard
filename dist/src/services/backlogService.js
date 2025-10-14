@@ -17,4 +17,15 @@ export const BacklogService = {
         db.waiting.delete(id);
         return true;
     },
+    update(id, patch) {
+        const current = db.waiting.get(id);
+        if (!current)
+            return null;
+        const updated = {
+            ...current,
+            ...patch,
+        };
+        db.waiting.set(id, updated);
+        return { ...updated, maskedMrn: maskMRN(updated.mrn) };
+    },
 };

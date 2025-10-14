@@ -52,7 +52,7 @@ export type ScheduleEntry = {
     date: string;
     startTime: string;
     endTime: string;
-    status: 'tentative' | 'scheduled' | 'completed' | 'cancelled';
+    status: 'tentative' | 'scheduled' | 'confirmed' | 'completed' | 'cancelled';
     notes?: string;
     updatedAt: string;
     version: number;
