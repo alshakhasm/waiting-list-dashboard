@@ -341,8 +341,37 @@ export async function createBacklogItem(input: {
 }
 
 export type ScheduleEntry = {
-  id: string; waitingListItemId: string; roomId: string; surgeonId: string; date: string; startTime: string; endTime: string; status: string; notes?: string; version: number;
+  id: string;
+  waitingListItemId: string;
+  roomId: string;
+  surgeonId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  notes?: string;
+  version: number;
+  updatedAt?: string;
 };
+
+function chooseNewerEntry(a: ScheduleEntry | undefined, b: ScheduleEntry): ScheduleEntry {
+  if (!a) return b;
+  const score = (e: ScheduleEntry) => {
+    const t = e.updatedAt ? Date.parse(e.updatedAt) : NaN;
+    if (!Number.isNaN(t)) return t;
+    return e.version ?? 0;
+  };
+  return score(b) >= score(a) ? b : a;
+}
+
+function dedupeSchedule(entries: ScheduleEntry[]): ScheduleEntry[] {
+  const map = new Map<string, ScheduleEntry>();
+  for (const entry of entries) {
+    const key = entry.waitingListItemId || `__${entry.id}`;
+    map.set(key, chooseNewerEntry(map.get(key), entry));
+  }
+  return Array.from(map.values());
+}
 
 export async function getSchedule(params?: { date?: string }): Promise<ScheduleEntry[]> {
   if (supabase) {
@@ -350,7 +379,7 @@ export async function getSchedule(params?: { date?: string }): Promise<ScheduleE
     if (params?.date) q = q.eq('date', params.date);
     const { data, error } = await q;
     if (error) throw error;
-    return (data || []).map((r: any) => ({
+    const mapped = (data || []).map((r: any) => ({
       id: r.id,
       waitingListItemId: r.waiting_list_item_id,
       roomId: r.room_id,
@@ -361,12 +390,14 @@ export async function getSchedule(params?: { date?: string }): Promise<ScheduleE
       status: r.status || 'tentative',
       version: 1,
       notes: r.notes || undefined,
+      updatedAt: r.updated_at || r.created_at || undefined,
     }));
+    return dedupeSchedule(mapped);
   }
   const handleRequest = await getHandleRequest();
   const res = await handleRequest({ method: 'GET', path: '/schedule', query: params as any });
   if (res.status !== 200) throw new Error('Failed to fetch schedule');
-  return res.body as ScheduleEntry[];
+  return dedupeSchedule(res.body as ScheduleEntry[]);
 }
 
 export async function createSchedule(input: { waitingListItemId: string; roomId: string; surgeonId: string; date: string; startTime: string; endTime: string; notes?: string }): Promise<ScheduleEntry> {
@@ -382,6 +413,7 @@ export async function createSchedule(input: { waitingListItemId: string; roomId:
       status: row.status || 'scheduled',
       version: (row.version as number | undefined) ?? 1,
       notes: row.notes || undefined,
+      updatedAt: row.updated_at || row.created_at || undefined,
     });
     const { data: existingRows, error: existingError } = await (supabase as any)
       .from('schedule')
