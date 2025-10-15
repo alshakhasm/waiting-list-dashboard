@@ -10,6 +10,7 @@ export function BacklogPage({
   selectedId,
   pendingIds = [],
   onConfirm,
+  onReturnToDashboard,
   hiddenIds = [],
   canConfirm = true,
   reloadKey,
@@ -19,6 +20,7 @@ export function BacklogPage({
   selectedId?: string;
   pendingIds?: string[];
   onConfirm?: (_item: BacklogItem) => void;
+  onReturnToDashboard?: (_item: BacklogItem) => void;
   hiddenIds?: string[];
   canConfirm?: boolean;
   reloadKey?: number;
@@ -490,6 +492,15 @@ export function BacklogPage({
                             </>
                           ) : (
                             <span style={{ fontSize: 12, opacity: 0.8 }}>Awaiting confirmation</span>
+                          )}
+                          {onReturnToDashboard && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); onReturnToDashboard(i); }}
+                              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface-1)', cursor: 'pointer' }}
+                            >
+                              Return to dashboard
+                            </button>
                           )}
                         </div>
                       )}

@@ -104,10 +104,26 @@ const routes = [
         method: 'PATCH', pattern: '/schedule/:id', handler: (req, params) => {
             const id = params.id;
             const body = req.body;
-            if (!body || typeof body.version !== 'number')
-                return badRequest('version is required');
+            if (!body)
+                return badRequest('Missing body');
             try {
-                const updated = patchSchedule(id, body);
+                if (typeof body.version === 'number') {
+                    const updated = patchSchedule(id, body);
+                    return ok(updated);
+                }
+                const existing = getScheduleList().find(e => e.id === id);
+                if (!existing)
+                    return notFound('Not found');
+                const patch = { version: existing.version };
+                if (body.startTime !== undefined)
+                    patch.startTime = body.startTime;
+                if (body.endTime !== undefined)
+                    patch.endTime = body.endTime;
+                if (body.status !== undefined)
+                    patch.status = body.status;
+                if (body.notes !== undefined)
+                    patch.notes = body.notes;
+                const updated = patchSchedule(id, patch);
                 return ok(updated);
             }
             catch (e) {

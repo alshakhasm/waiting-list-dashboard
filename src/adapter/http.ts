@@ -157,7 +157,12 @@ const routes: Route[] = [
         // Permit simple status/notes updates without explicit version by reading current and applying
         const existing = getScheduleList().find(e => e.id === id);
         if (!existing) return notFound('Not found');
-        const updated = patchSchedule(id, { version: existing.version, startTime: body.startTime, endTime: body.endTime, status: body.status as any, notes: body.notes } as any);
+        const patch: any = { version: existing.version };
+        if (body.startTime !== undefined) patch.startTime = body.startTime;
+        if (body.endTime !== undefined) patch.endTime = body.endTime;
+        if (body.status !== undefined) patch.status = body.status as any;
+        if (body.notes !== undefined) patch.notes = body.notes;
+        const updated = patchSchedule(id, patch);
         return ok(updated);
       } catch (e: any) {
         const msg = e?.message || 'Error updating schedule';

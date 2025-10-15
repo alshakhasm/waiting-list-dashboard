@@ -5,6 +5,30 @@ import { CompactCalendar } from './CompactCalendar';
 import { BacklogPage } from './BacklogPage';
 import { useSupabaseAuth } from '../auth/useSupabaseAuth';
 
+const LOCAL_PENDING_OVERRIDE_KEY = 'backlog.pendingOverrides.v1';
+
+function readPendingOverrideIds(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(LOCAL_PENDING_OVERRIDE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((id: unknown): id is string => typeof id === 'string' && id.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function writePendingOverrideIds(ids: string[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(LOCAL_PENDING_OVERRIDE_KEY, JSON.stringify(ids));
+  } catch {
+    // ignore write errors (e.g. storage quota)
+  }
+}
+
 export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
   const [date, setDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [schedule, setSchedule] = useState<ScheduleEntry[]>([]);
@@ -14,23 +38,47 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
   const [hiddenIds, setHiddenIds] = useState<string[]>([]);
   const [view, setView] = useState<'day' | 'week' | 'month'>('week');
   const [items, setItems] = useState<BacklogItem[]>([]);
+  const [pendingOverrideIds, setPendingOverrideIds] = useState<string[]>(() => readPendingOverrideIds());
   // full screen is controlled from App header; no internal toggle state
   const { role } = useSupabaseAuth();
   const canConfirm = role ? role === 'senior' : true; // allow by default when no role system
 
+  const pendingOverrideSet = useMemo(() => new Set(pendingOverrideIds), [pendingOverrideIds]);
+
   const syncBacklogVisibility = useCallback((entries: ScheduleEntry[]) => {
     const pending = new Set<string>();
     const hidden = new Set<string>();
+    const clearOverrides = new Set<string>();
     for (const entry of entries) {
       const id = entry.waitingListItemId;
       if (!id) continue;
       const status = entry.status || 'tentative';
       if (status === 'tentative' || status === 'scheduled') pending.add(id);
-      if (status === 'operated') hidden.add(id);
+      if (status === 'confirmed' || status === 'operated' || status === 'completed') {
+        hidden.add(id);
+        pending.delete(id);
+        clearOverrides.add(id);
+      }
+    }
+    for (const id of pendingOverrideSet) {
+      pending.delete(id);
     }
     setPendingIds(Array.from(pending));
     setHiddenIds(Array.from(hidden));
-  }, []);
+    if (clearOverrides.size > 0) {
+      setPendingOverrideIds(prev => {
+        let changed = false;
+        const next = prev.filter(id => {
+          const keep = !clearOverrides.has(id);
+          if (!keep) changed = true;
+          return keep;
+        });
+        if (!changed) return prev;
+        writePendingOverrideIds(next);
+        return next;
+      });
+    }
+  }, [pendingOverrideSet, setPendingOverrideIds]);
 
   const refreshSchedule = useCallback(async (targetDate?: string) => {
     const s = await getSchedule({ date: targetDate ?? date });
@@ -59,6 +107,19 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
   useEffect(() => {
     scheduleRef.current = schedule;
   }, [schedule]);
+
+  useEffect(() => {
+    syncBacklogVisibility(scheduleRef.current);
+  }, [pendingOverrideSet, syncBacklogVisibility]);
+
+  const handleReturnToDashboard = useCallback((itemId: string) => {
+    setPendingOverrideIds(prev => {
+      if (prev.includes(itemId)) return prev;
+      const next = [...prev, itemId];
+      writePendingOverrideIds(next);
+      return next;
+    });
+  }, [setPendingOverrideIds]);
 
   async function handleToggleConfirm(id: string, confirmed: boolean) {
     try {
@@ -161,6 +222,7 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
                 pendingIds={pendingIds}
                 hiddenIds={hiddenIds}
                 canConfirm={canConfirm}
+                onReturnToDashboard={(item) => handleReturnToDashboard(item.id)}
                 onConfirm={async (i) => {
                   try {
                     // Confirm all tentative entries for this backlog item in the current view

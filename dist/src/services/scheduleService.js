@@ -19,7 +19,7 @@ export const ScheduleService = {
         const allEntries = Array.from(db.schedule.values());
         const candidates = allEntries.filter(e => e.waitingListItemId === input.waitingListItemId);
         const existing = candidates.find(e => e.status !== 'cancelled');
-        const duplicates = candidates.filter(e => e.id !== (existing === null || existing === void 0 ? void 0 : existing.id));
+        const duplicates = candidates.filter(e => e.id !== existing?.id);
         const entries = allEntries.filter(e => e.date === input.date && (!existing || e.id !== existing.id));
         for (const e of entries) {
             if (e.roomId === input.roomId && overlaps(e.startTime, e.endTime, input.startTime, input.endTime))
