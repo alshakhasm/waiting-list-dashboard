@@ -376,22 +376,53 @@ function dedupeSchedule(entries: ScheduleEntry[]): ScheduleEntry[] {
 export async function getSchedule(params?: { date?: string }): Promise<ScheduleEntry[]> {
   if (supabase) {
     let q = supabase.from('schedule').select('*');
-    if (params?.date) q = q.eq('date', params.date);
+    if (params?.date) {
+      const start = params.date;
+      const endIso = (() => {
+        try {
+          const d = new Date(`${start}T00:00:00Z`);
+          d.setUTCDate(d.getUTCDate() + 1);
+          return d.toISOString();
+        } catch {
+          return start;
+        }
+      })();
+      q = q.gte('date', start).lt('date', endIso);
+    }
     const { data, error } = await q;
     if (error) throw error;
-    const mapped = (data || []).map((r: any) => ({
-      id: r.id,
-      waitingListItemId: r.waiting_list_item_id,
-      roomId: r.room_id,
-      surgeonId: r.surgeon_id,
-      date: r.date,
-      startTime: r.start_time,
-      endTime: r.end_time,
-      status: r.status || 'tentative',
-      version: 1,
-      notes: r.notes || undefined,
-      updatedAt: r.updated_at || r.created_at || undefined,
-    }));
+    const mapped = (data || []).map((r: any) => {
+      const coerceDate = (v: any) => {
+        if (!v) return '';
+        if (typeof v === 'string') return v.slice(0, 10);
+        if (v instanceof Date) return v.toISOString().slice(0, 10);
+        try {
+          return new Date(v).toISOString().slice(0, 10);
+        } catch {
+          return String(v ?? '').slice(0, 10);
+        }
+      };
+      const coerceTime = (v: any) => {
+        if (!v) return '';
+        if (typeof v === 'string') return v.slice(0, 5);
+        if (v instanceof Date) return v.toISOString().slice(11, 16);
+        const str = String(v ?? '');
+        return str.includes(':') ? str.slice(0, 5) : str;
+      };
+      return {
+        id: r.id,
+        waitingListItemId: r.waiting_list_item_id,
+        roomId: r.room_id,
+        surgeonId: r.surgeon_id,
+        date: coerceDate(r.date),
+        startTime: coerceTime(r.start_time),
+        endTime: coerceTime(r.end_time),
+        status: r.status || 'tentative',
+        version: 1,
+        notes: r.notes || undefined,
+        updatedAt: r.updated_at || r.created_at || undefined,
+      } as ScheduleEntry;
+    });
     return dedupeSchedule(mapped);
   }
   const handleRequest = await getHandleRequest();
@@ -406,19 +437,38 @@ export async function createSchedule(input: { waitingListItemId: string; roomId:
     throw new Error('Scheduled date must be in the future');
   }
   if (supabase) {
-    const mapRow = (row: any): ScheduleEntry => ({
-      id: row.id,
-      waitingListItemId: row.waiting_list_item_id,
-      roomId: row.room_id,
-      surgeonId: row.surgeon_id,
-      date: row.date,
-      startTime: row.start_time,
-      endTime: row.end_time,
-      status: row.status || 'scheduled',
-      version: (row.version as number | undefined) ?? 1,
-      notes: row.notes || undefined,
-      updatedAt: row.updated_at || row.created_at || undefined,
-    });
+    const mapRow = (row: any): ScheduleEntry => {
+      const coerceDate = (v: any) => {
+        if (!v) return '';
+        if (typeof v === 'string') return v.slice(0, 10);
+        if (v instanceof Date) return v.toISOString().slice(0, 10);
+        try {
+          return new Date(v).toISOString().slice(0, 10);
+        } catch {
+          return String(v ?? '').slice(0, 10);
+        }
+      };
+      const coerceTime = (v: any) => {
+        if (!v) return '';
+        if (typeof v === 'string') return v.slice(0, 5);
+        if (v instanceof Date) return v.toISOString().slice(11, 16);
+        const str = String(v ?? '');
+        return str.includes(':') ? str.slice(0, 5) : str;
+      };
+      return {
+        id: row.id,
+        waitingListItemId: row.waiting_list_item_id,
+        roomId: row.room_id,
+        surgeonId: row.surgeon_id,
+        date: coerceDate(row.date),
+        startTime: coerceTime(row.start_time),
+        endTime: coerceTime(row.end_time),
+        status: row.status || 'scheduled',
+        version: (row.version as number | undefined) ?? 1,
+        notes: row.notes || undefined,
+        updatedAt: row.updated_at || row.created_at || undefined,
+      };
+    };
     const { data: existingRows, error: existingError } = await (supabase as any)
       .from('schedule')
       .select('*')
