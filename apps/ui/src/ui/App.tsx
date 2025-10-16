@@ -113,6 +113,12 @@ export function App() {
   useEffect(() => {
     try { localStorage.setItem('schedule.full', scheduleFull ? '1' : '0'); } catch {}
   }, [scheduleFull]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onDataChanged = () => setBacklogReloadKey(k => k + 1);
+    window.addEventListener('dashboard-data-changed', onDataChanged);
+    return () => window.removeEventListener('dashboard-data-changed', onDataChanged);
+  }, []);
   const [backlogReloadKey, setBacklogReloadKey] = useState(0);
   const [selectedBacklogId, setSelectedBacklogId] = useState<string | undefined>(() => {
     try { return localStorage.getItem('backlog.selectedId') || undefined; } catch { return undefined; }
@@ -548,7 +554,7 @@ export function App() {
           {tab === 'operated' && <OperatedTablePage />}
           {tab === 'members' && (profile?.role === 'owner' ? <MembersPage /> : <AccessDeniedPage />)}
           {tab === 'intake-links' && (profile?.role === 'owner' ? <IntakeLinksPage /> : <AccessDeniedPage />)}
-          {tab === 'list' && <ComprehensiveListPage />}
+          {tab === 'list' && <ComprehensiveListPage reloadKey={backlogReloadKey} />}
           {tab === 'archive' && <ArchivePage />}
           {tab === 'owner-settings' && <OwnerSettingsPage />}
         </div>

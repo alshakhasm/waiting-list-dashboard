@@ -1,186 +1,146 @@
-import { useEffect, useMemo, useState } from 'react';
-import { BacklogItem, getBacklog, updateBacklogItem } from '../client/api';
-import { saveAsCsv } from './csvUtils';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { BacklogItem, ScheduleEntry, getBacklog, getSchedule } from '../client/api';
 
-export function ComprehensiveListPage() {
-  const [rows, setRows] = useState<BacklogItem[]>([]);
+type Row = {
+  item: BacklogItem;
+  schedule: ScheduleEntry | null;
+  status: 'unscheduled' | 'scheduled' | 'confirmed';
+};
+
+function classifyStatus(entry: ScheduleEntry | null): 'unscheduled' | 'scheduled' | 'confirmed' | 'hidden' {
+  if (!entry) return 'unscheduled';
+  const st = (entry.status || 'tentative').trim().toLowerCase();
+  if (st === 'operated' || st === 'completed' || st === 'cancelled') return 'hidden';
+  if (st === 'confirmed') return 'confirmed';
+  return 'scheduled';
+}
+
+function formatDate(date: string | undefined, time?: string): string {
+  if (!date) return '—';
+  try {
+    const iso = time ? `${date}T${time}` : `${date}T00:00:00`;
+    const d = new Date(iso);
+    return `${d.toLocaleDateString()}${time ? ' ' + time : ''}`;
+  } catch {
+    return date;
+  }
+}
+
+export function ComprehensiveListPage({ reloadKey }: { reloadKey: number }) {
+  const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [savingId, setSavingId] = useState<string | null>(null);
-  const [pendingSaves, setPendingSaves] = useState<Record<string, NodeJS.Timeout | number>>({});
-  const [sortOrder, setSortOrder] = useState<'oldest' | 'newest'>(() => {
-    const v = (typeof localStorage !== 'undefined' && localStorage.getItem('list.sort')) || 'oldest';
-    return (v === 'newest' ? 'newest' : 'oldest');
-  });
 
-  function scheduleSave(id: string, patch: Parameters<typeof updateBacklogItem>[1], delay = 600) {
-    // Clear any pending timer for this id
-    const key = id + ':' + Object.keys(patch).sort().join(',');
-    const existing = pendingSaves[key];
-    if (existing) {
-      clearTimeout(existing as number);
-    }
-    const t = setTimeout(async () => {
-      setSavingId(id);
-      try {
-        const updated = await updateBacklogItem(id, patch as any);
-        setRows(prev => prev.map(it => it.id === id ? { ...it, ...updated } : it));
-      } catch (err: any) {
-        console.error('Autosave failed', err);
-        setError(err?.message || String(err));
-      } finally {
-        setSavingId(null);
-        setPendingSaves(ps => { const cp = { ...ps }; delete cp[key]; return cp; });
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [backlog, schedule] = await Promise.all([getBacklog(), getSchedule()]);
+      const scheduleMap = new Map<string, ScheduleEntry>();
+      for (const entry of schedule) {
+        if (!entry.waitingListItemId) continue;
+        if (entry.status === 'cancelled') continue;
+        const existing = scheduleMap.get(entry.waitingListItemId);
+        const existingTime = existing ? new Date(existing.updatedAt || existing.date).getTime() : -Infinity;
+        const nextTime = new Date(entry.updatedAt || entry.date).getTime();
+        if (!existing || nextTime >= existingTime) {
+          scheduleMap.set(entry.waitingListItemId, entry);
+        }
       }
-    }, delay) as any;
-    setPendingSaves(ps => ({ ...ps, [key]: t }));
-  }
+      const mapped: Row[] = backlog
+        .filter(item => !item.isRemoved)
+        .map(item => {
+          const scheduleEntry = scheduleMap.get(item.id) ?? null;
+          const status = classifyStatus(scheduleEntry);
+          return { item, schedule: scheduleEntry, status };
+        })
+        .filter(row => row.status !== 'hidden');
+      setRows(mapped);
+    } catch (e: any) {
+      setError(e?.message || String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const data = await getBacklog();
-        if (!cancelled) setRows(data);
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message || String(e));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+    refresh();
+  }, [refresh, reloadKey]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    // Always hide soft-deleted/archived items
-    const active = rows.filter(r => !r.isRemoved);
-    const base = q ? active.filter(r => (
-      (r.patientName + ' ' + r.procedure + ' ' + r.mrn + ' ' + (r.phone1 || '') + ' ' + (r.phone2 || '') + ' ' + (r.notes || '')).toLowerCase().includes(q)
-    )) : active;
-    const sorted = [...base].sort((a, b) => {
-      const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return da - db; // chronological (oldest first)
+    const base = q
+      ? rows.filter(row => {
+        const { item, schedule } = row;
+        const haystack = [
+          item.patientName,
+          item.procedure,
+          item.mrn,
+          item.surgeonId,
+          item.notes,
+          schedule?.startTime,
+          schedule?.endTime,
+        ].join(' ').toLowerCase();
+        return haystack.includes(q);
+      })
+      : rows;
+    return [...base].sort((a, b) => {
+      const da = a.item.createdAt ? new Date(a.item.createdAt).getTime() : 0;
+      const db = b.item.createdAt ? new Date(b.item.createdAt).getTime() : 0;
+      return da - db;
     });
-    return sortOrder === 'oldest' ? sorted : sorted.reverse();
-  }, [rows, search, sortOrder]);
+  }, [rows, search]);
 
   return (
-    <div style={{ padding: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <strong>Comprehensive List</strong>
-        <input placeholder="Search MRN, name, procedure" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <button
-          onClick={() => {
-            setSortOrder(prev => {
-              const next = prev === 'oldest' ? 'newest' : 'oldest';
-              try { localStorage.setItem('list.sort', next); } catch {}
-              return next;
-            });
-          }}
-          title="Toggle sort order"
-          style={{ padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface-1)', cursor: 'pointer' }}
-        >
-          Sort: {sortOrder === 'oldest' ? 'Oldest → Newest' : 'Newest → Oldest'}
+    <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <strong>Dashboard List</strong>
+        <input
+          placeholder="Search patient, procedure, MRN"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ minWidth: 240 }}
+        />
+        <button onClick={refresh} disabled={loading} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)' }}>
+          {loading ? 'Refreshing…' : 'Refresh'}
         </button>
-        <button
-          onClick={() => {
-            const rows = filtered.map((r, i) => ({
-              index: i + 1,
-              createdAt: r.createdAt || '',
-              mrn: r.mrn,
-              patientName: r.patientName,
-              procedure: r.procedure,
-              category: r.categoryKey || '',
-              priority: (r.caseTypeId || '').replace(/^case:/, ''),
-              minutes: r.estDurationMin,
-              phone1: r.phone1 || '',
-              phone2: r.phone2 || '',
-              notes: (r.notes || '').replace(/\n/g, ' '),
-            }));
-            saveAsCsv(rows, 'backlog_list.csv');
-          }}
-          title="Export current list to CSV"
-          style={{ padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface-1)', cursor: 'pointer' }}
-        >
-          Export CSV
-        </button>
-        <span style={{ opacity: 0.7, fontSize: 12 }}>{filtered.length} total</span>
+        <span style={{ marginLeft: 'auto', fontSize: 12, opacity: 0.75 }}>{filtered.length} cases</span>
       </div>
-      {loading && <div>Loading…</div>}
-      {error && <div style={{ color: '#a11' }}>Error: {error}</div>}
-      {!loading && !error && (
+      {error && <div style={{ color: '#b91c1c' }}>Error: {error}</div>}
+      {loading ? (
+        <div>Loading…</div>
+      ) : (
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', padding: 6 }}>#</th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', padding: 6 }}>Date added</th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', padding: 6 }}>MRN</th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', padding: 6 }}>Patient</th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', padding: 6 }}>Procedure</th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', padding: 6 }}>Category</th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', padding: 6 }}>Priority</th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', padding: 6 }}>Minutes</th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', padding: 6 }}>Contacts</th>
-              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', padding: 6 }}>Notes</th>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', padding: 8 }}>Patient</th>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', padding: 8 }}>Procedure</th>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', padding: 8 }}>MRN</th>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', padding: 8 }}>Surgeon</th>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', padding: 8 }}>Schedule</th>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', padding: 8 }}>Status</th>
+              <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', padding: 8, minWidth: 200 }}>Notes</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((r, idx) => (
-              <tr key={r.id}>
-                <td style={{ borderBottom: '1px solid var(--border)', padding: 6 }}>{idx + 1}</td>
-                <td style={{ borderBottom: '1px solid var(--border)', padding: 6 }}>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}</td>
-                <td style={{ borderBottom: '1px solid var(--border)', padding: 6 }}>{r.mrn}</td>
-                <td style={{ borderBottom: '1px solid var(--border)', padding: 6 }}>
-                  {r.patientName}
-                  {savingId === r.id && (
-                    <span style={{ marginLeft: 8, fontSize: 12, opacity: 0.7 }} aria-live="polite">Saving…</span>
-                  )}
+            {filtered.map(({ item, schedule, status }) => (
+              <tr key={item.id}>
+                <td style={{ borderBottom: '1px solid var(--border)', padding: 8 }}>{item.patientName}</td>
+                <td style={{ borderBottom: '1px solid var(--border)', padding: 8 }}>{item.procedure}</td>
+                <td style={{ borderBottom: '1px solid var(--border)', padding: 8 }}>{item.mrn}</td>
+                <td style={{ borderBottom: '1px solid var(--border)', padding: 8 }}>{schedule?.surgeonId || item.surgeonId || '—'}</td>
+                <td style={{ borderBottom: '1px solid var(--border)', padding: 8 }}>
+                  {schedule ? formatDate(schedule.date, schedule.startTime) : 'Not scheduled'}
                 </td>
-                <td style={{ borderBottom: '1px solid var(--border)', padding: 6 }}>{r.procedure}</td>
-                <td style={{ borderBottom: '1px solid var(--border)', padding: 6 }}>{r.categoryKey || '—'}</td>
-                <td style={{ borderBottom: '1px solid var(--border)', padding: 6 }}>{(r.caseTypeId || '').replace(/^case:/, '') || '—'}</td>
-                <td style={{ borderBottom: '1px solid var(--border)', padding: 6 }}>{r.estDurationMin}</td>
-                <td style={{ borderBottom: '1px solid var(--border)', padding: 6, minWidth: 220 }}>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <input
-                      aria-label="Phone 1"
-                      value={r.phone1 || ''}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setRows(prev => prev.map(it => it.id === r.id ? { ...it, phone1: val || undefined } : it));
-                        scheduleSave(r.id, { phone1: (val || null) });
-                      }}
-                      style={{ width: 120 }}
-                    />
-                    <input
-                      aria-label="Phone 2"
-                      value={r.phone2 || ''}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setRows(prev => prev.map(it => it.id === r.id ? { ...it, phone2: val || undefined } : it));
-                        scheduleSave(r.id, { phone2: (val || null) });
-                      }}
-                      style={{ width: 120 }}
-                    />
-                  </div>
+                <td style={{ borderBottom: '1px solid var(--border)', padding: 8 }}>
+                  {status === 'confirmed'
+                    ? 'Confirmed'
+                    : status === 'scheduled'
+                      ? 'Awaiting confirmation'
+                      : 'Awaiting scheduling'}
                 </td>
-                <td style={{ borderBottom: '1px solid var(--border)', padding: 6, minWidth: 320 }}>
-                  <textarea
-                    aria-label="Notes"
-                    rows={2}
-                    value={r.notes || ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setRows(prev => prev.map(it => it.id === r.id ? { ...it, notes: val || undefined } : it));
-                      scheduleSave(r.id, { notes: (val || null) });
-                    }}
-                    style={{ width: '100%', resize: 'vertical' }}
-                  />
-                </td>
+                <td style={{ borderBottom: '1px solid var(--border)', padding: 8 }}>{item.notes || '—'}</td>
               </tr>
             ))}
           </tbody>

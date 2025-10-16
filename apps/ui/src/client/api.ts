@@ -92,6 +92,13 @@ export async function debugCurrentAccess(): Promise<{
   };
 }
 
+function emitDashboardChange() {
+  if (typeof window === 'undefined') return;
+  try {
+    window.dispatchEvent(new CustomEvent('dashboard-data-changed'));
+  } catch {}
+}
+
 try {
   if (typeof window !== 'undefined') {
     (window as any).appDebug = { ...(window as any).appDebug, debugCurrentAccess };
@@ -300,7 +307,7 @@ export async function createBacklogItem(input: {
         const { data: fetched, error: fetchErr } = await (supabase as any).from('backlog').select('*').eq('id', returnedId).maybeSingle();
         if (fetchErr) throw fetchErr;
         const row = fetched;
-        return {
+        const out: BacklogItem = {
           id: row.id,
           patientName: row.patient_name,
           mrn: row.mrn,
@@ -315,14 +322,16 @@ export async function createBacklogItem(input: {
           preferredDate: row.preferred_date || undefined,
           notes: row.notes || undefined,
           isRemoved: row.is_removed || false,
-        } as BacklogItem;
+        };
+        emitDashboardChange();
+        return out;
       } catch (rpcFallbackErr) {
         throw rpcFallbackErr;
       }
     }
     throw error;
   }
-  return {
+  const result: BacklogItem = {
     id: data.id,
     patientName: data.patient_name,
     mrn: data.mrn,
@@ -337,7 +346,9 @@ export async function createBacklogItem(input: {
     preferredDate: data.preferred_date || undefined,
     notes: data.notes || undefined,
     isRemoved: data.is_removed || false,
-  } as BacklogItem;
+  };
+  emitDashboardChange();
+  return result;
 }
 
 function coerceSupabaseDate(value: any): string {
@@ -526,7 +537,9 @@ export async function createSchedule(input: { waitingListItemId: string; roomId:
         .select('*')
         .single();
       if (error) throw error;
-      return mapRow(data);
+      const out = mapRow(data);
+      emitDashboardChange();
+      return out;
     }
     const { data, error } = await (supabase as any).from('schedule').insert({
       waiting_list_item_id: input.waitingListItemId,
@@ -539,11 +552,14 @@ export async function createSchedule(input: { waitingListItemId: string; roomId:
       notes: input.notes ?? null,
     }).select('*').single();
     if (error) throw error;
-    return mapRow(data);
+    const out = mapRow(data);
+    emitDashboardChange();
+    return out;
   }
   const handleRequest = await getHandleRequest();
   const res = await handleRequest({ method: 'POST', path: '/schedule', body: input });
   if (res.status !== 201) throw new Error((res.body as any)?.error || 'Failed to create schedule');
+  emitDashboardChange();
   return res.body as ScheduleEntry;
 }
 
@@ -551,10 +567,12 @@ export async function confirmSchedule(id: string): Promise<void> {
   if (supabase) {
     const { error } = await (supabase as any).from('schedule').update({ status: 'confirmed' }).eq('id', id);
     if (error) throw error;
+    emitDashboardChange();
     return;
   }
   const handleRequest = await getHandleRequest();
   await handleRequest({ method: 'PATCH', path: `/schedule/${id}`, body: { status: 'confirmed' } });
+  emitDashboardChange();
 }
 
 export async function markScheduleOperated(id: string, operated: boolean): Promise<void> {
@@ -575,10 +593,12 @@ export async function markScheduleOperated(id: string, operated: boolean): Promi
         console.warn('[markScheduleOperated] failed to sync backlog status:', e);
       }
     }
+    emitDashboardChange();
     return;
   }
   const handleRequest = await getHandleRequest();
   await handleRequest({ method: 'PATCH', path: `/schedule/${id}`, body: { status: operated ? 'operated' : 'confirmed' } });
+  emitDashboardChange();
 }
 
 export async function updateSchedule(id: string, patch: Partial<{ date: string; startTime: string; endTime: string; roomId: string; surgeonId: string; notes: string; status: string }>): Promise<void> {
@@ -593,10 +613,12 @@ export async function updateSchedule(id: string, patch: Partial<{ date: string; 
     if (patch.status) payload.status = patch.status;
     const { error } = await (supabase as any).from('schedule').update(payload).eq('id', id);
     if (error) throw error;
+    emitDashboardChange();
     return;
   }
   const handleRequest = await getHandleRequest();
   await handleRequest({ method: 'PATCH', path: `/schedule/${id}`, body: patch as any });
+  emitDashboardChange();
 }
 
 export type ArchivedPatient = {
@@ -645,6 +667,7 @@ export async function softRemoveBacklogItem(id: string): Promise<void> {
       } else {
         HAS_BACKLOG_IS_REMOVED = true;
         rememberSoftRemovedId(id);
+        emitDashboardChange();
         return;
       }
     }
@@ -656,6 +679,7 @@ export async function softRemoveBacklogItem(id: string): Promise<void> {
       throw e2;
     }
     rememberSoftRemovedId(id);
+    emitDashboardChange();
     return;
   }
   const handleRequest = await getHandleRequest();
@@ -665,6 +689,7 @@ export async function softRemoveBacklogItem(id: string): Promise<void> {
     throw new Error((res.body && (res.body as any).error) || 'Failed to remove backlog item');
   }
   rememberSoftRemovedId(id);
+  emitDashboardChange();
 }
 
 export async function updateBacklogItem(id: string, patch: Partial<{
@@ -684,7 +709,7 @@ export async function updateBacklogItem(id: string, patch: Partial<{
       .select('*')
       .single();
     if (error) throw error;
-    return {
+    const out: BacklogItem = {
       id: data.id,
       patientName: data.patient_name,
       mrn: data.mrn,
@@ -700,13 +725,15 @@ export async function updateBacklogItem(id: string, patch: Partial<{
       notes: data.notes || undefined,
       isRemoved: data.is_removed || false,
       createdAt: data.created_at || undefined,
-    } as BacklogItem;
+    };
+    emitDashboardChange();
+    return out;
   }
   const handleRequest = await getHandleRequest();
   const res = await handleRequest({ method: 'PATCH', path: `/backlog/${id}`, body: payload });
   if (res.status !== 200) throw new Error((res.body && (res.body as any).error) || 'Failed to update backlog item');
   const r = res.body as any;
-  return {
+  const out = {
     id: r.id,
     patientName: r.patientName,
     mrn: r.mrn,
@@ -723,16 +750,20 @@ export async function updateBacklogItem(id: string, patch: Partial<{
     isRemoved: r.isRemoved || false,
     createdAt: r.createdAt || undefined,
   } as BacklogItem;
+  emitDashboardChange();
+  return out;
 }
 
 export async function deleteSchedule(id: string): Promise<void> {
   if (supabase) {
     const { error } = await supabase.from('schedule').delete().eq('id', id);
     if (error) throw error;
+    emitDashboardChange();
     return;
   }
   const handleRequest = await getHandleRequest();
   await handleRequest({ method: 'DELETE', path: `/schedule/${id}` });
+  emitDashboardChange();
 }
 
 export type MappingProfile = { id: string; name: string; owner: string; fieldMappings: Record<string, string> };
