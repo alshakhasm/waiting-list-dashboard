@@ -95,7 +95,7 @@ export function CompactCalendar(props: {
                           <div style={{ fontSize: 12, opacity: 0.7 }}>Surgeon: {en.surgeonId}</div>
                         </div>
                         {canEdit && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap', width: '100%' }}>
                             {(() => {
                               const isOperated = (en.status || 'tentative') === 'operated';
                               const isConfirmed = isOperated || (en.status || 'tentative') === 'confirmed';
@@ -123,9 +123,12 @@ export function CompactCalendar(props: {
                               );
                             })()}
                             {onRemoveEntry && (
-                              <div style={{ marginLeft: 'auto' }}>
-                                <button onClick={() => onRemoveEntry(en.id)} style={{ fontSize: 12 }}>Remove</button>
-                              </div>
+                              <button
+                                onClick={() => onRemoveEntry(en.id)}
+                                style={{ fontSize: 12, marginLeft: 'auto' }}
+                              >
+                                Remove
+                              </button>
                             )}
                           </div>
                         )}
