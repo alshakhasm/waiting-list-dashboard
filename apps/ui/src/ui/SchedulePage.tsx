@@ -80,8 +80,8 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
     }
   }, [pendingOverrideSet, setPendingOverrideIds]);
 
-  const refreshSchedule = useCallback(async (targetDate?: string) => {
-    const s = await getSchedule({ date: targetDate ?? date });
+  const refreshSchedule = useCallback(async () => {
+    const s = await getSchedule();
     const visible = s.filter(entry => entry.status !== 'cancelled');
     const byId = new Map<string, ScheduleEntry>();
     for (const entry of visible) byId.set(entry.id, entry);
@@ -89,11 +89,11 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
     setSchedule(normalized);
     syncBacklogVisibility(normalized);
     return normalized;
-  }, [date, syncBacklogVisibility]);
+  }, [syncBacklogVisibility]);
 
   useEffect(() => {
-    refreshSchedule(date);
-  }, [date, refreshSchedule]);
+    refreshSchedule();
+  }, [refreshSchedule]);
 
   useEffect(() => {
     (async () => {
@@ -149,7 +149,7 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
     const roomId = 'or:1';
     const surgeonId = selectedItem.surgeonId || 's:1';
     await createSchedule({ waitingListItemId: selectedItem.id, roomId, surgeonId, date, startTime: start, endTime: end });
-    await refreshSchedule(date);
+    await refreshSchedule();
   }
 
   return (
@@ -184,7 +184,7 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
                   if (!itemId) return;
                   const previousIds = new Set(scheduleRef.current.map(e => e.id));
                   await createSchedule({ waitingListItemId: itemId, roomId, surgeonId, date: d, startTime, endTime });
-                  await refreshSchedule(d);
+                  await refreshSchedule();
                   setSchedule(prev => {
                     if (prev.length === 0) return prev;
                     const filtered = prev.filter(entry => previousIds.has(entry.id) || entry.waitingListItemId === itemId);
@@ -263,7 +263,7 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
                       if (!itemId) return;
                       const previousIds = new Set(scheduleRef.current.map(e => e.id));
                       await createSchedule({ waitingListItemId: itemId, roomId, surgeonId, date: d, startTime, endTime });
-                      await refreshSchedule(d);
+                      await refreshSchedule();
                       setSchedule(prev => {
                         if (prev.length === 0) return prev;
                         const filtered = prev.filter(entry => previousIds.has(entry.id) || entry.waitingListItemId === itemId);
