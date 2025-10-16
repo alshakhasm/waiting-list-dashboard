@@ -182,16 +182,16 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 140px)' }}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
-        <button onClick={() => stepDate(-1)} aria-label="Previous period">◀</button>
         <input type="date" value={date} onChange={e => setDate(e.target.value)} />
-        <button onClick={() => stepDate(1)} aria-label="Next period">▶</button>
         <button disabled={!selectedItem} onClick={scheduleSelected}>Schedule selected</button>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button onClick={() => stepDate(-1)} aria-label="Previous period">◀</button>
           <div role="group" aria-label="Calendar view" style={{ display: 'inline-flex', gap: 4 }}>
             <button onClick={() => setView('day')} aria-pressed={view==='day'}>Day</button>
             <button onClick={() => setView('week')} aria-pressed={view==='week'}>Week</button>
             <button onClick={() => setView('month')} aria-pressed={view==='month'}>Month</button>
           </div>
+          <button onClick={() => stepDate(1)} aria-label="Next period">▶</button>
         </div>
       </div>
       {isFull ? (

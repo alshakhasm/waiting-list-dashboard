@@ -22,9 +22,19 @@ function toMinutes(start: string, end: string): number {
   return diff;
 }
 
+function parseDate(value: string | null | undefined, fallback: Date): Date {
+  if (!value) return fallback;
+  const date = new Date(value + 'T00:00:00');
+  return Number.isNaN(date.getTime()) ? fallback : date;
+}
+
+function formatDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
 export function OperatedTablePage() {
-  const [from, setFrom] = useState(() => new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10));
-  const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [from, setFrom] = useState(() => formatDate(new Date(Date.now() - 14 * 86400000)));
+  const [to, setTo] = useState(() => formatDate(new Date(Date.now() + 180 * 86400000)));
   const [items, setItems] = useState<BacklogItem[]>([]);
   const [schedule, setSchedule] = useState<ScheduleEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,8 +55,8 @@ export function OperatedTablePage() {
   const itemById = useMemo(() => Object.fromEntries(items.map(i => [i.id, i])), [items]);
 
   const rows: Row[] = useMemo(() => {
-    const f = new Date(from + 'T00:00:00');
-    const t = new Date(to + 'T23:59:59');
+    const f = parseDate(from, new Date(0));
+    const t = parseDate(to, new Date(Date.now() + 10 * 365 * 86400000));
     return schedule
       .filter(e => e.status === 'operated')
       .filter(e => {
