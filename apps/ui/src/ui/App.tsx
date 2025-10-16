@@ -460,7 +460,15 @@ export function App() {
           >
             List
           </button>
-          <details style={{ position: 'relative' }}>
+          <details style={{ position: 'relative' }}
+            onClick={(e) => {
+              const target = e.target as HTMLElement;
+              if (target.tagName === 'BUTTON') {
+                const details = (target.closest('details')) as HTMLDetailsElement | null;
+                details?.removeAttribute('open');
+              }
+            }}
+          >
             <summary style={{ listStyle: 'none', cursor: 'pointer', padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', color: 'var(--text)' }}>More ▾</summary>
             <div style={{ position: 'absolute', marginTop: 6, minWidth: 180, background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 6px 18px var(--shadow)', padding: 8, display: 'grid', gap: 6 }}>
               <button onClick={() => setTab('archive')} style={{ textAlign: 'left' }}>Archive</button>
