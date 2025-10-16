@@ -563,7 +563,7 @@ export function App() {
           {tab === 'members' && (profile?.role === 'owner' ? <MembersPage /> : <AccessDeniedPage />)}
           {tab === 'intake-links' && (profile?.role === 'owner' ? <IntakeLinksPage /> : <AccessDeniedPage />)}
           {tab === 'list' && <ComprehensiveListPage reloadKey={backlogReloadKey} />}
-          {tab === 'archive' && <ArchivePage />}
+          {tab === 'archive' && <ArchivePage reloadKey={backlogReloadKey} />}
           {tab === 'owner-settings' && <OwnerSettingsPage />}
         </div>
       </div>

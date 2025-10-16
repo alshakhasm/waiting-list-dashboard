@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { getArchivedPatients, ArchivedPatient } from '../client/api';
 import { saveAsCsv } from './csvUtils';
 
-export function ArchivePage() {
+export function ArchivePage({ reloadKey }: { reloadKey: number }) {
   const [search, setSearch] = useState('');
   const [rows, setRows] = useState<ArchivedPatient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,7 +22,7 @@ export function ArchivePage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [search]);
+  }, [search, reloadKey]);
 
   const total = useMemo(() => rows.reduce((acc, r) => acc + (r.totalBacklogEntries || 0), 0), [rows]);
 
