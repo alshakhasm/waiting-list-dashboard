@@ -26,6 +26,9 @@ export function CompactCalendar(props: {
   const { date, view = 'week', entries, onDrop, onRemoveEntry, canEdit = true, itemById, onToggleConfirm, onToggleOperated } = props;
 
   const days: string[] = useMemo(() => buildDays(date, view), [date, view]);
+  const gridTemplateColumns = view === 'day'
+    ? 'repeat(1, minmax(360px, 1fr))'
+    : 'repeat(7, minmax(160px, 1fr))';
 
   function handleDrop(e: React.DragEvent<HTMLDivElement>, day: string) {
     e.preventDefault();
@@ -49,7 +52,7 @@ export function CompactCalendar(props: {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8, height: '100%', overflow: 'auto' }}
+    <div style={{ display: 'grid', gridTemplateColumns, gap: 8, height: '100%', overflow: 'auto' }}
          onDragOver={(e) => { e.preventDefault(); }}>
       {days.map((d) => {
         const list = entries

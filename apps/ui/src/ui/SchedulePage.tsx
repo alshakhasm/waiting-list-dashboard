@@ -7,6 +7,20 @@ import { useSupabaseAuth } from '../auth/useSupabaseAuth';
 
 const LOCAL_PENDING_OVERRIDE_KEY = 'backlog.pendingOverrides.v1';
 
+function parseDate(value: string): Date | null {
+  if (!value) return null;
+  const [yyyy, mm, dd] = value.split('-').map(Number);
+  if ([yyyy, mm, dd].some(n => Number.isNaN(n))) return null;
+  return new Date(Date.UTC(yyyy, (mm || 1) - 1, dd || 1));
+}
+
+function formatDateUTC(date: Date): string {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(date.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function readPendingOverrideIds(): string[] {
   if (typeof window === 'undefined') return [];
   try {
@@ -121,6 +135,19 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
     });
   }, [setPendingOverrideIds]);
 
+  const stepDate = useCallback((direction: 1 | -1) => {
+    const current = parseDate(date);
+    if (!current) return;
+    if (view === 'month') {
+      current.setUTCMonth(current.getUTCMonth() + direction);
+    } else if (view === 'week') {
+      current.setUTCDate(current.getUTCDate() + 7 * direction);
+    } else {
+      current.setUTCDate(current.getUTCDate() + direction);
+    }
+    setDate(formatDateUTC(current));
+  }, [date, view]);
+
   async function handleToggleConfirm(id: string, confirmed: boolean) {
     try {
       if (confirmed) await confirmSchedule(id);
@@ -155,7 +182,9 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 140px)' }}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
+        <button onClick={() => stepDate(-1)} aria-label="Previous period">◀</button>
         <input type="date" value={date} onChange={e => setDate(e.target.value)} />
+        <button onClick={() => stepDate(1)} aria-label="Next period">▶</button>
         <button disabled={!selectedItem} onClick={scheduleSelected}>Schedule selected</button>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
           <div role="group" aria-label="Calendar view" style={{ display: 'inline-flex', gap: 4 }}>
