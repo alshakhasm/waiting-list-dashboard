@@ -73,6 +73,32 @@ button, input, select, textarea {
   color: inherit;
 }
 
+input, select, textarea {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--text);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
+
+button {
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 6px 10px;
+}
+
+button:disabled {
+  opacity: 0.6;
+}
+
 /* Subtle affordance: buttons with icons tint the icon on hover/focus */
 .icon-button svg {
   transition: color 120ms ease;

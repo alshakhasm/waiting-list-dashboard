@@ -50,6 +50,8 @@ BEGIN
 END;
 $$;
 
+grant execute on function public.app_purge_everything() to authenticated;
+
 -- Enforce that only approved owners (or the first bootstrap when no owners) can assign role='owner'
 CREATE OR REPLACE FUNCTION public.app_users_guard_owner_role()
 RETURNS trigger
@@ -507,6 +509,25 @@ drop trigger if exists trg_archive_backlog_del on public.backlog;
 create trigger trg_archive_backlog_del
 after delete on public.backlog
 for each row execute function public._archive_from_backlog_del();
+
+create or replace function public.backlog_set_removed(p_id uuid, p_removed boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.backlog
+     set is_removed = coalesce(p_removed, false),
+         notes = case
+           when coalesce(p_removed, false) then concat('removed@', now())
+           else notes
+         end
+   where id = p_id;
+end;
+$$;
+
+grant execute on function public.backlog_set_removed(uuid, boolean) to authenticated;
 
 -- Ensure schedule activity also refreshes archive records (e.g. when cases are added without backlog insert)
 create or replace function public._archive_touch_from_schedule_ins() returns trigger

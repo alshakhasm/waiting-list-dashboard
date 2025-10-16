@@ -270,16 +270,51 @@ export function SignInPage() {
 
   return (
     <div style={{ display: 'grid', placeItems: 'center', minHeight: '80vh', padding: 24 }}>
-      <form onSubmit={onSubmit} style={{ width: '100%', maxWidth: 420, padding: 24, border: '1px solid #ddd', borderRadius: 8 }}>
+      <form
+        onSubmit={onSubmit}
+        style={{
+          width: '100%',
+          maxWidth: 420,
+          padding: 24,
+          border: '1px solid var(--border)',
+          borderRadius: 8,
+          background: 'var(--surface-1)',
+          color: 'var(--text)',
+        }}
+      >
         <h1 style={{ marginTop: 0, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
           <IconLogIn size={21} style={{ opacity: 0.9, marginRight: -1 }} /> Welcome
         </h1>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          <button type="button" onClick={() => setMode('sign-in')} aria-pressed={mode==='sign-in'}
-            style={{ padding: '6px 10px', background: mode==='sign-in' ? '#eee' : 'transparent', border: '1px solid #ccc', borderRadius: 6 }}>Sign in</button>
-          {canSignUp && (
-            <button type="button" onClick={() => setMode('sign-up')} aria-pressed={mode==='sign-up'}
-              style={{ padding: '6px 10px', background: mode==='sign-up' ? '#eee' : 'transparent', border: '1px solid #ccc', borderRadius: 6 }}>Sign up</button>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, justifyContent: 'space-between', alignItems: 'center' }}>
+          {canSignUp ? (
+            <div style={{ display: 'inline-flex', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => setMode('sign-in')}
+                aria-pressed={mode==='sign-in'}
+                style={{
+                  padding: '6px 10px',
+                  background: mode==='sign-in' ? 'var(--surface-2)' : 'transparent',
+                  border: '1px solid var(--border)',
+                  borderRadius: 6,
+                  color: 'var(--text)',
+                }}
+              >Sign in</button>
+              <button
+                type="button"
+                onClick={() => setMode('sign-up')}
+                aria-pressed={mode==='sign-up'}
+                style={{
+                  padding: '6px 10px',
+                  background: mode==='sign-up' ? 'var(--surface-2)' : 'transparent',
+                  border: '1px solid var(--border)',
+                  borderRadius: 6,
+                  color: 'var(--text)',
+                }}
+              >Sign up</button>
+            </div>
+          ) : (
+            <strong style={{ fontSize: 14 }}>Sign in</strong>
           )}
           <label style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
             <input type="checkbox" checked={isMagic} onChange={(e) => setIsMagic(e.target.checked)} /> Use magic link
@@ -289,43 +324,94 @@ export function SignInPage() {
         <div style={{ display: 'grid', gap: 10 }}>
           <label style={{ display: 'grid', gap: 6 }}>
             <span>Email</span>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="you@example.com"
+              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px' }}
+            />
           </label>
 
           {!isMagic && (
             <label style={{ display: 'grid', gap: 6 }}>
               <span>Password</span>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required={mode==='sign-in' || mode==='sign-up'} placeholder="••••••••" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required={mode==='sign-in' || mode==='sign-up'}
+                placeholder="••••••••"
+                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px' }}
+              />
             </label>
           )}
 
           {!isMagic && mode === 'sign-up' && (
             <label style={{ display: 'grid', gap: 6 }}>
               <span>Confirm password</span>
-              <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required placeholder="Repeat password" />
+              <input
+                type="password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                required
+                placeholder="Repeat password"
+                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px' }}
+              />
             </label>
           )}
         </div>
 
         {status && (
-          <div role="status" style={{ marginTop: 10, fontSize: 12, color: '#555' }}>{status}</div>
+          <div role="status" style={{ marginTop: 10, fontSize: 12, color: 'var(--text)', opacity: 0.8 }}>{status}</div>
         )}
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 16 }}>
-          <button type="submit" disabled={loading || !email || (!isMagic && !password)}>
+          <button
+            type="submit"
+            disabled={loading || !email || (!isMagic && !password)}
+            style={{ background: 'var(--primary)', color: 'var(--on-primary)', border: '1px solid var(--primary)', borderRadius: 6, padding: '8px 12px' }}
+          >
             {loading ? 'Please wait…' : mode === 'sign-in' ? (isMagic ? 'Send magic link' : 'Sign in') : 'Create account'}
           </button>
           {!isMagic && mode === 'sign-in' && (
-            <button type="button" onClick={sendReset} disabled={!email} style={{ marginLeft: 'auto' }}>Forgot password?</button>
+            <button
+              type="button"
+              onClick={sendReset}
+              disabled={!email}
+              style={{ marginLeft: 'auto', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', background: 'transparent' }}
+            >
+              Forgot password?
+            </button>
           )}
         </div>
         <div style={{ marginTop: 16, textAlign: 'center' }}>
-          <button type="button" onClick={() => enableGuest()} title="Browse the app without signing in">Continue as guest</button>
+          <button
+            type="button"
+            onClick={() => enableGuest()}
+            title="Browse the app without signing in"
+            style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', background: 'transparent', color: 'var(--text)' }}
+          >
+            Continue as guest
+          </button>
           <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>Some actions may be limited in guest mode.</div>
         </div>
         <div style={{ marginTop: 16, fontSize: 12, opacity: 0.8 }}>
           Creating a new workspace? Use the Create Account flow instead.
-          <button type="button" onClick={() => { const u = new URL(window.location.href); u.searchParams.set('create','1'); u.searchParams.delete('signin'); u.searchParams.delete('signup'); window.location.href = u.toString(); }} style={{ marginLeft: 8 }}>Go to Create Account →</button>
+          <button
+            type="button"
+            onClick={() => {
+              const u = new URL(window.location.href);
+              u.searchParams.set('create','1');
+              u.searchParams.delete('signin');
+              u.searchParams.delete('signup');
+              window.location.href = u.toString();
+            }}
+            style={{ marginLeft: 8, border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', background: 'transparent', color: 'var(--text)' }}
+          >
+            Go to Create Account →
+          </button>
         </div>
       </form>
     </div>

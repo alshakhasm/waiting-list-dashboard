@@ -588,9 +588,11 @@ export async function markScheduleOperated(id: string, operated: boolean): Promi
     const waitingId = data?.waiting_list_item_id;
     if (waitingId) {
       try {
-        await (supabase as any).from('backlog').update({ status }).eq('id', waitingId);
+        const { error: rpcError } = await (supabase as any)
+          .rpc('backlog_set_removed', { p_id: waitingId, p_removed: operated });
+        if (rpcError) console.warn('[markScheduleOperated] backlog_set_removed failed', rpcError);
       } catch (e) {
-        console.warn('[markScheduleOperated] failed to sync backlog status:', e);
+        console.warn('[markScheduleOperated] failed to sync backlog removal flag:', e);
       }
     }
     emitDashboardChange();
