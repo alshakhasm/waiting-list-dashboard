@@ -66,7 +66,7 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
     for (const entry of entries) {
       const id = entry.waitingListItemId;
       if (!id) continue;
-      const status = entry.status || 'tentative';
+      const status = (entry.status || 'tentative').trim().toLowerCase();
       if (status === 'tentative' || status === 'scheduled') pending.add(id);
       if (status === 'confirmed' || status === 'operated' || status === 'completed') {
         hidden.add(id);
@@ -162,7 +162,15 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
   async function handleToggleOperated(id: string, operated: boolean) {
     try {
       await markScheduleOperated(id, operated);
-      await refreshSchedule();
+      const updated = await refreshSchedule();
+      if (operated && updated) {
+        const entry = updated.find(e => e.id === id);
+        const waitingId = entry?.waitingListItemId;
+        if (waitingId) {
+          setHiddenIds(prev => prev.includes(waitingId) ? prev : [...prev, waitingId]);
+          setPendingIds(prev => prev.filter(pid => pid !== waitingId));
+        }
+      }
     } catch (e) {
       console.error('Failed to toggle operated', e);
       window.alert?.((e as any)?.message || 'Failed to update operated status');

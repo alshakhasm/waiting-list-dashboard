@@ -340,6 +340,25 @@ export async function createBacklogItem(input: {
   } as BacklogItem;
 }
 
+function coerceSupabaseDate(value: any): string {
+  if (!value) return '';
+  if (typeof value === 'string') return value.slice(0, 10);
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  try {
+    return new Date(value).toISOString().slice(0, 10);
+  } catch {
+    return String(value ?? '').slice(0, 10);
+  }
+}
+
+function coerceSupabaseTime(value: any): string {
+  if (!value) return '';
+  if (typeof value === 'string') return value.slice(0, 5);
+  if (value instanceof Date) return value.toISOString().slice(11, 16);
+  const str = String(value ?? '');
+  return str.includes(':') ? str.slice(0, 5) : str;
+}
+
 export type ScheduleEntry = {
   id: string;
   waitingListItemId: string;
@@ -352,10 +371,34 @@ export type ScheduleEntry = {
   notes?: string;
   version: number;
   updatedAt?: string;
+  patientName?: string;
+  procedure?: string;
+  maskedMrn?: string;
 };
+
+function statusWeight(status: string | undefined): number {
+  const normalized = (status || '').toLowerCase();
+  switch (normalized) {
+    case 'operated':
+      return 5;
+    case 'completed':
+      return 4;
+    case 'confirmed':
+      return 3;
+    case 'scheduled':
+      return 2;
+    case 'tentative':
+      return 1;
+    default:
+      return 0;
+  }
+}
 
 function chooseNewerEntry(a: ScheduleEntry | undefined, b: ScheduleEntry): ScheduleEntry {
   if (!a) return b;
+  const weightA = statusWeight(a.status);
+  const weightB = statusWeight(b.status);
+  if (weightA !== weightB) return weightB >= weightA ? b : a;
   const score = (e: ScheduleEntry) => {
     const t = e.updatedAt ? Date.parse(e.updatedAt) : NaN;
     if (!Number.isNaN(t)) return t;
@@ -371,6 +414,31 @@ function dedupeSchedule(entries: ScheduleEntry[]): ScheduleEntry[] {
     map.set(key, chooseNewerEntry(map.get(key), entry));
   }
   return Array.from(map.values());
+}
+
+function mapScheduleRow(row: any, fallbackStatus: string = 'tentative'): ScheduleEntry {
+  const backlog = row?.backlog || row?.backlog_row || null;
+  const entry: ScheduleEntry = {
+    id: row.id,
+    waitingListItemId: row.waiting_list_item_id,
+    roomId: row.room_id,
+    surgeonId: row.surgeon_id,
+    date: coerceSupabaseDate(row.date),
+    startTime: coerceSupabaseTime(row.start_time),
+    endTime: coerceSupabaseTime(row.end_time),
+    status: (row.status as string | null | undefined) || fallbackStatus,
+    version: (row.version as number | undefined) ?? 1,
+    notes: row.notes || undefined,
+    updatedAt: row.updated_at || row.created_at || undefined,
+  };
+  if (backlog && typeof backlog === 'object') {
+    entry.patientName = backlog.patient_name ?? backlog.patientName ?? entry.patientName;
+    entry.procedure = backlog.procedure ?? backlog.last_procedure ?? entry.procedure;
+    entry.maskedMrn = backlog.masked_mrn ?? backlog.maskedMrn ?? entry.maskedMrn;
+    if (!entry.surgeonId && backlog.surgeon_id) entry.surgeonId = backlog.surgeon_id;
+    if (!entry.notes && backlog.notes) entry.notes = backlog.notes;
+  }
+  return entry;
 }
 
 export async function getSchedule(params?: { date?: string }): Promise<ScheduleEntry[]> {
@@ -391,38 +459,7 @@ export async function getSchedule(params?: { date?: string }): Promise<ScheduleE
     }
     const { data, error } = await q;
     if (error) throw error;
-    const mapped = (data || []).map((r: any) => {
-      const coerceDate = (v: any) => {
-        if (!v) return '';
-        if (typeof v === 'string') return v.slice(0, 10);
-        if (v instanceof Date) return v.toISOString().slice(0, 10);
-        try {
-          return new Date(v).toISOString().slice(0, 10);
-        } catch {
-          return String(v ?? '').slice(0, 10);
-        }
-      };
-      const coerceTime = (v: any) => {
-        if (!v) return '';
-        if (typeof v === 'string') return v.slice(0, 5);
-        if (v instanceof Date) return v.toISOString().slice(11, 16);
-        const str = String(v ?? '');
-        return str.includes(':') ? str.slice(0, 5) : str;
-      };
-      return {
-        id: r.id,
-        waitingListItemId: r.waiting_list_item_id,
-        roomId: r.room_id,
-        surgeonId: r.surgeon_id,
-        date: coerceDate(r.date),
-        startTime: coerceTime(r.start_time),
-        endTime: coerceTime(r.end_time),
-        status: r.status || 'tentative',
-        version: 1,
-        notes: r.notes || undefined,
-        updatedAt: r.updated_at || r.created_at || undefined,
-      } as ScheduleEntry;
-    });
+    const mapped = (data || []).map((row: any) => mapScheduleRow(row));
     return dedupeSchedule(mapped);
   }
   const handleRequest = await getHandleRequest();
@@ -431,44 +468,27 @@ export async function getSchedule(params?: { date?: string }): Promise<ScheduleE
   return dedupeSchedule(res.body as ScheduleEntry[]);
 }
 
+export async function getScheduleRange(params: { start: string; end: string }): Promise<ScheduleEntry[]> {
+  if (supabase) {
+    const { data, error } = await (supabase as any)
+      .from('schedule')
+      .select('*, backlog:backlog ( patient_name, procedure, masked_mrn, surgeon_id, notes )')
+      .gte('date', params.start)
+      .lt('date', params.end);
+    if (error) throw error;
+    return dedupeSchedule((data || []).map((row: any) => mapScheduleRow(row)));
+  }
+  const all = await getSchedule();
+  return all.filter(entry => entry.date >= params.start && entry.date < params.end);
+}
+
 export async function createSchedule(input: { waitingListItemId: string; roomId: string; surgeonId: string; date: string; startTime: string; endTime: string; notes?: string }): Promise<ScheduleEntry> {
   const today = new Date().toISOString().slice(0, 10);
   if (input.date <= today) {
     throw new Error('Scheduled date must be in the future');
   }
   if (supabase) {
-    const mapRow = (row: any): ScheduleEntry => {
-      const coerceDate = (v: any) => {
-        if (!v) return '';
-        if (typeof v === 'string') return v.slice(0, 10);
-        if (v instanceof Date) return v.toISOString().slice(0, 10);
-        try {
-          return new Date(v).toISOString().slice(0, 10);
-        } catch {
-          return String(v ?? '').slice(0, 10);
-        }
-      };
-      const coerceTime = (v: any) => {
-        if (!v) return '';
-        if (typeof v === 'string') return v.slice(0, 5);
-        if (v instanceof Date) return v.toISOString().slice(11, 16);
-        const str = String(v ?? '');
-        return str.includes(':') ? str.slice(0, 5) : str;
-      };
-      return {
-        id: row.id,
-        waitingListItemId: row.waiting_list_item_id,
-        roomId: row.room_id,
-        surgeonId: row.surgeon_id,
-        date: coerceDate(row.date),
-        startTime: coerceTime(row.start_time),
-        endTime: coerceTime(row.end_time),
-        status: row.status || 'scheduled',
-        version: (row.version as number | undefined) ?? 1,
-        notes: row.notes || undefined,
-        updatedAt: row.updated_at || row.created_at || undefined,
-      };
-    };
+    const mapRow = (row: any): ScheduleEntry => mapScheduleRow(row, 'scheduled');
     const { data: existingRows, error: existingError } = await (supabase as any)
       .from('schedule')
       .select('*')
@@ -540,8 +560,21 @@ export async function confirmSchedule(id: string): Promise<void> {
 export async function markScheduleOperated(id: string, operated: boolean): Promise<void> {
   if (supabase) {
     const status = operated ? 'operated' : 'confirmed';
-    const { error } = await (supabase as any).from('schedule').update({ status }).eq('id', id);
+    const { data, error } = await (supabase as any)
+      .from('schedule')
+      .update({ status })
+      .eq('id', id)
+      .select('waiting_list_item_id')
+      .single();
     if (error) throw error;
+    const waitingId = data?.waiting_list_item_id;
+    if (waitingId) {
+      try {
+        await (supabase as any).from('backlog').update({ status }).eq('id', waitingId);
+      } catch (e) {
+        console.warn('[markScheduleOperated] failed to sync backlog status:', e);
+      }
+    }
     return;
   }
   const handleRequest = await getHandleRequest();

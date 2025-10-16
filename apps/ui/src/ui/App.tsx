@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { BacklogPage } from './BacklogPage';
 import { SchedulePage } from './SchedulePage';
+import { MonthlySchedulePage } from './MonthlySchedulePage';
+import { DummyCasePage } from './DummyCasePage';
 import { MappingProfilesPage } from './MappingProfilesPage';
 import { OperatedTablePage } from './OperatedTablePage';
 import { ThemeToggle } from './ThemeToggle';
@@ -33,7 +35,7 @@ const THEME_KEY = 'ui-theme';
 type ThemeMode = 'auto' | 'default' | 'warm' | 'high-contrast' | 'dark';
 
 export function App() {
-  type Tab = 'backlog' | 'schedule' | 'mappings' | 'operated' | 'list' | 'archive' | 'members' | 'intake-links' | 'roller' | 'owner-settings';
+  type Tab = 'backlog' | 'schedule' | 'monthly' | 'dummy' | 'mappings' | 'operated' | 'list' | 'archive' | 'members' | 'intake-links' | 'roller' | 'owner-settings';
   const TAB_KEY = 'ui-last-tab';
   const isTab = (v: any): v is Tab => (
     v === 'backlog' || v === 'schedule' || v === 'mappings' || v === 'operated' || v === 'list' || v === 'archive' || v === 'members' || v === 'intake-links' || v === 'roller' || v === 'owner-settings'
@@ -432,6 +434,20 @@ export function App() {
             )}
           </span>
           <button
+            onClick={() => setTab('monthly')}
+            aria-current={tab === 'monthly' ? 'page' : undefined}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'monthly' ? 'var(--surface-2)' : 'transparent', fontWeight: tab === 'monthly' ? 600 : 500, color: 'var(--text)' }}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setTab('dummy')}
+            aria-current={tab === 'dummy' ? 'page' : undefined}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'dummy' ? 'var(--surface-2)' : 'transparent', fontWeight: tab === 'dummy' ? 600 : 500, color: 'var(--text)' }}
+          >
+            Dummy Case
+          </button>
+          <button
             onClick={() => setTab('list')}
             aria-current={tab === 'list' ? 'page' : undefined}
             style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'list' ? 'var(--surface-2)' : 'transparent', fontWeight: tab === 'list' ? 600 : 500, color: 'var(--text)' }}
@@ -500,13 +516,13 @@ export function App() {
       </header>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: (tab === 'schedule' && scheduleFull) || tab === 'operated' || tab === 'roller' || tab === 'owner-settings' ? '1fr' : 'auto 1fr',
+        gridTemplateColumns: (tab === 'schedule' && scheduleFull) || tab === 'operated' || tab === 'roller' || tab === 'owner-settings' || tab === 'monthly' ? '1fr' : 'auto 1fr',
         gap: 0,
   padding: 12,
         // Ensure the content area (including sidebar) fills the viewport below the header
         minHeight: 'calc(100vh - 64px)'
       }}>
-        {!(tab === 'schedule' && scheduleFull) && tab !== 'operated' && tab !== 'roller' && tab !== 'owner-settings' && (
+        {!(tab === 'schedule' && scheduleFull) && tab !== 'operated' && tab !== 'roller' && tab !== 'owner-settings' && tab !== 'monthly' && (
           <CategorySidebar
             onChange={setCategoryPrefs}
             onAddedCase={() => setBacklogReloadKey(k => k + 1)}
@@ -526,6 +542,8 @@ export function App() {
           )}
           {tab === 'roller' && <CardRollerPage />}
           {tab === 'schedule' && <SchedulePage isFull={scheduleFull} />}
+          {tab === 'monthly' && <MonthlySchedulePage />}
+          {tab === 'dummy' && <DummyCasePage />}
           {tab === 'mappings' && <MappingProfilesPage />}
           {tab === 'operated' && <OperatedTablePage />}
           {tab === 'members' && (profile?.role === 'owner' ? <MembersPage /> : <AccessDeniedPage />)}

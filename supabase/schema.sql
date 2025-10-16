@@ -508,6 +508,64 @@ create trigger trg_archive_backlog_del
 after delete on public.backlog
 for each row execute function public._archive_from_backlog_del();
 
+-- Ensure schedule activity also refreshes archive records (e.g. when cases are added without backlog insert)
+create or replace function public._archive_touch_from_schedule_ins() returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_mrn text;
+  v_patient_name text;
+  v_category text;
+  v_case_type text;
+  v_procedure text;
+begin
+  select b.mrn, b.patient_name, b.category_key, b.case_type_id, b.procedure
+    into v_mrn, v_patient_name, v_category, v_case_type, v_procedure
+    from public.backlog b
+   where b.id = new.waiting_list_item_id
+   limit 1;
+
+  if v_mrn is null then
+    return new;
+  end if;
+
+  insert into public.patients_archive (
+    mrn,
+    first_seen_at,
+    last_seen_at,
+    last_patient_name,
+    total_backlog_entries,
+    last_category_key,
+    last_case_type_id,
+    last_procedure
+  ) values (
+    v_mrn,
+    now(),
+    now(),
+    coalesce(v_patient_name, v_mrn),
+    1,
+    v_category,
+    v_case_type,
+    v_procedure
+  )
+  on conflict (mrn) do update set
+    last_seen_at = excluded.last_seen_at,
+    last_patient_name = coalesce(excluded.last_patient_name, public.patients_archive.last_patient_name),
+    last_category_key = coalesce(excluded.last_category_key, public.patients_archive.last_category_key),
+    last_case_type_id = coalesce(excluded.last_case_type_id, public.patients_archive.last_case_type_id),
+    last_procedure = coalesce(excluded.last_procedure, public.patients_archive.last_procedure);
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_archive_schedule_ins on public.schedule;
+create trigger trg_archive_schedule_ins
+after insert on public.schedule
+for each row execute function public._archive_touch_from_schedule_ins();
+
 -- Bootstrap helpers (enable safe self-service owner creation)
 -- 1) Check whether app_users is empty (callable by unauthenticated to gate sign-up UI)
 create or replace function public.app_users_is_empty()
