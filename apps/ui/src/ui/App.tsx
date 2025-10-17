@@ -22,6 +22,7 @@ import { ArchivePage } from './ArchivePage';
 import { ComprehensiveListPage } from './ComprehensiveListPage';
 import { AuthLandingPage } from './AuthLandingPage';
 import { SignInPage } from '../auth/SignInPage';
+import { ResetPasswordPage } from '../auth/ResetPasswordPage';
 import { EnvDebug } from './EnvDebug';
 import { CreateAccountPage } from './CreateAccountPage';
 import { IntakePage } from './IntakePage';
@@ -269,6 +270,16 @@ export function App() {
         </div>
       </div>
     );
+  }
+
+  if (typeof window !== 'undefined') {
+    const url = new URL(window.location.href);
+    const type = url.searchParams.get('type');
+    const resetFlag = url.searchParams.get('reset');
+    const hash = window.location.hash || '';
+    if (type === 'recovery' || resetFlag === '1' || hash.includes('type=recovery') || hash.includes('access_token=')) {
+      return <ResetPasswordPage />;
+    }
   }
   // If Supabase is configured and user is not signed in, show the sign-in page unless in guest mode.
   if (supabase && !user && !guest) {
