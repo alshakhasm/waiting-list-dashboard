@@ -225,7 +225,10 @@ export function SignInPage() {
     try {
       const { error } = await supabase!.auth.updateUser({ password: newPassword } as any);
       if (error) throw error;
-      await supabase!.auth.signOut().catch(() => {});
+      const { error: signOutError } = await supabase!.auth.signOut();
+      if (signOutError) {
+        console.warn('[submitNewPassword] signOut error', signOutError);
+      }
       setStatus('Password updated. Redirecting you to sign in…');
       setNewPassword('');
       setNewConfirm('');
