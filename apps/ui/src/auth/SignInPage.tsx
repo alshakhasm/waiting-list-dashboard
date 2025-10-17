@@ -235,17 +235,15 @@ export function SignInPage() {
       setMode('sign-in');
       setIsRecovery(false);
       const base = getRedirectBase();
-      // Give the status message a moment, then redirect to sign-in
-      setTimeout(() => {
-        try {
-          const dest = new URL(base);
-          dest.searchParams.set('signin', '1');
-          dest.searchParams.set('reset', '1');
-          window.location.href = dest.toString();
-        } catch {
-          window.location.href = `${base}?signin=1&reset=1`;
-        }
-      }, 1200);
+      try {
+        const dest = new URL(base);
+        dest.searchParams.set('signin', '1');
+        dest.searchParams.set('reset', '1');
+        window.location.replace(dest.toString());
+      } catch {
+        window.location.replace(`${base}?signin=1&reset=1`);
+      }
+      return;
     } catch (err: any) {
       setStatus(err?.message || String(err));
     } finally {
