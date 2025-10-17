@@ -68,17 +68,6 @@ export function ResetPasswordPage() {
     };
   }, []);
 
-  if (!supabase) {
-    return (
-      <div style={{ display: 'grid', placeItems: 'center', minHeight: '80vh', padding: 24 }}>
-        <div style={{ maxWidth: 420 }}>
-          <h1>Reset password</h1>
-          <p style={{ opacity: 0.8 }}>Supabase is not configured, so the password reset flow cannot continue.</p>
-        </div>
-      </div>
-    );
-  }
-
   async function submitNewPassword(e: React.FormEvent) {
     e.preventDefault();
     setStatus(null);
@@ -88,6 +77,9 @@ export function ResetPasswordPage() {
     }
     setLoading(true);
     try {
+      if (!supabase) {
+        throw new Error('Supabase is not configured.');
+      }
       const { error } = await supabase.auth.updateUser({ password: newPassword } as any);
       if (error) throw error;
       const { error: signOutError } = await supabase.auth.signOut();
@@ -107,6 +99,17 @@ export function ResetPasswordPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (!supabase) {
+    return (
+      <div style={{ display: 'grid', placeItems: 'center', minHeight: '80vh', padding: 24 }}>
+        <div style={{ maxWidth: 440 }}>
+          <h1 style={{ marginTop: 0 }}>Reset password</h1>
+          <p style={{ opacity: 0.8, fontSize: 15 }}>Supabase is not configured, so the password reset flow cannot continue. Double-check that <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> are set for this build.</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -137,3 +140,4 @@ export function ResetPasswordPage() {
     </div>
   );
 }
+

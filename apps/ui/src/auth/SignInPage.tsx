@@ -144,9 +144,16 @@ export function SignInPage() {
   async function sendReset() {
     setStatus(null);
     try {
-      const { error } = await supabase!.auth.resetPasswordForEmail(email, {
-        redirectTo: getRedirectBase(),
-      });
+      // Link to dedicated reset page
+      let redirect = getRedirectBase();
+      try {
+        const u = new URL(redirect);
+        u.searchParams.set('reset', '1');
+        redirect = u.toString();
+      } catch {
+        redirect = `${redirect}?reset=1`;
+      }
+      const { error } = await supabase!.auth.resetPasswordForEmail(email, { redirectTo: redirect });
       if (error) throw error;
       setStatus('Password reset email sent. Check your inbox.');
     } catch (err: any) {

@@ -285,6 +285,8 @@ export function App() {
   if (supabase && !user && !guest) {
     // Show landing first; it will route to sign-in, owner create, or accept invite
     const url = new URL(window.location.href);
+    // Dedicated reset password page (linked from email), flagged by ?reset=1
+    if (url.searchParams.get('reset') === '1') return <ResetPasswordPage />;
     if (url.searchParams.get('intake') === '1') return <IntakePage />;
     if (url.searchParams.get('create') === '1') return <CreateAccountPage />;
     if (url.searchParams.get('accept') === '1') return <AcceptInvitePage />;
