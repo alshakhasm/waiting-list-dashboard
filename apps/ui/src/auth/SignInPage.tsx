@@ -153,8 +153,16 @@ export function SignInPage() {
       }
 
       if (mode === 'sign-in') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        const session = data.session;
+        const user = session?.user;
+        if (!session || !user?.email_confirmed_at) {
+          await supabase.auth.signOut().catch(() => {});
+          setStatus('Your email is not confirmed yet. Please check your inbox for the confirmation link before signing in.');
+          setLoading(false);
+          return;
+        }
         setStatus(null);
         try {
           const url = new URL(window.location.href);
@@ -175,26 +183,16 @@ export function SignInPage() {
           setStatus('Passwords do not match.');
           return;
         }
-        const { error, data } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email,
           password,
           options: { emailRedirectTo: getRedirectBase() },
         });
         if (error) throw error;
-        if (!data.session) {
-          setStatus('Sign-up successful. Please check your email to confirm your account.');
-        } else {
-          setStatus(null);
-          try {
-            const url = new URL(window.location.href);
-            const bootstrap = url.searchParams.get('bootstrap');
-            if (bootstrap === '1' || bootstrap === 'true') {
-              await becomeOwner();
-              url.searchParams.delete('bootstrap');
-              window.history.replaceState({}, '', url.toString());
-            }
-          } catch {}
-        }
+        await supabase.auth.signOut().catch(() => {});
+        setStatus('Sign-up successful. Please check your email to confirm your account before signing in.');
+        setLoading(false);
+        return;
       }
     } catch (err: any) {
       setStatus(err?.message || String(err));
@@ -227,9 +225,19 @@ export function SignInPage() {
     try {
       const { error } = await supabase!.auth.updateUser({ password: newPassword } as any);
       if (error) throw error;
-      setStatus('Password updated. You are now signed in.');
+      await supabase!.auth.signOut().catch(() => {});
+      setStatus('Password updated. Please sign in with your new password.');
+      setNewPassword('');
+      setNewConfirm('');
+      setMode('sign-in');
+      setIsRecovery(false);
       // Clean URL params to avoid re-trigger
-      try { const u = new URL(window.location.href); u.searchParams.delete('type'); u.searchParams.delete('access_token'); window.history.replaceState({}, '', u.toString()); } catch {}
+      try {
+        const u = new URL(window.location.href);
+        u.searchParams.delete('type');
+        u.searchParams.delete('access_token');
+        window.history.replaceState({}, '', u.toString());
+      } catch {}
     } catch (err: any) {
       setStatus(err?.message || String(err));
     } finally {
