@@ -226,18 +226,23 @@ export function SignInPage() {
       const { error } = await supabase!.auth.updateUser({ password: newPassword } as any);
       if (error) throw error;
       await supabase!.auth.signOut().catch(() => {});
-      setStatus('Password updated. Please sign in with your new password.');
+      setStatus('Password updated. Redirecting you to sign in…');
       setNewPassword('');
       setNewConfirm('');
       setMode('sign-in');
       setIsRecovery(false);
-      // Clean URL params to avoid re-trigger
-      try {
-        const u = new URL(window.location.href);
-        u.searchParams.delete('type');
-        u.searchParams.delete('access_token');
-        window.history.replaceState({}, '', u.toString());
-      } catch {}
+      const base = getRedirectBase();
+      // Give the status message a moment, then redirect to sign-in
+      setTimeout(() => {
+        try {
+          const dest = new URL(base);
+          dest.searchParams.set('signin', '1');
+          dest.searchParams.set('reset', '1');
+          window.location.href = dest.toString();
+        } catch {
+          window.location.href = `${base}?signin=1&reset=1`;
+        }
+      }, 1200);
     } catch (err: any) {
       setStatus(err?.message || String(err));
     } finally {
