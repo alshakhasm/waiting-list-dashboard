@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AppUser, Invitation, InvitationRole, getCurrentAppUser, inviteByEmail, listInvitations, listMembers, updateMember, sendInviteLink, deleteMemberCompletely, deleteInvitation } from '../client/api';
 
+function getInviteBase(): string {
+  try {
+    const url = new URL(window.location.href);
+    const path = url.pathname || '/';
+    const ghBase = '/waiting-list-dashboard';
+    const base = path.startsWith(ghBase) ? ghBase : '';
+    return `${url.origin}${base}`;
+  } catch {
+    return window.location.origin;
+  }
+}
+
 export function MembersPage() {
   const [email, setEmail] = useState('');
   const [members, setMembers] = useState<AppUser[]>([]);
@@ -14,6 +26,8 @@ export function MembersPage() {
   const [memberSearch, setMemberSearch] = useState('');
   const [busyIds, setBusyIds] = useState<Record<string, boolean>>({});
   const [inviteRole, setInviteRole] = useState<InvitationRole>('member');
+  const [inviting, setInviting] = useState(false);
+  const inviteBase = useMemo(() => (typeof window === 'undefined' ? '' : getInviteBase()), []);
 
   async function refresh() {
     try {
@@ -49,15 +63,21 @@ export function MembersPage() {
   useEffect(() => { refresh(); (async () => { try { setMe(await getCurrentAppUser()); } catch {} })(); }, []);
 
   async function invite() {
+    if (inviting) return;
+    const address = email.trim();
+    if (!address) return;
     try {
+      setInviting(true);
       setError(null); setInfo(null);
-      const inv = await inviteByEmail(email, inviteRole);
-      setInfo(`Invite created for ${inv.email} as ${inv.invitedRole}. Share this link: ${window.location.origin}?accept=1&token=${inv.token}`);
+      const inv = await inviteByEmail(address, inviteRole);
+      setInfo(`Invite created for ${inv.email} as ${inv.invitedRole}. Share this link: ${inviteBase}?accept=1&token=${inv.token}`);
       setEmail('');
       setInviteRole('member');
       refresh();
     } catch (e: any) {
       setError(e?.message || String(e));
+    } finally {
+      setInviting(false);
     }
   }
 
@@ -97,7 +117,7 @@ export function MembersPage() {
           <option value="viewer">Viewer</option>
           <option value="editor">Editor</option>
         </select>
-        <button onClick={invite} disabled={!email || !isApprovedOwner}>Invite</button>
+        <button onClick={invite} disabled={!email || !isApprovedOwner || inviting}>Invite</button>
         <span style={{ marginLeft: 'auto' }} />
         <input placeholder="Search email" value={memberSearch} onChange={(e) => setMemberSearch(e.target.value)} />
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)}>
@@ -201,7 +221,7 @@ export function MembersPage() {
           <h3>Invitations</h3>
           <ul style={{ display: 'grid', gap: 8 }}>
             {invites.map((i) => {
-              const link = `${window.location.origin}?accept=1&token=${i.token}`;
+              const link = `${inviteBase}?accept=1&token=${i.token}`;
               return (
                 <li key={i.id} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   <span style={{ minWidth: 220 }}>{i.email}</span>
