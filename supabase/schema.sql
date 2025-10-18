@@ -339,6 +339,7 @@ create table if not exists invitations (
   invited_by uuid not null,
   invited_role text not null default 'member' check (invited_role in ('member','viewer','editor')),
   expires_at timestamptz not null,
+  accepted_at timestamptz,
   created_at timestamptz default now()
 );
 
