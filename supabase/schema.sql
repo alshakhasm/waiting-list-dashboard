@@ -202,8 +202,8 @@ BEGIN
   END IF;
   -- Upsert app_users as approved member
   INSERT INTO public.app_users (user_id, email, role, status, created_at)
-  VALUES (v_uid, v_email, 'member', 'approved', now())
-  ON CONFLICT (user_id) DO UPDATE SET email = EXCLUDED.email;
+  VALUES (v_uid, v_email, coalesce(v_inv.invited_role, 'member'), 'approved', now())
+  ON CONFLICT (user_id) DO UPDATE SET email = EXCLUDED.email, role = coalesce(v_inv.invited_role, 'member');
 
   -- Mark invitation accepted
   UPDATE public.invitations
@@ -319,6 +319,7 @@ create table if not exists invitations (
   token text not null unique,
   status text not null default 'pending' check (status in ('pending','accepted','expired')),
   invited_by uuid not null,
+  invited_role text not null default 'member' check (invited_role in ('member','viewer','editor')),
   expires_at timestamptz not null,
   created_at timestamptz default now()
 );

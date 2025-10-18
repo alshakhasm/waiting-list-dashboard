@@ -794,6 +794,8 @@ export type AppUser = {
   invitedBy?: string | null;
 };
 
+export type InvitationRole = 'member' | 'viewer' | 'editor';
+
 export type Invitation = {
   id: string;
   email: string;
@@ -801,6 +803,7 @@ export type Invitation = {
   status: 'pending' | 'accepted' | 'expired';
   expiresAt: string; // ISO
   invitedBy: string;
+  invitedRole: InvitationRole;
 };
 
 export async function getCurrentAppUser(): Promise<AppUser | null> {
@@ -860,17 +863,18 @@ export async function becomeOwner(): Promise<void> {
   }
 }
 
-export async function inviteByEmail(email: string): Promise<Invitation> {
+export async function inviteByEmail(email: string, role: InvitationRole = 'member'): Promise<Invitation> {
   if (!supabase) throw new Error('Invites require Supabase to be configured');
   const { data: auth } = await supabase.auth.getUser();
   const inviter = auth.user?.id;
   if (!inviter) throw new Error('Not authenticated');
   // random token
   const token = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-  const expires_at = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+  // Invitations remain valid for 30 days by default to give invitees ample time to register.
+  const expires_at = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
   const { data, error } = await (supabase as any)
     .from('invitations')
-    .insert({ email, token, invited_by: inviter, expires_at })
+    .insert({ email, token, invited_by: inviter, invited_role: role, expires_at })
     .select('*')
     .single();
   if (error) throw error;
@@ -881,6 +885,7 @@ export async function inviteByEmail(email: string): Promise<Invitation> {
     status: data.status,
     expiresAt: data.expires_at,
     invitedBy: data.invited_by,
+    invitedRole: data.invited_role ?? 'member',
   } as Invitation;
 }
 
@@ -888,7 +893,7 @@ export async function listInvitations(): Promise<Invitation[]> {
   if (!supabase) return [];
   const { data, error } = await supabase.from('invitations').select('*').order('created_at', { ascending: false });
   if (error) throw error;
-  return (data || []).map((r: any) => ({ id: r.id, email: r.email, token: r.token, status: r.status, expiresAt: r.expires_at, invitedBy: r.invited_by }));
+  return (data || []).map((r: any) => ({ id: r.id, email: r.email, token: r.token, status: r.status, expiresAt: r.expires_at, invitedBy: r.invited_by, invitedRole: r.invited_role ?? 'member' }));
 }
 
 export async function getInvitationByToken(token: string): Promise<Invitation | null> {
@@ -903,6 +908,7 @@ export async function getInvitationByToken(token: string): Promise<Invitation | 
     status: data.status,
     expiresAt: data.expires_at,
     invitedBy: data.invited_by,
+    invitedRole: data.invited_role ?? 'member',
   } as Invitation;
 }
 
@@ -1078,9 +1084,13 @@ export async function acceptInvite(token: string): Promise<{ ok: boolean; reason
   if (upErr) throw upErr;
   const { data: existing, error: exErr } = await supabase.from('app_users').select('*').eq('user_id', uid).maybeSingle();
   if (exErr) throw exErr;
+  const invitedRole = invRow.invited_role ?? 'member';
   if (!existing) {
-    const { error: insErr } = await (supabase as any).from('app_users').insert({ user_id: uid, email, role: 'member', status: 'pending', invited_by: invRow.invited_by });
+    const { error: insErr } = await (supabase as any).from('app_users').insert({ user_id: uid, email, role: invitedRole, status: 'pending', invited_by: invRow.invited_by });
     if (insErr) throw insErr;
+  } else if (existing.role !== invitedRole) {
+    const { error: updErr } = await (supabase as any).from('app_users').update({ role: invitedRole }).eq('user_id', uid);
+    if (updErr) throw updErr;
   }
   return { ok: true };
 }

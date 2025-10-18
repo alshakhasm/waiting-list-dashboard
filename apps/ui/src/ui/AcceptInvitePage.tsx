@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase/client';
-import { getInvitationByToken, Invitation } from '../client/api';
+import { getInvitationByToken, Invitation, InvitationRole } from '../client/api';
 import { SignInPage } from '../auth/SignInPage';
+
+function describeRole(role: InvitationRole): string {
+  if (role === 'viewer') return 'viewer (read-only access)';
+  if (role === 'editor') return 'editor (can update schedules)';
+  return 'member';
+}
 
 type Phase = 'loading' | 'needs-register' | 'waiting-confirmation' | 'processing' | 'accepted' | 'error';
 
@@ -28,6 +34,8 @@ export function AcceptInvitePage() {
       return envTitle || 'Workspace';
     }
   }, []);
+
+  const invitedRoleLabel = useMemo(() => invite ? describeRole(invite.invitedRole) : null, [invite]);
 
   useEffect(() => {
     if (!supabase) {
@@ -163,6 +171,9 @@ export function AcceptInvitePage() {
           <div style={{ fontSize: 13, letterSpacing: 1.6, textTransform: 'uppercase', color: 'var(--accent-text)', opacity: 0.75 }}>Join {workspaceName}</div>
           <h1 style={{ margin: '6px 0 10px', fontSize: 28 }}>Team invitation</h1>
           <p style={{ margin: 0, color: 'var(--text)', opacity: 0.85 }}>{statusMessage}</p>
+          {invitedRoleLabel && (
+            <p style={{ margin: '8px 0 0', fontSize: 13, opacity: 0.75 }}>Role on join: <strong>{invitedRoleLabel}</strong></p>
+          )}
         </div>
         {!supabase && (
           <p>Supabase is not configured. Invitation acceptance requires Supabase to be enabled.</p>
@@ -173,6 +184,7 @@ export function AcceptInvitePage() {
             token={token!}
             onSignUpComplete={handleSignUpComplete}
             workspaceName={workspaceName}
+            invitedRole={invite.invitedRole}
           />
         )}
         {phase === 'waiting-confirmation' && (
@@ -218,9 +230,10 @@ type InviteRegistrationFormProps = {
   token: string;
   onSignUpComplete: (needsVerification: boolean) => void;
   workspaceName: string;
+  invitedRole: InvitationRole;
 };
 
-function InviteRegistrationForm({ email, token, onSignUpComplete, workspaceName }: InviteRegistrationFormProps) {
+function InviteRegistrationForm({ email, token, onSignUpComplete, workspaceName, invitedRole }: InviteRegistrationFormProps) {
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -283,7 +296,9 @@ function InviteRegistrationForm({ email, token, onSignUpComplete, workspaceName 
       <div style={{ marginBottom: 18 }}>
         <div style={{ fontSize: 12, letterSpacing: 1.4, textTransform: 'uppercase', opacity: 0.65 }}>Invitation for</div>
         <div style={{ fontSize: 18, fontWeight: 600 }}>{email}</div>
-        <div style={{ marginTop: 6, fontSize: 13, opacity: 0.8 }}>You’re joining <strong>{workspaceName}</strong>. Create your account to continue.</div>
+        <div style={{ marginTop: 6, fontSize: 13, opacity: 0.8 }}>
+          You’re joining <strong>{workspaceName}</strong> as a <strong>{describeRole(invitedRole)}</strong>. Create your account to continue.
+        </div>
       </div>
       <div style={{ display: 'grid', gap: 14 }}>
         <label style={{ display: 'grid', gap: 6 }}>

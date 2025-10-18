@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AppUser, Invitation, getCurrentAppUser, inviteByEmail, listInvitations, listMembers, updateMember, sendInviteLink, deleteMemberCompletely } from '../client/api';
+import { AppUser, Invitation, InvitationRole, getCurrentAppUser, inviteByEmail, listInvitations, listMembers, updateMember, sendInviteLink, deleteMemberCompletely, deleteInvitation } from '../client/api';
 
 export function MembersPage() {
   const [email, setEmail] = useState('');
@@ -13,6 +13,7 @@ export function MembersPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | AppUser['status']>('all');
   const [memberSearch, setMemberSearch] = useState('');
   const [busyIds, setBusyIds] = useState<Record<string, boolean>>({});
+  const [inviteRole, setInviteRole] = useState<InvitationRole>('member');
 
   async function refresh() {
     try {
@@ -50,9 +51,10 @@ export function MembersPage() {
   async function invite() {
     try {
       setError(null); setInfo(null);
-      const inv = await inviteByEmail(email);
-      setInfo(`Invite created. Share this link: ${window.location.origin}?accept=1&token=${inv.token}`);
+      const inv = await inviteByEmail(email, inviteRole);
+      setInfo(`Invite created for ${inv.email} as ${inv.invitedRole}. Share this link: ${window.location.origin}?accept=1&token=${inv.token}`);
       setEmail('');
+      setInviteRole('member');
       refresh();
     } catch (e: any) {
       setError(e?.message || String(e));
@@ -90,7 +92,12 @@ export function MembersPage() {
       )}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <input placeholder="Invite email" value={email} onChange={(e) => setEmail(e.target.value)} />
-  <button onClick={invite} disabled={!email || !isApprovedOwner}>Invite</button>
+        <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as InvitationRole)}>
+          <option value="member">Member</option>
+          <option value="viewer">Viewer</option>
+          <option value="editor">Editor</option>
+        </select>
+        <button onClick={invite} disabled={!email || !isApprovedOwner}>Invite</button>
         <span style={{ marginLeft: 'auto' }} />
         <input placeholder="Search email" value={memberSearch} onChange={(e) => setMemberSearch(e.target.value)} />
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)}>
@@ -199,6 +206,7 @@ export function MembersPage() {
                 <li key={i.id} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   <span style={{ minWidth: 220 }}>{i.email}</span>
                   <span style={{ fontSize: 12, opacity: 0.8 }}>{i.status}</span>
+                  <span style={{ fontSize: 12, opacity: 0.8 }}>role {i.invitedRole}</span>
                   <span style={{ fontSize: 12, opacity: 0.8 }}>expires {new Date(i.expiresAt).toLocaleString()}</span>
                   <a href={link} target="_blank" rel="noreferrer" style={{ fontSize: 12, opacity: 0.9, overflowWrap: 'anywhere' }}>{link}</a>
                   <span style={{ marginLeft: 'auto' }} />
@@ -212,6 +220,23 @@ export function MembersPage() {
                       try { setError(null); setInfo(null); await sendInviteLink(i.email, i.token); setInfo('Magic link sent to invitee'); } catch (e: any) { setError(e?.message || String(e)); }
                     }}
                   >Send email invite</button>
+                  <button
+                    onClick={async () => {
+                      if (!confirm(`Delete the invitation for ${i.email}? They will no longer be able to use the link.`)) return;
+                      setBusyIds(prev => ({ ...prev, [i.id]: true }));
+                      try {
+                        await deleteInvitation(i.id);
+                        await refresh();
+                        setInfo('Invitation deleted');
+                      } catch (e: any) {
+                        setError(e?.message || String(e));
+                      } finally {
+                        setBusyIds(prev => { const copy = { ...prev }; delete copy[i.id]; return copy; });
+                      }
+                    }}
+                    disabled={!!busyIds[i.id]}
+                    style={{ color: 'var(--danger)', borderColor: 'var(--danger)', opacity: busyIds[i.id] ? 0.6 : 1 }}
+                  >Delete invite</button>
                 </li>
               );
             })}
