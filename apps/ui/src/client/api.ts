@@ -898,17 +898,18 @@ export async function listInvitations(): Promise<Invitation[]> {
 
 export async function getInvitationByToken(token: string): Promise<Invitation | null> {
   if (!supabase) return null;
-  const { data, error } = await supabase.from('invitations').select('*').eq('token', token).maybeSingle();
+  const { data, error } = await (supabase as any).rpc('invitations_lookup', { p_token: token });
   if (error) throw error;
-  if (!data) return null;
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
   return {
-    id: data.id,
-    email: data.email,
-    token: data.token,
-    status: data.status,
-    expiresAt: data.expires_at,
-    invitedBy: data.invited_by,
-    invitedRole: data.invited_role ?? 'member',
+    id: row.id ?? token,
+    email: row.email,
+    token,
+    status: row.status,
+    expiresAt: row.expires_at,
+    invitedBy: row.invited_by,
+    invitedRole: row.invited_role ?? 'member',
   } as Invitation;
 }
 

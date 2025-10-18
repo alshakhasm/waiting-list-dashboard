@@ -214,6 +214,24 @@ END;$$;
 -- Allow authenticated clients to call invite acceptance RPC
 grant execute on function public.invitations_accept(text) to authenticated;
 
+-- Invitation lookup helper that works before the user signs in (read-only)
+CREATE OR REPLACE FUNCTION public.invitations_lookup(p_token text)
+RETURNS TABLE(id uuid, email text, status text, expires_at timestamptz, invited_role text, invited_by uuid)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT id, email, status, expires_at, invited_role, invited_by
+  FROM public.invitations
+  WHERE token = p_token
+  LIMIT 1;
+END;$$;
+
+grant execute on function public.invitations_lookup(text) to anon;
+grant execute on function public.invitations_lookup(text) to authenticated;
+
 -- Supabase schema for OR Waiting List & Scheduling
 -- Usage: Copy/paste into Supabase SQL editor and Run once per project.
 
