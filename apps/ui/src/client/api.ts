@@ -891,6 +891,27 @@ export async function listInvitations(): Promise<Invitation[]> {
   return (data || []).map((r: any) => ({ id: r.id, email: r.email, token: r.token, status: r.status, expiresAt: r.expires_at, invitedBy: r.invited_by }));
 }
 
+export async function getInvitationByToken(token: string): Promise<Invitation | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.from('invitations').select('*').eq('token', token).maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    id: data.id,
+    email: data.email,
+    token: data.token,
+    status: data.status,
+    expiresAt: data.expires_at,
+    invitedBy: data.invited_by,
+  } as Invitation;
+}
+
+export async function deleteInvitation(invitationId: string): Promise<void> {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { error } = await supabase.from('invitations').delete().eq('id', invitationId);
+  if (error) throw error;
+}
+
 export async function sendInviteLink(email: string, token: string): Promise<void> {
   if (!supabase) throw new Error('Supabase not configured');
   // Build accept URL with token param; the recipient will authenticate via the magic link email
