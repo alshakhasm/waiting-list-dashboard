@@ -223,7 +223,7 @@ SET search_path = public, pg_temp
 AS $$
 BEGIN
   RETURN QUERY
-  SELECT id, email, status, expires_at, invited_role, invited_by
+  SELECT invitations.id, invitations.email, invitations.status, invitations.expires_at, invitations.invited_role, invitations.invited_by
   FROM public.invitations
   WHERE token = p_token
   LIMIT 1;
