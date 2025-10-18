@@ -51,6 +51,7 @@ If you want real authentication and persistence via Supabase (optional for local
 
 Notes
 - Do not commit real keys. `.gitignore` already excludes `apps/ui/.env*`.
+- When building for deployment, ensure those env vars are set so Supabase auth works in production.
 - An example file exists at `apps/ui/.env.example`.
 - Full schema, RLS policies, and auth configuration are in `SUPABASE.md`.
  - The UI shows an EnvDebug badge with `/?debug=1` indicating if Supabase is enabled.
@@ -103,4 +104,3 @@ Troubleshooting
 
 
 <!-- ci: pages ping 2025-10-11 -->
-
