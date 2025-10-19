@@ -128,8 +128,8 @@ export function AuthLandingPage() {
       <div style={layoutStyle}>
         <header style={{ display: 'grid', gap: 10 }}>
           <span style={{ textTransform: 'uppercase', letterSpacing: 2, fontSize: 12, opacity: 0.65 }}>Welcome to {workspaceName}</span>
-          <h1 style={{ margin: 0, fontSize: 34 }}>Choose how you’d like to get started</h1>
-          <p style={{ ...subtleText, fontSize: 14, maxWidth: 520 }}>Own the workspace, sign in to your team, or join with an invite token. Pick the path that aligns with your role.</p>
+          <h1 style={{ margin: 0, fontSize: 36 }}>Hello, Surgeon!</h1>
+          <p style={{ ...subtleText, fontSize: 14, maxWidth: 520 }}>Choose how you’d like to get started—own the workspace, sign in to your existing team, or join with an invite token.</p>
         </header>
         <div style={cardGrid}>
           <div style={cardStyle}>
