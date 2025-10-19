@@ -220,6 +220,26 @@ export function AcceptInvitePage() {
             )}
           </div>
         )}
+        {phase === 'processing' && invite && session && session.user?.email && session.user.email.toLowerCase() !== invite.email.toLowerCase() && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 13, opacity: 0.75, marginBottom: 8 }}>
+              Signed in as {session.user.email}. This invitation was sent to {invite.email}.
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  await supabase?.auth.signOut();
+                  setStatusMessage('Signed out. Please sign in with the invited email to continue.');
+                } catch (err: any) {
+                  setErrorDetails(err?.message || String(err));
+                  setPhase('error');
+                }
+              }}
+            >
+              Sign out & switch account
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
