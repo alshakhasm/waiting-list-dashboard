@@ -711,8 +711,7 @@ grant execute on function public.app_users_become_owner() to authenticated;
 drop policy if exists backlog_read on backlog;
 create policy backlog_read on backlog
   for select using (
-    exists (select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner')
-    or created_by = auth.uid()
+    created_by = auth.uid()
   );
 
 -- Insert: allowed to owner or approved writers; inserted row must be owned by caller
