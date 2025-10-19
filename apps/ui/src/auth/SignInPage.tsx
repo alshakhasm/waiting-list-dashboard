@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { supabase } from '../supabase/client';
 import { enableGuest } from './guest';
 import { hasAnyAppUsers, becomeOwner } from '../client/api';
