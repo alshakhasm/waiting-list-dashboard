@@ -220,6 +220,9 @@ BEGIN
     IF v_email IS NULL THEN
       RAISE EXCEPTION 'could not resolve current user email';
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = v_uid) THEN
+      RAISE EXCEPTION 'account not confirmed yet. Please confirm your email and try again.';
+    END IF;
   END IF;
   IF lower(v_email) <> lower(v_inv.email) THEN
     RAISE EXCEPTION 'email mismatch for invitation (expected %)', v_inv.email;
