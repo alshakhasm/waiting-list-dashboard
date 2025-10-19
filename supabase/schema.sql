@@ -212,7 +212,14 @@ BEGIN
   -- Look up the email for the current auth user
   SELECT email INTO v_email FROM auth.users WHERE id = v_uid;
   IF v_email IS NULL THEN
-    RAISE EXCEPTION 'could not resolve current user email';
+    BEGIN
+      v_email := auth.jwt() ->> 'email';
+    EXCEPTION WHEN others THEN
+      v_email := NULL;
+    END;
+    IF v_email IS NULL THEN
+      RAISE EXCEPTION 'could not resolve current user email';
+    END IF;
   END IF;
   IF lower(v_email) <> lower(v_inv.email) THEN
     RAISE EXCEPTION 'email mismatch for invitation (expected %)', v_inv.email;
