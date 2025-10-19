@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { hasAnyAppUsers } from '../client/api';
 import { supabase } from '../supabase/client';
 import { IconShield, IconLogIn, IconUserPlus } from './icons';
@@ -6,6 +6,14 @@ import { IconShield, IconLogIn, IconUserPlus } from './icons';
 export function AuthLandingPage() {
   const [allowOwnerCreate, setAllowOwnerCreate] = useState(true);
   const [inviteInput, setInviteInput] = useState('');
+  const workspaceName = useMemo(() => {
+    const envTitle = (import.meta as any)?.env?.VITE_APP_TITLE as string | undefined;
+    try {
+      return localStorage.getItem('ui-app-title') || envTitle || 'Workspace';
+    } catch {
+      return envTitle || 'Workspace';
+    }
+  }, []);
 
   useEffect(() => {
     // Keep previous check for informational purposes, but owner creation stays enabled regardless
@@ -84,51 +92,84 @@ export function AuthLandingPage() {
     );
   }
 
+  const pageStyle: CSSProperties = {
+    minHeight: '100vh',
+    display: 'grid',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '56px 16px',
+    background: 'radial-gradient(ellipse at top, rgba(190,227,248,0.25), transparent 60%)',
+  };
+  const layoutStyle: CSSProperties = { display: 'grid', gap: 24, width: '100%', maxWidth: 880 };
+  const cardGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20 };
+  const cardStyle: CSSProperties = {
+    border: '1px solid rgba(148,163,184,0.35)',
+    borderRadius: 16,
+    padding: 24,
+    background: 'var(--surface-1)',
+    boxShadow: '0 20px 60px rgba(15, 23, 42, 0.18)',
+    display: 'grid',
+    gap: 12,
+  };
+  const subtleText: CSSProperties = { fontSize: 13, opacity: 0.75 };
+  const inputStyle: CSSProperties = {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 10,
+    border: '1px solid var(--border)',
+    background: 'var(--surface-2)',
+    color: 'var(--text)',
+    fontSize: 14,
+  };
+
   return (
-    <div style={{ display: 'grid', placeItems: 'center', minHeight: '70vh', padding: 24 }}>
-      <div style={{ display: 'grid', gap: 16, width: '100%', maxWidth: 680 }}>
-        <h1 style={{ margin: 0 }}>Welcome</h1>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-          <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16, background: 'var(--surface-2)' }}>
-            <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <IconShield size={18} style={{ opacity: 0.9 }} /> Create account (Owner)
+    <div style={pageStyle}>
+      <div style={layoutStyle}>
+        <header style={{ display: 'grid', gap: 10 }}>
+          <span style={{ textTransform: 'uppercase', letterSpacing: 2, fontSize: 12, opacity: 0.65 }}>Welcome to {workspaceName}</span>
+          <h1 style={{ margin: 0, fontSize: 34 }}>Choose how you’d like to get started</h1>
+          <p style={{ ...subtleText, fontSize: 14, maxWidth: 520 }}>Own the workspace, sign in to your team, or join with an invite token. Pick the path that aligns with your role.</p>
+        </header>
+        <div style={cardGrid}>
+          <div style={cardStyle}>
+            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <IconShield size={20} style={{ opacity: 0.9 }} /> Create owner workspace
             </h3>
-            <p style={{ fontSize: 13, opacity: 0.8 }}>Set up your own waiting list workspace as the owner.</p>
-            <button onClick={goOwnerCreate} title={'Create owner account'}>
-              Create owner account
-            </button>
+            <p style={subtleText}>Establish a new waiting list workspace with full owner controls.</p>
+            <button onClick={goOwnerCreate} title="Create owner account" style={{ alignSelf: 'start' }}>Create owner account</button>
           </div>
-          <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16, background: 'var(--surface-2)' }}>
-            <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <IconLogIn size={18} style={{ opacity: 0.9 }} /> Sign in
+          <div style={cardStyle}>
+            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <IconLogIn size={20} style={{ opacity: 0.9 }} /> Sign in to existing team
             </h3>
-            <p style={{ fontSize: 13, opacity: 0.8 }}>Access your existing account (owner or member).</p>
-            <button onClick={goSignIn} className="icon-button" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <IconLogIn size={14} aria-hidden="true" style={{ marginRight: -1, position: 'relative', top: 1 }} /> Sign in
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const u = new URL(window.location.href);
-                u.searchParams.delete('signup');
-                u.searchParams.delete('bootstrap');
-                u.searchParams.set('auth', '1');
-                u.searchParams.set('authmenu', '1');
-                window.location.href = u.toString();
-              }}
-              style={{ marginLeft: 8, background: 'transparent', border: 'none', color: 'var(--muted)', cursor: 'pointer', textDecoration: 'underline', fontSize: 13 }}
-            >
-              More options ▾
-            </button>
+            <p style={subtleText}>Already part of {workspaceName}? Sign in with your existing credentials.</p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={goSignIn} className="icon-button" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <IconLogIn size={14} aria-hidden="true" /> Sign in
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const u = new URL(window.location.href);
+                  u.searchParams.delete('signup');
+                  u.searchParams.delete('bootstrap');
+                  u.searchParams.set('auth', '1');
+                  u.searchParams.set('authmenu', '1');
+                  window.location.href = u.toString();
+                }}
+                style={{ border: 'none', background: 'transparent', color: 'var(--muted)', textDecoration: 'underline', cursor: 'pointer', fontSize: 13 }}
+              >
+                More options
+              </button>
+            </div>
           </div>
-          <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16, background: 'var(--surface-2)' }}>
-            <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <IconUserPlus size={18} style={{ opacity: 0.9 }} /> Join team
+          <div style={cardStyle}>
+            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <IconUserPlus size={20} style={{ opacity: 0.9 }} /> Join with invite
             </h3>
-            <p style={{ fontSize: 13, opacity: 0.8 }}>Paste your invite link or token to join an existing workspace.</p>
-            <input placeholder="Invite link or token" value={inviteInput} onChange={(e) => setInviteInput(e.target.value)} />
-            <div style={{ height: 8 }} />
-            <button onClick={goJoinTeam} disabled={!inviteInput.trim()}>Continue</button>
+            <p style={subtleText}>Paste an invitation link or token shared by your team.</p>
+            <input placeholder="Invite link or token" value={inviteInput} onChange={(e) => setInviteInput(e.target.value)} style={inputStyle} />
+            <button onClick={goJoinTeam} disabled={!inviteInput.trim()} style={{ alignSelf: 'start' }}>Continue</button>
           </div>
         </div>
       </div>
