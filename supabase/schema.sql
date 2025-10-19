@@ -190,7 +190,24 @@ BEGIN
   WHERE token = p_token AND status = 'pending' AND (expires_at IS NULL OR expires_at > now())
   LIMIT 1;
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'invalid or expired invitation token';
+    -- Maybe already accepted; treat as idempotent success if same email signs in again
+    SELECT * INTO v_inv FROM public.invitations
+    WHERE token = p_token AND status = 'accepted'
+    LIMIT 1;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'invalid or expired invitation token';
+    END IF;
+    SELECT email INTO v_email FROM auth.users WHERE id = v_uid;
+    IF v_email IS NULL THEN
+      RAISE EXCEPTION 'could not resolve current user email';
+    END IF;
+    IF lower(v_email) <> lower(v_inv.email) THEN
+      RAISE EXCEPTION 'email mismatch for invitation (expected %)', v_inv.email;
+    END IF;
+    INSERT INTO public.app_users (user_id, email, role, status, created_at)
+    VALUES (v_uid, v_email, coalesce(v_inv.invited_role, 'member'), 'approved', now())
+    ON CONFLICT (user_id) DO UPDATE SET email = EXCLUDED.email, role = coalesce(v_inv.invited_role, 'member');
+    RETURN;
   END IF;
   -- Look up the email for the current auth user
   SELECT email INTO v_email FROM auth.users WHERE id = v_uid;
