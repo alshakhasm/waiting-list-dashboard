@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { hasAnyAppUsers } from '../client/api';
 import { supabase } from '../supabase/client';
-import { IconShield, IconLogIn, IconUserPlus } from './icons';
+import { IconShield, IconLogIn } from './icons';
 
 export function AuthLandingPage() {
   const [allowOwnerCreate, setAllowOwnerCreate] = useState(true);
-  const [inviteInput, setInviteInput] = useState('');
   const workspaceName = useMemo(() => {
     const envTitle = (import.meta as any)?.env?.VITE_APP_TITLE as string | undefined;
     try {
@@ -56,31 +55,6 @@ export function AuthLandingPage() {
     window.location.href = u.toString();
   }
 
-  function goJoinTeam() {
-    // accept either full link or raw token
-    try {
-      let token = inviteInput.trim();
-      if (!token) return;
-      if (token.includes('token=')) {
-        const url = new URL(token);
-        token = url.searchParams.get('token') || token;
-      }
-      const u = new URL(window.location.href);
-      u.searchParams.set('accept', '1');
-      u.searchParams.set('token', token);
-      // Optionally open sign-up by default
-      u.searchParams.set('signup', '1');
-      window.location.href = u.toString();
-    } catch {
-      // fallback: try to set token as given
-      const u = new URL(window.location.href);
-      u.searchParams.set('accept', '1');
-      u.searchParams.set('token', inviteInput.trim());
-      u.searchParams.set('signup', '1');
-      window.location.href = u.toString();
-    }
-  }
-
   if (!supabase) {
     return (
       <div style={{ display: 'grid', placeItems: 'center', minHeight: '70vh', padding: 24 }}>
@@ -93,41 +67,67 @@ export function AuthLandingPage() {
   }
 
   const pageStyle: CSSProperties = {
-    minHeight: '100vh',
+    height: '100vh',
     display: 'grid',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '56px 16px',
+    padding: '40px 32px',
+    boxSizing: 'border-box',
+    overflowY: 'hidden',
+    overflowX: 'auto',
     background: 'radial-gradient(ellipse at top, rgba(190,227,248,0.25), transparent 60%)',
   };
-  const layoutStyle: CSSProperties = { display: 'grid', gap: 24, width: '100%', maxWidth: 880 };
-  const cardGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 };
-  const cardStyle: CSSProperties = {
-    minHeight: 240,
-    border: '1px solid rgba(148,163,184,0.35)',
-    borderRadius: 20,
-    padding: 28,
-    background: 'var(--surface-1)',
-    boxShadow: '0 20px 60px rgba(15, 23, 42, 0.18)',
+  const layoutStyle: CSSProperties = {
     display: 'grid',
-    gap: 12,
-  };
-  const subtleText: CSSProperties = { fontSize: 13, opacity: 0.75 };
-  const inputStyle: CSSProperties = {
+    gap: 24,
     width: '100%',
-    padding: '10px 12px',
-    borderRadius: 10,
-    border: '1px solid var(--border)',
-    background: 'var(--surface-2)',
-    color: 'var(--text)',
-    fontSize: 14,
+    maxWidth: 720,
+    maxHeight: '100%',
+    alignContent: 'center',
+    padding: '0 24px',
+    boxSizing: 'border-box',
+  };
+  const actionRow: CSSProperties = {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  };
+  const primaryAction: CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '14px 28px',
+    borderRadius: 999,
+    border: 'none',
+    background: 'linear-gradient(120deg, rgba(56,189,248,0.26), rgba(168,85,247,0.36))',
+    color: '#f8fafc',
+    fontWeight: 600,
+    letterSpacing: 0.3,
+    cursor: 'pointer',
+    transition: 'transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease',
+  };
+  const secondaryAction: CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '14px 28px',
+    borderRadius: 999,
+    border: '1px solid rgba(148,163,184,0.4)',
+    background: 'transparent',
+    color: '#e2e8f0',
+    fontWeight: 600,
+    letterSpacing: 0.3,
+    cursor: 'pointer',
+    transition: 'transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease',
   };
 
   return (
     <div style={pageStyle}>
       <div style={layoutStyle}>
-        <header style={{ display: 'grid', gap: 12 }}>
-          <span style={{ textTransform: 'uppercase', letterSpacing: 3, fontSize: 12, opacity: 0.55 }}>Welcome to {workspaceName}</span>
+        <header style={{ display: 'grid', gap: 6, justifyItems: 'center', textAlign: 'center', marginTop: -12 }}>
+          <span style={{ textTransform: 'uppercase', letterSpacing: 4, fontSize: 14, opacity: 0.65 }}>Welcome to {workspaceName}</span>
           <h1
             style={{
               margin: 0,
@@ -143,51 +143,35 @@ export function AuthLandingPage() {
           >
             Hello, Surgeon!
           </h1>
-          <p style={{ ...subtleText, fontSize: 15, maxWidth: 560 }}>
-            Theatre-ready scheduling. Seamless team invites. Effortless ownership. Choose the path that fits your role and scrub in.
-          </p>
         </header>
-        <div style={cardGrid}>
-          <div style={cardStyle}>
-            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <IconShield size={20} style={{ opacity: 0.9 }} /> Create owner workspace
-            </h3>
-            <p style={subtleText}>Establish a new waiting list workspace with full owner controls.</p>
-            <button onClick={goOwnerCreate} title="Create owner account" style={{ alignSelf: 'start' }}>Create owner account</button>
-          </div>
-          <div style={cardStyle}>
-            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <IconLogIn size={20} style={{ opacity: 0.9 }} /> Sign in to existing team
-            </h3>
-            <p style={subtleText}>Already part of {workspaceName}? Sign in with your existing credentials.</p>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={goSignIn} className="icon-button" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <IconLogIn size={14} aria-hidden="true" /> Sign in
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const u = new URL(window.location.href);
-                  u.searchParams.delete('signup');
-                  u.searchParams.delete('bootstrap');
-                  u.searchParams.set('auth', '1');
-                  u.searchParams.set('authmenu', '1');
-                  window.location.href = u.toString();
-                }}
-                style={{ border: 'none', background: 'transparent', color: 'var(--muted)', textDecoration: 'underline', cursor: 'pointer', fontSize: 13 }}
-              >
-                More options
-              </button>
-            </div>
-          </div>
-          <div style={cardStyle}>
-            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <IconUserPlus size={20} style={{ opacity: 0.9 }} /> Join with invite
-            </h3>
-            <p style={subtleText}>Paste an invitation link or token shared by your team.</p>
-            <input placeholder="Invite link or token" value={inviteInput} onChange={(e) => setInviteInput(e.target.value)} style={inputStyle} />
-            <button onClick={goJoinTeam} disabled={!inviteInput.trim()} style={{ alignSelf: 'start' }}>Continue</button>
-          </div>
+        <p style={{ margin: 0, opacity: 0.72, textAlign: 'center', fontSize: 15 }}>
+          Pick the path that fits your role to get started quickly.
+        </p>
+        <div style={actionRow}>
+          <button
+            onClick={goOwnerCreate}
+            title="Create owner account"
+            style={primaryAction}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(120deg, rgba(56,189,248,0.36), rgba(168,85,247,0.46))'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(120deg, rgba(56,189,248,0.26), rgba(168,85,247,0.36))'; }}
+          >
+            <IconShield size={18} aria-hidden="true" /> Create owner account
+          </button>
+          <button
+            onClick={goSignIn}
+            className="icon-button"
+            style={secondaryAction}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = 'rgba(15,23,42,0.6)';
+              (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+              (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+            }}
+          >
+            <IconLogIn size={18} aria-hidden="true" /> Sign in to team
+          </button>
         </div>
       </div>
     </div>

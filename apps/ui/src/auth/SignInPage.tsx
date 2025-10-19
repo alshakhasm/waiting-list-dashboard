@@ -328,19 +328,31 @@ export function SignInPage() {
         </div>
         <footer style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 16, fontSize: 12, opacity: 0.8 }}>
           <span>Need a dedicated workspace? Use the owner setup flow.</span>
-          <button
-            type="button"
-            onClick={() => {
-              const u = new URL(window.location.href);
-              u.searchParams.set('create','1');
-              u.searchParams.delete('signin');
-              u.searchParams.delete('signup');
-              window.location.href = u.toString();
-            }}
-            style={{ border: '1px solid var(--border)', borderRadius: 999, padding: '6px 12px', background: 'transparent', color: 'var(--text)' }}
-          >
-            Go to Create Account →
-          </button>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={() => {
+                const base = getRedirectBase();
+                window.location.href = base || '/';
+              }}
+              style={{ border: '1px solid var(--border)', borderRadius: 999, padding: '6px 12px', background: 'transparent', color: 'var(--text)' }}
+            >
+              Go to Home
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const u = new URL(window.location.href);
+                u.searchParams.set('create','1');
+                u.searchParams.delete('signin');
+                u.searchParams.delete('signup');
+                window.location.href = u.toString();
+              }}
+              style={{ border: '1px solid var(--border)', borderRadius: 999, padding: '6px 12px', background: 'transparent', color: 'var(--text)' }}
+            >
+              Go to Create Account →
+            </button>
+          </div>
         </footer>
       </form>
     </div>
