@@ -91,20 +91,11 @@ export function MembersPage() {
     try { await updateMember(userId, { status: 'pending' }); refresh(); } catch (e: any) { setError(e?.message || String(e)); }
   }
 
+  const visibleMembers = members.filter((m) => m.role !== 'owner');
+
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       <h2>Members</h2>
-      {/* Show owner count and helper if multiple owners exist */}
-      {members.filter(m => m.role === 'owner').length > 1 && (
-        <div style={{ fontSize: 13, color: '#92400e', background: '#fff7ed', border: '1px solid #f59e0b', padding: '8px', borderRadius: 6 }}>
-          Multiple owners detected. This can cause confusion—only one primary owner is recommended.
-          {isOwner && (
-            <div style={{ marginTop: 8 }}>
-              You can demote extra owners below. Demoting changes their role to <strong>member</strong>.
-            </div>
-          )}
-        </div>
-      )}
       {!isApprovedOwner && (
         <div style={{ fontSize: 12, color: '#92400e', background: '#fffbeb', border: '1px solid #f59e0b', padding: '6px 8px', borderRadius: 6 }}>
           Approved owner access required to invite, delete, or change member status. You can still view the list below.
@@ -139,7 +130,7 @@ export function MembersPage() {
           </tr>
         </thead>
         <tbody>
-          {members
+          {visibleMembers
             .filter((m) => (statusFilter === 'all' ? true : m.status === statusFilter))
             .filter((m) => (memberSearch.trim() ? m.email.toLowerCase().includes(memberSearch.trim().toLowerCase()) : true))
             .map((m) => (
@@ -160,21 +151,14 @@ export function MembersPage() {
                     <option value="editor">editor</option>
                   </select>
                 ) : (
-                  m.role === 'owner' ? (
-                    <span title="Owner" style={{ fontSize: 12, padding: '2px 8px', border: '1px solid var(--border)', borderRadius: 999, background: 'var(--surface-2)' }}>Owner</span>
-                  ) : (
-                    m.role
-                  )
+                  m.role
                 )}
               </td>
               <td>{m.status}</td>
               <td style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 {isApprovedOwner ? (
                   m.role === 'owner' ? (
-                          // Owner row: non-editable badge only
-                          <>
-                            <span title="Owner" style={{ fontSize: 12, padding: '2px 8px', border: '1px solid var(--border)', borderRadius: 999, background: 'var(--surface-2)' }}>Owner</span>
-                          </>
+                          <span style={{ opacity: 0.6 }}>Owner</span>
                   ) : (
                     // Member row: show status actions and delete
                     <>
