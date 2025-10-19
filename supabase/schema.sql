@@ -283,6 +283,8 @@ create table if not exists backlog (
   notes text,
   -- Soft-delete flag: when true, item is hidden from backlog/list views but preserved in archive triggers
   is_removed boolean not null default false,
+  -- Ownership: who created/owns this row (defaults to current auth user)
+  created_by uuid not null default auth.uid() references app_users(user_id) on delete cascade,
   created_at timestamptz default now()
 );
 
@@ -293,6 +295,20 @@ do $$ begin
     where table_schema = 'public' and table_name = 'backlog' and column_name = 'is_removed'
   ) then
     alter table public.backlog add column is_removed boolean not null default false;
+  end if;
+end $$;
+
+-- Backfill for ownership: add created_by if missing (nullable for migration safety), then add default
+do $$ begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'backlog' and column_name = 'created_by'
+  ) then
+    alter table public.backlog add column created_by uuid references public.app_users(user_id) on delete cascade;
+    -- Set default for future inserts to current auth user; existing rows remain NULL
+    alter table public.backlog alter column created_by set default auth.uid();
+    -- Optional: add an index to speed up per-user queries
+    create index if not exists backlog_created_by_idx on public.backlog(created_by);
   end if;
 end $$;
 
@@ -690,25 +706,46 @@ $$;
 grant execute on function public.app_users_become_owner() to authenticated;
 
 -- Policies
--- Backlog: read allowed to owner or approved users (viewer/editor/member)
+-- Backlog policies (per-user ownership)
+-- Read: owners can read all; non-owners can read only their own rows
 drop policy if exists backlog_read on backlog;
 create policy backlog_read on backlog
-  for select using (public.can_read());
+  for select using (
+    exists (select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner')
+    or created_by = auth.uid()
+  );
 
--- Backlog: insert allowed to owner or approved writers (member/editor)
+-- Insert: allowed to owner or approved writers; inserted row must be owned by caller
 drop policy if exists backlog_insert on backlog;
 create policy backlog_insert on backlog
-  for insert with check (public.can_write());
+  for insert with check (
+    (
+      exists (select 1 from app_users au where au.user_id = auth.uid() and (au.role = 'owner' or (au.status = 'approved' and au.role in ('member','editor'))))
+    )
+    and created_by = auth.uid()
+  );
 
--- Backlog: updates (e.g., soft remove) by owner or approved writers (member/editor)
+-- Update: owners can update all; non-owners can update only their own rows
 drop policy if exists backlog_update on backlog;
 create policy backlog_update on backlog
-  for update using (public.can_write()) with check (public.can_write());
+  for update using (
+    exists (select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner')
+    or created_by = auth.uid()
+  ) with check (
+    exists (select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner')
+    or created_by = auth.uid()
+  );
 
--- Backlog: delete allowed to owners or approved editors
+-- Delete: owners can delete any; editors may delete their own
 drop policy if exists backlog_delete on backlog;
 create policy backlog_delete on backlog
-  for delete using (public.can_delete());
+  for delete using (
+    exists (select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner')
+    or (
+      exists (select 1 from app_users au where au.user_id = auth.uid() and au.status = 'approved' and au.role = 'editor')
+      and created_by = auth.uid()
+    )
+  );
 
 -- Schedule: read allowed to owner or approved users
 drop policy if exists schedule_read on schedule;
@@ -892,5 +929,5 @@ grant execute on function public.submit_backlog_intake(text, text, text, text, t
 
 -- Notes:
 -- - If you want stricter mutations (e.g., only owner can insert schedule), change schedule_insert policy accordingly.
--- - If you want backlog to be public-read, replace the backlog_read policy with `using (true)`.
+-- - Backlog rows are now owned by the creator (`created_by`) and RLS restricts non-owners to their own rows.
 -- - The app bootstraps the first signed-in user as owner when app_users is empty.

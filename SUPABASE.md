@@ -50,7 +50,7 @@ Owner bootstrap and self-promotion
 - `app_users_become_owner()` → any authenticated user can create/update their `app_users` row as owner; idempotent.
 
 Option A: strict RLS for domain tables
-- Backlog: read by owner/approved; inserts restricted (no seeding via client).
+- Backlog: per-user ownership via `created_by`; owners read all, non-owners read only their rows. Inserts restricted (no anonymous seeding).
 - Schedule: read by owner/approved; updates/deletes by owner.
 - Invitations: owner manage all; invitee can read their own invite by email.
 
