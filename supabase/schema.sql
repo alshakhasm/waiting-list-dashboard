@@ -774,7 +774,9 @@ create policy backlog_delete on backlog
 -- Schedule: read allowed to owner or approved users
 drop policy if exists schedule_read on schedule;
 create policy schedule_read on schedule
-  for select using (public.can_read());
+  for select using (
+    public.workspace_owner((select b.created_by from public.backlog b where b.id = schedule.waiting_list_item_id)) = public.workspace_owner(auth.uid())
+  );
 
 -- Schedule: insert allowed to owner or approved writers (member/editor)
 drop policy if exists schedule_insert on schedule;
@@ -798,7 +800,13 @@ create policy schedule_delete_owner on schedule
 alter table patients_archive enable row level security;
 drop policy if exists patients_archive_read on patients_archive;
 create policy patients_archive_read on patients_archive
-  for select using (public.can_read());
+  for select using (
+    exists (
+      select 1 from public.backlog b
+      where b.mrn = patients_archive.mrn
+        and public.workspace_owner(b.created_by) = public.workspace_owner(auth.uid())
+    )
+  );
 
 -- app_users: self can read; owner can manage all
 create policy app_users_read_self on app_users
@@ -843,13 +851,20 @@ create policy intake_links_owner_rw on intake_links
     select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner'
   ));
 
+-- Members can read intake links for their workspace owner
+drop policy if exists intake_links_read_workspace on intake_links;
+create policy intake_links_read_workspace on intake_links
+  for select using (
+    public.workspace_owner(created_by) = public.workspace_owner(auth.uid())
+  );
+
 -- intake_submissions RLS: owners can read their own submissions (by created_by)
 alter table intake_submissions enable row level security;
 drop policy if exists intake_submissions_owner_read on intake_submissions;
 create policy intake_submissions_owner_read on intake_submissions
-  for select using (exists (
-    select 1 from app_users au where au.user_id = auth.uid() and au.role in ('owner','member','editor') and au.user_id = intake_submissions.created_by
-  ));
+  for select using (
+    public.workspace_owner(created_by) = public.workspace_owner(auth.uid())
+  );
 
 -- Ensure at most one approved owner exists at the DB level
 DO $$ BEGIN

@@ -50,7 +50,9 @@ Owner bootstrap and self-promotion
 - `app_users_become_owner()` → any authenticated user can create/update their `app_users` row as owner; idempotent.
 
 Option A: strict RLS for domain tables
-- Backlog: per-user ownership via `created_by`; owners read all, non-owners read only their rows. Inserts restricted (no anonymous seeding).
+- Backlog: workspace-scoped visibility via `workspace_owner(created_by)` — invited members see their inviter’s workspace; other owners’ data is hidden.
+- Schedule: read visibility follows the linked backlog item’s workspace; writes remain owner-only by default.
+- Intake links and submissions: readable within the owner’s workspace; only owners can mutate links.
 - Schedule: read by owner/approved; updates/deletes by owner.
 - Invitations: owner manage all; invitee can read their own invite by email.
 
