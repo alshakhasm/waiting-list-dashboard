@@ -13,6 +13,14 @@ export function SignInPage() {
   const [isMagic, setIsMagic] = useState(false);
   const [canSignUp, setCanSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+  const workspaceName = useMemo(() => {
+    const envTitle = (import.meta as any)?.env?.VITE_APP_TITLE as string | undefined;
+    try {
+      return localStorage.getItem('ui-app-title') || envTitle || 'Workspace';
+    } catch {
+      return envTitle || 'Workspace';
+    }
+  }, []);
 
   function getRedirectBase() {
     try {
@@ -161,36 +169,63 @@ export function SignInPage() {
     }
   }
 
+  const pageStyle: CSSProperties = {
+    minHeight: '100vh',
+    display: 'grid',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '48px 16px',
+    background: 'radial-gradient(circle at top, rgba(148, 163, 184, 0.25), transparent 60%)',
+  };
+  const cardStyle: CSSProperties = {
+    width: '100%',
+    maxWidth: 440,
+    padding: 32,
+    borderRadius: 18,
+    border: '1px solid rgba(148,163,184,0.35)',
+    background: 'var(--surface-1)',
+    boxShadow: '0 32px 80px rgba(15, 23, 42, 0.18)',
+    display: 'grid',
+    gap: 20,
+    color: 'var(--text)',
+  };
+  const controlCluster: CSSProperties = { display: 'inline-flex', gap: 8, background: 'var(--surface-2)', padding: 4, borderRadius: 12 };
+  const inputStyle: CSSProperties = {
+    background: 'var(--surface-2)',
+    color: 'var(--text)',
+    border: '1px solid var(--border)',
+    borderRadius: 8,
+    padding: '10px 12px',
+    fontSize: 15,
+  };
+  const subtleText: CSSProperties = { fontSize: 13, opacity: 0.75 };
+
   return (
-    <div style={{ display: 'grid', placeItems: 'center', minHeight: '80vh', padding: 24 }}>
-      <form
-        onSubmit={onSubmit}
-        style={{
-          width: '100%',
-          maxWidth: 420,
-          padding: 24,
-          border: '1px solid var(--border)',
-          borderRadius: 8,
-          background: 'var(--surface-1)',
-          color: 'var(--text)',
-        }}
-      >
-        <h1 style={{ marginTop: 0, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <IconLogIn size={21} style={{ opacity: 0.9, marginRight: -1 }} /> Welcome
-        </h1>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16, justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={pageStyle}>
+      <form onSubmit={onSubmit} style={cardStyle}>
+        <header style={{ display: 'grid', gap: 8 }}>
+          <span style={{ letterSpacing: 1.8, textTransform: 'uppercase', fontSize: 12, opacity: 0.65 }}>Sign in to</span>
+          <h1 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 10, fontSize: 30 }}>
+            <IconLogIn size={22} style={{ opacity: 0.85 }} />
+            <span>{workspaceName}</span>
+          </h1>
+          <p style={{ ...subtleText, margin: 0 }}>Access dashboards, scheduling, and invites from one secure place.</p>
+        </header>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center' }}>
           {canSignUp ? (
-            <div style={{ display: 'inline-flex', gap: 8 }}>
+            <div style={controlCluster}>
               <button
                 type="button"
                 onClick={() => setMode('sign-in')}
                 aria-pressed={mode==='sign-in'}
                 style={{
-                  padding: '6px 10px',
-                  background: mode==='sign-in' ? 'var(--surface-2)' : 'transparent',
-                  border: '1px solid var(--border)',
-                  borderRadius: 6,
+                  padding: '6px 14px',
+                  background: mode==='sign-in' ? 'var(--surface-1)' : 'transparent',
+                  border: 'none',
+                  borderRadius: 8,
                   color: 'var(--text)',
+                  fontWeight: 600,
                 }}
               >Sign in</button>
               <button
@@ -198,11 +233,12 @@ export function SignInPage() {
                 onClick={() => setMode('sign-up')}
                 aria-pressed={mode==='sign-up'}
                 style={{
-                  padding: '6px 10px',
-                  background: mode==='sign-up' ? 'var(--surface-2)' : 'transparent',
-                  border: '1px solid var(--border)',
-                  borderRadius: 6,
+                  padding: '6px 14px',
+                  background: mode==='sign-up' ? 'var(--surface-1)' : 'transparent',
+                  border: 'none',
+                  borderRadius: 8,
                   color: 'var(--text)',
+                  fontWeight: 600,
                 }}
               >Sign up</button>
             </div>
@@ -214,7 +250,7 @@ export function SignInPage() {
           </label>
         </div>
 
-        <div style={{ display: 'grid', gap: 10 }}>
+        <div style={{ display: 'grid', gap: 12 }}>
           <label style={{ display: 'grid', gap: 6 }}>
             <span>Email</span>
             <input
@@ -223,7 +259,7 @@ export function SignInPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="you@example.com"
-              style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px' }}
+              style={inputStyle}
             />
           </label>
 
@@ -236,7 +272,7 @@ export function SignInPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required={mode==='sign-in' || mode==='sign-up'}
                 placeholder="••••••••"
-                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px' }}
+                style={inputStyle}
               />
             </label>
           )}
@@ -250,21 +286,21 @@ export function SignInPage() {
                 onChange={(e) => setConfirm(e.target.value)}
                 required
                 placeholder="Repeat password"
-                style={{ background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px' }}
+                style={inputStyle}
               />
             </label>
           )}
         </div>
 
         {status && (
-          <div role="status" style={{ marginTop: 10, fontSize: 12, color: 'var(--text)', opacity: 0.8 }}>{status}</div>
+          <div role="status" style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.12)', color: '#7f1d1d', fontSize: 13 }}>{status}</div>
         )}
 
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 16 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button
             type="submit"
             disabled={loading || !email || (!isMagic && !password)}
-            style={{ background: 'var(--primary)', color: 'var(--on-primary)', border: '1px solid var(--primary)', borderRadius: 6, padding: '8px 12px' }}
+            style={{ background: 'var(--primary)', color: 'var(--on-primary)', border: '1px solid var(--primary)', borderRadius: 999, padding: '10px 18px', fontWeight: 600 }}
           >
             {loading ? 'Please wait…' : mode === 'sign-in' ? (isMagic ? 'Send magic link' : 'Sign in') : 'Create account'}
           </button>
@@ -273,25 +309,25 @@ export function SignInPage() {
               type="button"
               onClick={sendReset}
               disabled={!email}
-              style={{ marginLeft: 'auto', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', background: 'transparent' }}
+              style={{ marginLeft: 'auto', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 999, padding: '8px 14px', background: 'transparent' }}
             >
               Forgot password?
             </button>
           )}
         </div>
-        <div style={{ marginTop: 16, textAlign: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
           <button
             type="button"
             onClick={() => enableGuest()}
             title="Browse the app without signing in"
-            style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', background: 'transparent', color: 'var(--text)' }}
+            style={{ border: '1px solid var(--border)', borderRadius: 999, padding: '6px 14px', background: 'transparent', color: 'var(--text)' }}
           >
             Continue as guest
           </button>
           <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>Some actions may be limited in guest mode.</div>
         </div>
-        <div style={{ marginTop: 16, fontSize: 12, opacity: 0.8 }}>
-          Creating a new workspace? Use the Create Account flow instead.
+        <footer style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 16, fontSize: 12, opacity: 0.8 }}>
+          <span>Need a dedicated workspace? Use the owner setup flow.</span>
           <button
             type="button"
             onClick={() => {
@@ -301,11 +337,11 @@ export function SignInPage() {
               u.searchParams.delete('signup');
               window.location.href = u.toString();
             }}
-            style={{ marginLeft: 8, border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', background: 'transparent', color: 'var(--text)' }}
+            style={{ border: '1px solid var(--border)', borderRadius: 999, padding: '6px 12px', background: 'transparent', color: 'var(--text)' }}
           >
             Go to Create Account →
           </button>
-        </div>
+        </footer>
       </form>
     </div>
   );
