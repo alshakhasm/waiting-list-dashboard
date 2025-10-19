@@ -101,11 +101,12 @@ export function AuthLandingPage() {
     background: 'radial-gradient(ellipse at top, rgba(190,227,248,0.25), transparent 60%)',
   };
   const layoutStyle: CSSProperties = { display: 'grid', gap: 24, width: '100%', maxWidth: 880 };
-  const cardGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20 };
+  const cardGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 };
   const cardStyle: CSSProperties = {
+    minHeight: 240,
     border: '1px solid rgba(148,163,184,0.35)',
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: 20,
+    padding: 28,
     background: 'var(--surface-1)',
     boxShadow: '0 20px 60px rgba(15, 23, 42, 0.18)',
     display: 'grid',
