@@ -126,10 +126,24 @@ export function AuthLandingPage() {
   return (
     <div style={pageStyle}>
       <div style={layoutStyle}>
-        <header style={{ display: 'grid', gap: 10 }}>
-          <span style={{ textTransform: 'uppercase', letterSpacing: 2, fontSize: 12, opacity: 0.65 }}>Welcome to {workspaceName}</span>
-          <h1 style={{ margin: 0, fontSize: 36 }}>Hello, Surgeon!</h1>
-          <p style={{ ...subtleText, fontSize: 14, maxWidth: 520 }}>Choose how you’d like to get started—own the workspace, sign in to your existing team, or join with an invite token.</p>
+        <header style={{ display: 'grid', gap: 12 }}>
+          <span style={{ textTransform: 'uppercase', letterSpacing: 3, fontSize: 12, opacity: 0.55 }}>Welcome to {workspaceName}</span>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 42,
+              fontWeight: 700,
+              lineHeight: 1.1,
+              background: 'linear-gradient(120deg, #1d4ed8 0%, #7c3aed 45%, #f97316 100%)',
+              WebkitBackgroundClip: 'text',
+              color: 'transparent',
+            }}
+          >
+            Hello, Surgeon!
+          </h1>
+          <p style={{ ...subtleText, fontSize: 15, maxWidth: 560 }}>
+            Theatre-ready scheduling. Seamless team invites. Effortless ownership. Choose the path that fits your role and scrub in.
+          </p>
         </header>
         <div style={cardGrid}>
           <div style={cardStyle}>
