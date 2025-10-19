@@ -451,6 +451,31 @@ language sql stable as $$
   );
 $$;
 
+-- Workspace helpers: resolve the workspace owner for a user
+-- For owners, returns their own user_id; for invited members/editors/viewers, returns the inviting owner's user_id.
+create or replace function public.workspace_owner(p_user_id uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+stable
+as $$
+declare
+  v_role text;
+  v_invited_by uuid;
+begin
+  if p_user_id is null then return null; end if;
+  select role, invited_by into v_role, v_invited_by
+    from public.app_users where user_id = p_user_id limit 1;
+  if v_role = 'owner' then
+    return p_user_id;
+  end if;
+  return v_invited_by;
+end;
+$$;
+
+grant execute on function public.workspace_owner(uuid) to authenticated;
+
 -- Read permission: owners always, or approved users with any non-revoked role
 create or replace function public.can_read() returns boolean
 language sql stable as $$
@@ -711,7 +736,7 @@ grant execute on function public.app_users_become_owner() to authenticated;
 drop policy if exists backlog_read on backlog;
 create policy backlog_read on backlog
   for select using (
-    created_by = auth.uid()
+    public.workspace_owner(created_by) = public.workspace_owner(auth.uid())
   );
 
 -- Insert: allowed to owner or approved writers; inserted row must be owned by caller
