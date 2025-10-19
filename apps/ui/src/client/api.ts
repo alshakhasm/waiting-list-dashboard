@@ -1316,8 +1316,11 @@ export async function updateIntakeLink(id: string, patch: Partial<{
 
 export function getIntakeShareUrl(token: string): string {
   try {
-    const base = window.location.origin;
-    return `${base}?intake=1&token=${encodeURIComponent(token)}`;
+    const current = new URL(window.location.href);
+    const path = current.pathname || '/';
+    const ghBase = '/waiting-list-dashboard';
+    const basePath = path.startsWith(ghBase) ? ghBase : '';
+    return `${current.origin}${basePath}/?intake=1&token=${encodeURIComponent(token)}`;
   } catch {
     return `?intake=1&token=${encodeURIComponent(token)}`;
   }
