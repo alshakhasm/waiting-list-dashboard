@@ -97,18 +97,18 @@ export function AuthLandingPage() {
     display: 'grid',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '64px 20px',
-    background: 'radial-gradient(ellipse at top, rgba(191,219,254,0.55), transparent 60%)',
+    padding: '56px 16px',
+    background: 'radial-gradient(ellipse at top, rgba(190,227,248,0.25), transparent 60%)',
   };
-  const layoutStyle: CSSProperties = { display: 'grid', gap: 28, width: '100%', maxWidth: 1040 };
-  const cardGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 28 };
+  const layoutStyle: CSSProperties = { display: 'grid', gap: 24, width: '100%', maxWidth: 880 };
+  const cardGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 };
   const cardStyle: CSSProperties = {
-    minHeight: 260,
-    border: '1px solid rgba(148,163,184,0.25)',
+    minHeight: 240,
+    border: '1px solid rgba(148,163,184,0.35)',
     borderRadius: 20,
-    padding: 32,
-    background: 'rgba(255,255,255,0.9)',
-    boxShadow: '0 28px 90px rgba(59, 130, 246, 0.22)',
+    padding: 28,
+    background: 'var(--surface-1)',
+    boxShadow: '0 20px 60px rgba(15, 23, 42, 0.18)',
     display: 'grid',
     gap: 12,
   };
@@ -131,12 +131,14 @@ export function AuthLandingPage() {
           <h1
             style={{
               margin: 0,
-              fontSize: 42,
+              fontSize: 48,
               fontWeight: 700,
-              lineHeight: 1.1,
-              background: 'linear-gradient(120deg, #1d4ed8 0%, #7c3aed 45%, #f97316 100%)',
+              lineHeight: 1.05,
+              letterSpacing: 0.5,
+              background: 'linear-gradient(110deg, #60a5fa 0%, #c084fc 40%, #f97316 85%, #facc15 100%)',
               WebkitBackgroundClip: 'text',
               color: 'transparent',
+              maxWidth: 720,
             }}
           >
             Hello, Surgeon!
