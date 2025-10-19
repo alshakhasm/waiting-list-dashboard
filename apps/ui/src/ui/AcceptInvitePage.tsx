@@ -36,6 +36,10 @@ export function AcceptInvitePage() {
   }, []);
 
   const invitedRoleLabel = useMemo(() => invite ? describeRole(invite.invitedRole) : null, [invite]);
+  const mismatchEmail = useMemo(() => {
+    if (!invite || !session?.user?.email) return false;
+    return session.user.email.toLowerCase() !== invite.email.toLowerCase();
+  }, [invite, session?.user?.email]);
 
   useEffect(() => {
     if (!supabase) {
@@ -220,16 +224,18 @@ export function AcceptInvitePage() {
             )}
           </div>
         )}
-        {phase === 'processing' && invite && session && session.user?.email && session.user.email.toLowerCase() !== invite.email.toLowerCase() && (
-          <div style={{ marginTop: 16 }}>
+        {invite && mismatchEmail && session?.user?.email && (
+          <div style={{ marginTop: 24 }}>
             <div style={{ fontSize: 13, opacity: 0.75, marginBottom: 8 }}>
               Signed in as {session.user.email}. This invitation was sent to {invite.email}.
             </div>
             <button
               onClick={async () => {
                 try {
-                  await supabase?.auth.signOut();
+                  if (!supabase) return;
+                  await supabase.auth.signOut();
                   setStatusMessage('Signed out. Please sign in with the invited email to continue.');
+                  setShowSignIn(true);
                 } catch (err: any) {
                   setErrorDetails(err?.message || String(err));
                   setPhase('error');
