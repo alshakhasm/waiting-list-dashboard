@@ -1,6 +1,6 @@
 import { ImportService, type ImportRow } from '../services/importService';
-import type { ImportBatch, MappingProfile } from '../models/types';
+import type { ImportBatch } from '../models/types';
 
-export function postImportsExcel(fileName: string, rows: ImportRow[], mapping?: MappingProfile): ImportBatch {
-  return ImportService.importExcel(fileName, rows, mapping);
+export function postImportsExcel(fileName: string, rows: ImportRow[]): ImportBatch {
+  return ImportService.importExcel(fileName, rows);
 }

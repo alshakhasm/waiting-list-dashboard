@@ -768,20 +768,6 @@ export async function deleteSchedule(id: string): Promise<void> {
   emitDashboardChange();
 }
 
-export type MappingProfile = { id: string; name: string; owner: string; fieldMappings: Record<string, string> };
-export async function listMappingProfiles(): Promise<MappingProfile[]> {
-  const handleRequest = await getHandleRequest();
-  const res = await handleRequest({ method: 'GET', path: '/mapping-profiles' });
-  if (res.status !== 200) throw new Error('Failed to list mapping profiles');
-  return res.body as MappingProfile[];
-}
-export async function createMappingProfile(body: { name: string; owner: string; fieldMappings: Record<string, string> }): Promise<MappingProfile> {
-  const handleRequest = await getHandleRequest();
-  const res = await handleRequest({ method: 'POST', path: '/mapping-profiles', body });
-  if (res.status !== 201) throw new Error('Failed to create mapping profile');
-  return res.body as MappingProfile;
-}
-
 // Legend API removed per request
 
 // --- Access control: app users & invitations (MVP manual link) ---

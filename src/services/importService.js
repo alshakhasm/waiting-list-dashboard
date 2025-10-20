@@ -1,7 +1,7 @@
 import { db } from '../lib/store';
 import { newId } from '../lib/id';
 export const ImportService = {
-    importExcel(fileName, rows, mapping) {
+    importExcel(fileName, rows) {
         const batchId = newId('imp');
         let created = 0, skipped = 0;
         const updated = 0;
@@ -38,7 +38,6 @@ export const ImportService = {
             id: batchId,
             fileName,
             importedAt: new Date().toISOString(),
-            mappingProfileId: mapping?.id,
             countsCreated: created,
             countsUpdated: updated,
             countsSkipped: skipped,

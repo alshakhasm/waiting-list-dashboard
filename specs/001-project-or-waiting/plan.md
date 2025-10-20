@@ -84,7 +84,7 @@ tests/
 
 ## Phase 1: Design & Contracts
 1. Data Model (data-model.md): Entities and relationships from the spec; include dedup key (Name+MRN), category changes via Kanban, audit logging, optimistic concurrency notes.
-2. API Contracts (contracts/): Define endpoints for import, mapping profiles, backlog, schedule, exports.
+2. API Contracts (contracts/): Define endpoints for import, backlog, schedule, exports.
 3. Contract Tests (tests/contract): One file per endpoint (skeletons now; fail until implemented).
 4. Test Scenarios (quickstart.md): Map primary user journeys to step-by-step validation.
 5. Update agent file: `.specify/scripts/bash/update-agent-context.sh copilot` (append new tech decisions only).

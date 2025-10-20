@@ -1,11 +1,11 @@
 import { db } from '../lib/store';
 import { newId } from '../lib/id';
-import type { ImportBatch, MappingProfile, WaitingListItem } from '../models/types';
+import type { ImportBatch, WaitingListItem } from '../models/types';
 
 export type ImportRow = Partial<Pick<WaitingListItem, 'patientName' | 'mrn' | 'procedure' | 'estDurationMin' | 'surgeonId'>> & { caseTypeName?: string };
 
 export const ImportService = {
-  importExcel(fileName: string, rows: ImportRow[], mapping?: MappingProfile): ImportBatch {
+  importExcel(fileName: string, rows: ImportRow[]): ImportBatch {
     const batchId = newId('imp');
   let created = 0, skipped = 0;
   const updated = 0;
@@ -40,7 +40,6 @@ export const ImportService = {
       id: batchId,
       fileName,
       importedAt: new Date().toISOString(),
-      mappingProfileId: mapping?.id,
       countsCreated: created,
       countsUpdated: updated,
       countsSkipped: skipped,

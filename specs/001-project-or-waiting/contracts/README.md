@@ -5,7 +5,6 @@ Define service contracts (request/response) for key interactions.
 ## Endpoints (to be detailed in Phase 1)
 - POST /imports/excel (multipart) — mapping wizard submit
 - GET /mapping-profiles — list saved mappings
-- POST /mapping-profiles — save mapping profile
 - GET /backlog — list waiting list items (filters: case type, surgeon, search)
 - POST /schedule — create schedule entry (validations)
 - PATCH /schedule/{id} — update schedule entry (optimistic concurrency)

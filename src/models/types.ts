@@ -8,7 +8,6 @@ export type SurgeonId = ID;
 export type ORRoomId = ID;
 export type WaitingListItemId = ID;
 export type ScheduleEntryId = ID;
-export type MappingProfileId = ID;
 export type ImportBatchId = ID;
 
 export type CaseType = {
@@ -64,19 +63,10 @@ export type ScheduleEntry = {
   version: number;
 };
 
-export type MappingProfile = {
-  id: MappingProfileId;
-  name: string;
-  owner: string;
-  fieldMappings: Record<string, string>;
-  requiredFieldsPolicy?: string;
-};
-
 export type ImportBatch = {
   id: ImportBatchId;
   fileName: string;
   importedAt: string;
-  mappingProfileId?: MappingProfileId;
   countsCreated: number;
   countsUpdated: number;
   countsSkipped: number;

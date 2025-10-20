@@ -1,4 +1,3 @@
-import { listMappingProfiles, createMappingProfile } from '../api/mappingProfiles';
 import { postImportsExcel } from '../api/imports';
 import { listBacklog, softRemoveBacklog } from '../api/backlog';
 import { deleteSchedule, patchSchedule, postSchedule, getScheduleList } from '../api/schedule';
@@ -30,17 +29,6 @@ function notFound(message = 'Not Found') { return { status: 404, body: { error: 
 function conflict(message) { return { status: 409, body: { error: message } }; }
 function serverError(message) { return { status: 500, body: { error: message } }; }
 const routes = [
-    // Mapping profiles
-    { method: 'GET', pattern: '/mapping-profiles', handler: () => ok(listMappingProfiles()) },
-    {
-        method: 'POST', pattern: '/mapping-profiles', handler: (req) => {
-            const body = req.body;
-            if (!body || !body.name || !body.owner || !body.fieldMappings)
-                return badRequest('Missing required fields');
-            const createdProfile = createMappingProfile({ name: body.name, owner: body.owner, fieldMappings: body.fieldMappings });
-            return created(createdProfile);
-        }
-    },
     // Imports
     {
         method: 'POST', pattern: '/imports/excel', handler: (req) => {

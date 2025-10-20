@@ -98,7 +98,7 @@ Integration tests (primary journeys):
     - File: src/models/scheduleEntry.ts
     - Include: version increment helpers; status enum
 
-22) T022 [P] Models: MappingProfile, ImportBatch, ExportArtifact
+22) T022 [P] Models: ImportBatch, ExportArtifact
     - File: src/models/mapping.ts
     - Include: field_mappings schema; counts and errors shape
 
@@ -107,7 +107,6 @@ Integration tests (primary journeys):
     - Files: src/services/importService.ts, src/api/imports.ts
     - Behavior: apply mapping, dedup on (patient_name, mrn), create ImportBatch
 
-24) T024 Implement MappingProfileService + GET/POST /mapping-profiles
     - Files: src/services/mappingProfileService.ts, src/api/mappingProfiles.ts
 
 25) T025 Implement BacklogService + GET /backlog with filters and PHI masking

@@ -130,7 +130,6 @@ As an OR scheduler, I need a Kanban‑style waiting list beside a weekly or mont
 - **FR-026**: Upon scheduling, the backlog card MUST be removed and a colored calendar block MUST appear; clicking the block MUST reopen full details for review/editing.
 - **FR-027**: The system MUST enable exporting the current day or week schedule to PDF and Excel, including a color legend and the Standard field set (patient name with MRN masked, case type, procedure, room, start–end, surgeon); PHI MUST be minimized. 
 - **FR-028**: The system MUST ensure import idempotency and duplicate detection using Name+MRN as the deduplication key; on duplicates, the system MUST update existing records rather than create new ones and provide a clear import summary.
-- **FR-029**: The system SHOULD allow saving/loading column mapping profiles per site or coordinator to streamline repeated imports. [NEEDS CLARIFICATION: profile scope and governance]
 - **FR-030**: The system MUST provide clear error messages and remediation guidance for import failures (unsupported file, missing columns, invalid values) without partial data corruption.
 - **FR-031**: The scheduling dialog MUST capture OR room, surgeon, duration, and notes prior to confirming placement.
 - **FR-032**: The waiting list MUST be presented as a Kanban board with columns representing case categories; moving a card between columns MUST update the case category immediately with no approval required, and the change MUST be audit‑logged. This action is permitted for all users.

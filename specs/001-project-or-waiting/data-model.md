@@ -12,9 +12,7 @@
 - Surgeon
   - id, name, specialty, availability
 - ImportBatch
-  - id, file_name, imported_at, mapping_profile_id, counts_created, counts_updated, counts_skipped, errors
-- MappingProfile
-  - id, name, owner, field_mappings, required_fields_policy
+  - id, file_name, imported_at, counts_created, counts_updated, counts_skipped, errors
 - ExportArtifact
   - id, date_range, included_fields, generated_at, format
 

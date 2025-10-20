@@ -15,15 +15,12 @@ A thin REST-like adapter is available for UI wiring and tests. Import `handleReq
 ```ts
 import { handleRequest } from './src';
 
-// Create a mapping profile
-await handleRequest({ method: 'POST', path: '/mapping-profiles', body: { name: 'Default', owner: 'ops', fieldMappings: { A: 'a' } } });
-
 // Import rows and list backlog
 await handleRequest({ method: 'POST', path: '/imports/excel', body: { fileName: 'seed.xlsx', rows: [ { patientName: 'A', mrn: '1', procedure: 'Proc', estDurationMin: 30 } ] } });
 const backlog = await handleRequest({ method: 'GET', path: '/backlog' });
 ```
 
-Routes supported: GET/POST mapping profiles, POST imports, GET backlog, POST/PATCH/DELETE schedule, GET exports/schedule, GET legend.
+Routes supported: POST imports, GET backlog, POST/PATCH/DELETE schedule, GET exports/schedule, GET legend.
 
 ## UI app (Vite + React)
 UI lives under `apps/ui`. To run it locally:

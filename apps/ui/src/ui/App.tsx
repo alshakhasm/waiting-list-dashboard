@@ -3,7 +3,6 @@ import { BacklogPage } from './BacklogPage';
 import { SchedulePage } from './SchedulePage';
 import { MonthlySchedulePage } from './MonthlySchedulePage';
 import { DummyCasePage } from './DummyCasePage';
-import { MappingProfilesPage } from './MappingProfilesPage';
 import { OperatedTablePage } from './OperatedTablePage';
 import { ThemeToggle } from './ThemeToggle';
 import { AuthBox } from '../auth/AuthBox';
@@ -36,10 +35,10 @@ const THEME_KEY = 'ui-theme';
 type ThemeMode = 'auto' | 'default' | 'warm' | 'high-contrast' | 'dark';
 
 export function App() {
-  type Tab = 'backlog' | 'schedule' | 'monthly' | 'dummy' | 'mappings' | 'operated' | 'list' | 'archive' | 'members' | 'intake-links' | 'roller' | 'owner-settings';
+  type Tab = 'backlog' | 'schedule' | 'monthly' | 'dummy' | 'operated' | 'list' | 'archive' | 'members' | 'intake-links' | 'roller' | 'owner-settings';
   const TAB_KEY = 'ui-last-tab';
   const isTab = (v: any): v is Tab => (
-    v === 'backlog' || v === 'schedule' || v === 'mappings' || v === 'operated' || v === 'list' || v === 'archive' || v === 'members' || v === 'intake-links' || v === 'roller' || v === 'owner-settings'
+    v === 'backlog' || v === 'schedule' || v === 'operated' || v === 'list' || v === 'archive' || v === 'members' || v === 'intake-links' || v === 'roller' || v === 'owner-settings'
   );
   // Backlog label can be overridden via env (build-time) or localStorage (runtime)
   const ENV_BACKLOG_LABEL = (import.meta as any)?.env?.VITE_BACKLOG_TAB_LABEL as string | undefined;
@@ -486,7 +485,6 @@ export function App() {
             <div style={{ position: 'absolute', marginTop: 6, minWidth: 180, background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 6px 18px var(--shadow)', padding: 8, display: 'grid', gap: 6 }}>
               <button onClick={() => setTab('archive')} style={{ textAlign: 'left' }}>Archive</button>
               <button onClick={() => setTab('operated')} style={{ textAlign: 'left' }}>Operated</button>
-              <button onClick={() => setTab('mappings')} style={{ textAlign: 'left' }}>Mapping Profiles</button>
               {profile?.role === 'owner' && (
                 <>
                   <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '6px 0' }} />
@@ -571,7 +569,6 @@ export function App() {
           {tab === 'schedule' && <SchedulePage isFull={scheduleFull} />}
           {tab === 'monthly' && <MonthlySchedulePage />}
           {tab === 'dummy' && <DummyCasePage />}
-          {tab === 'mappings' && <MappingProfilesPage />}
           {tab === 'operated' && <OperatedTablePage />}
           {tab === 'members' && (profile?.role === 'owner' ? <MembersPage /> : <AccessDeniedPage />)}
           {tab === 'intake-links' && (profile?.role === 'owner' ? <IntakeLinksPage /> : <AccessDeniedPage />)}
