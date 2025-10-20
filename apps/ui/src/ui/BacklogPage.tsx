@@ -4,6 +4,26 @@ import { classifyProcedure, GROUP_LABELS, GROUP_ORDER, GROUP_COLORS, ProcedureGr
 import { loadCategoryPrefs, defaultCategoryPrefs, saveCategoryPrefs } from './categoryPrefs';
 import { getContrastText } from './color';
 
+function titleCase(value: string): string {
+  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
+}
+
+function humanizeCaseType(caseType?: string | null): string {
+  if (!caseType) return '—';
+  const trimmed = caseType.startsWith('case:') ? caseType.slice(5) : caseType;
+  return titleCase(trimmed || '—');
+}
+
+function formatDateAdded(iso?: string | null): string | null {
+  if (!iso) return null;
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const yyyy = parsed.getFullYear();
+  const mm = String(parsed.getMonth() + 1).padStart(2, '0');
+  const dd = String(parsed.getDate()).padStart(2, '0');
+  return `${yyyy}.${mm}.${dd}`;
+}
+
 export function BacklogPage({
   search = '',
   onSelect,
@@ -27,7 +47,6 @@ export function BacklogPage({
 }) {
   const [items, setItems] = useState<BacklogItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<{
     patientName: string;
@@ -178,14 +197,6 @@ export function BacklogPage({
     }
   }
 
-  // Close open menu on outside click
-  useEffect(() => {
-    if (!openMenuId) return;
-    function onDocClick() { setOpenMenuId(null); }
-    document.addEventListener('click', onDocClick);
-    return () => document.removeEventListener('click', onDocClick);
-  }, [openMenuId]);
-
   function maskMrn(mrn: string): string {
     try { return mrn.replace(/.(?=.{2}$)/g, '•'); } catch { return mrn; }
   }
@@ -220,7 +231,6 @@ export function BacklogPage({
       preferredDate: i.preferredDate,
       notes: i.notes,
     });
-    setOpenMenuId(null);
   }
 
   async function removeItem(i: BacklogItem) {
@@ -234,7 +244,6 @@ export function BacklogPage({
     }
     if (!hiddenIds.includes(i.id)) hiddenIds.push(i.id);
     setItems(prev => prev.filter(it => it.id !== i.id));
-    setOpenMenuId(null);
   }
 
   const scaleFactor = Math.max(0.5, Math.min(2, scale / 100));
@@ -425,85 +434,131 @@ export function BacklogPage({
                     const isPending = pendingIds.includes(i.id);
                     const cardBackground = isPending ? '#e5e7eb' : cardBg;
                     const cardText = isPending ? '#374151' : bodyText;
+                    const caseLabel = humanizeCaseType(i.caseTypeId);
+                    const dateAdded = formatDateAdded(i.createdAt);
                     return (
                       <div
-                      key={i.id}
-                      draggable
-                      onDragStart={(e) => {
-                        const payload = { itemId: i.id, estDurationMin: i.estDurationMin, surgeonId: i.surgeonId };
-                        const text = JSON.stringify(payload);
-                        try { e.dataTransfer.setData('application/json', text); } catch {}
-                        try { e.dataTransfer.setData('text/plain', text); } catch {}
-                        try { e.dataTransfer.setData('text', text); } catch {}
-                        e.dataTransfer.effectAllowed = 'copyMove';
-                      }}
-                      onClick={() => onSelect?.(i)}
-                      style={{
-                        border: selectedId === i.id ? `2px solid var(--primary)` : `1px solid ${borderCol}`,
-                        borderRadius: 6,
-                        padding: 8,
-                        background: cardBackground,
-                        cursor: onSelect ? 'pointer' : 'default',
-                        position: 'relative',
-                        color: cardText,
-                        boxShadow: isPending ? 'inset 0 0 0 1px #cbd5f5' : undefined,
-                        opacity: isPending ? 0.9 : 1,
-                        filter: isPending ? 'grayscale(0.15)' : 'none',
-                      }}
-                      title={onSelect ? 'Click to select' : undefined}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <strong>{i.patientName}</strong>
-                        <div onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={() => setOpenMenuId(prev => prev === i.id ? null : i.id)}
-                            title="Edit and options"
-                            aria-label="Edit and options"
-                            aria-haspopup="menu"
-                            aria-expanded={openMenuId === i.id}
-                            style={{
-                              background: 'transparent', border: 'none', padding: 0, margin: 0,
-                              width: 24, height: 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                              cursor: 'pointer', opacity: 0.7,
-                            }}
-                          >
-                            <span aria-hidden="true" style={{ lineHeight: '1', fontSize: 16 }}>⋮</span>
-                          </button>
-                          {openMenuId === i.id && (
-                            <div role="menu" style={{ position: 'absolute', top: 6, right: 6, zIndex: 20, background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 6, boxShadow: '0 4px 10px var(--shadow)' }}>
-                              <button role="menuitem" onClick={() => viewDetails(i)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', background: 'transparent', border: 'none', cursor: 'pointer' }}>View details</button>
-                              <button role="menuitem" onClick={() => editItem(i)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', background: 'transparent', border: 'none', cursor: 'pointer' }}>Edit…</button>
-                              <button role="menuitem" onClick={() => removeItem(i)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}>Remove</button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div style={{ opacity: 0.9 }}>{i.procedure}</div>
-                      <div style={{ fontVariantNumeric: 'tabular-nums', opacity: 0.8, fontSize: 12 }}>{i.maskedMrn}</div>
-                      <div style={{ opacity: 0.8, fontSize: 12 }}>{i.estDurationMin} min</div>
-                      {isPending && (
-                        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                          {canConfirm ? (
-                            <>
-                              <input id={`confirm-${i.id}`} type="checkbox" onChange={() => onConfirm?.(i)} />
-                              <label htmlFor={`confirm-${i.id}`} style={{ fontSize: 12 }}>
-                                Awaiting confirmation — tick to remove from Dashboard
-                              </label>
-                            </>
-                          ) : (
-                            <span style={{ fontSize: 12, opacity: 0.8 }}>Awaiting confirmation</span>
-                          )}
-                          {onReturnToDashboard && (
+                        key={i.id}
+                        draggable
+                        onDragStart={(e) => {
+                          const payload = { itemId: i.id, estDurationMin: i.estDurationMin, surgeonId: i.surgeonId };
+                          const text = JSON.stringify(payload);
+                          try { e.dataTransfer.setData('application/json', text); } catch {}
+                          try { e.dataTransfer.setData('text/plain', text); } catch {}
+                          try { e.dataTransfer.setData('text', text); } catch {}
+                          e.dataTransfer.effectAllowed = 'copyMove';
+                        }}
+                        onClick={() => onSelect?.(i)}
+                        style={{
+                          border: selectedId === i.id ? `2px solid var(--primary)` : `1px solid ${borderCol}`,
+                          borderRadius: 6,
+                          padding: 8,
+                          background: cardBackground,
+                          cursor: onSelect ? 'pointer' : 'default',
+                          position: 'relative',
+                          color: cardText,
+                          boxShadow: isPending ? 'inset 0 0 0 1px #cbd5f5' : undefined,
+                          opacity: isPending ? 0.9 : 1,
+                          filter: isPending ? 'grayscale(0.15)' : 'none',
+                        }}
+                        title={onSelect ? 'Click to select' : undefined}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <strong>{i.patientName}</strong>
+                          <div onClick={(e) => e.stopPropagation()} style={{ display: 'inline-flex' }}>
                             <button
                               type="button"
-                              onClick={(e) => { e.stopPropagation(); onReturnToDashboard(i); }}
-                              style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface-1)', cursor: 'pointer' }}
+                              onClick={() => viewDetails(i)}
+                              title="View details"
+                              aria-label="View details"
+                              style={{
+                                background: 'transparent',
+                                border: '1px solid transparent',
+                                borderRadius: 2,
+                                padding: '0 2px',
+                                lineHeight: 1,
+                                cursor: 'pointer',
+                                opacity: 0.7,
+                                fontSize: 12,
+                              }}
                             >
-                              Return to dashboard
+                              ⓘ
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => editItem(i)}
+                              title="Edit case"
+                              aria-label="Edit case"
+                              style={{
+                                background: 'transparent',
+                                border: '1px solid transparent',
+                                borderRadius: 2,
+                                padding: '0 2px',
+                                lineHeight: 1,
+                                cursor: 'pointer',
+                                opacity: 0.7,
+                                fontSize: 12,
+                              }}
+                            >
+                              ✎
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); removeItem(i); }}
+                              title="Remove case"
+                              aria-label="Remove case"
+                              style={{
+                                background: 'transparent',
+                                border: '1px solid transparent',
+                                borderRadius: 2,
+                                padding: '0 2px',
+                                lineHeight: 1,
+                                cursor: 'pointer',
+                                opacity: 0.7,
+                                color: 'var(--danger)',
+                                fontSize: 12,
+                              }}
+                            >
+                              ✖
+                            </button>
+                          </div>
+                        </div>
+                        <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, rowGap: 4, fontSize: 12, opacity: 0.85 }}>
+                          <span style={{ fontWeight: 600 }}>{caseLabel}</span>
+                          {dateAdded && (
+                            <span style={{ marginLeft: 'auto', fontVariantNumeric: 'tabular-nums', opacity: 0.75 }}>
+                              {dateAdded}
+                            </span>
                           )}
                         </div>
-                      )}
+                        <div style={{ marginTop: 8, fontSize: 13, fontWeight: 600, opacity: 0.92 }}>{i.procedure}</div>
+                        <div style={{ marginTop: 6, display: 'grid', gap: 4, fontSize: 12, opacity: 0.85 }}>
+                          <div><strong>Est. duration:</strong> {i.estDurationMin} min</div>
+                          {i.preferredDate && <div><strong>Preferred date:</strong> {i.preferredDate}</div>}
+                        </div>
+                        {isPending && (
+                          <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {canConfirm ? (
+                              <>
+                                <input id={`confirm-${i.id}`} type="checkbox" onChange={() => onConfirm?.(i)} />
+                                <label htmlFor={`confirm-${i.id}`} style={{ fontSize: 12 }}>
+                                  Awaiting confirmation — tick to remove from Dashboard
+                                </label>
+                              </>
+                            ) : (
+                              <span style={{ fontSize: 12, opacity: 0.8 }}>Awaiting confirmation</span>
+                            )}
+                            {onReturnToDashboard && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); onReturnToDashboard(i); }}
+                                style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface-1)', cursor: 'pointer' }}
+                              >
+                                Return to dashboard
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })
