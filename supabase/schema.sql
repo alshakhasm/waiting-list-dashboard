@@ -59,23 +59,9 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
-DECLARE
-  v_has_any_owner boolean;
-  v_caller_is_owner boolean;
 BEGIN
-  -- Only enforce when role is being set to 'owner' (ignore no-op updates)
-  IF NEW.role = 'owner' THEN
-    IF TG_OP = 'UPDATE' THEN
-      IF COALESCE(OLD.role, '') = NEW.role THEN
-        RETURN NEW;
-      END IF;
-    END IF;
-    -- If any approved owner already exists, disallow creating another one
-    SELECT EXISTS(SELECT 1 FROM public.app_users WHERE role='owner' AND status = 'approved') INTO v_has_any_owner;
-    IF v_has_any_owner THEN
-      RAISE EXCEPTION 'multiple owners are not allowed';
-    END IF;
-  END IF;
+  -- Multi-tenant: allow multiple owners across separate workspaces.
+  -- Keep as a no-op guard to remain compatible with existing trigger.
   RETURN NEW;
 END;$$;
 
@@ -204,9 +190,9 @@ BEGIN
     IF lower(v_email) <> lower(v_inv.email) THEN
       RAISE EXCEPTION 'email mismatch for invitation (expected %)', v_inv.email;
     END IF;
-    INSERT INTO public.app_users (user_id, email, role, status, created_at)
-    VALUES (v_uid, v_email, coalesce(v_inv.invited_role, 'member'), 'approved', now())
-    ON CONFLICT (user_id) DO UPDATE SET email = EXCLUDED.email, role = coalesce(v_inv.invited_role, 'member');
+    INSERT INTO public.app_users (user_id, email, role, status, invited_by, created_at)
+    VALUES (v_uid, v_email, coalesce(v_inv.invited_role, 'member'), 'approved', v_inv.invited_by, now())
+    ON CONFLICT (user_id) DO UPDATE SET email = EXCLUDED.email, role = coalesce(v_inv.invited_role, 'member'), invited_by = EXCLUDED.invited_by;
     RETURN;
   END IF;
   -- Look up the email for the current auth user
@@ -228,9 +214,9 @@ BEGIN
     RAISE EXCEPTION 'email mismatch for invitation (expected %)', v_inv.email;
   END IF;
   -- Upsert app_users as approved member
-  INSERT INTO public.app_users (user_id, email, role, status, created_at)
-  VALUES (v_uid, v_email, coalesce(v_inv.invited_role, 'member'), 'approved', now())
-  ON CONFLICT (user_id) DO UPDATE SET email = EXCLUDED.email, role = coalesce(v_inv.invited_role, 'member');
+  INSERT INTO public.app_users (user_id, email, role, status, invited_by, created_at)
+  VALUES (v_uid, v_email, coalesce(v_inv.invited_role, 'member'), 'approved', v_inv.invited_by, now())
+  ON CONFLICT (user_id) DO UPDATE SET email = EXCLUDED.email, role = coalesce(v_inv.invited_role, 'member'), invited_by = EXCLUDED.invited_by;
 
   -- Mark invitation accepted
   UPDATE public.invitations
@@ -708,9 +694,13 @@ begin
   if exists (select 1 from public.app_users) then
     return;
   end if;
-  insert into public.app_users (user_id, email, role, status)
-  values (v_uid, coalesce(v_email, ''), 'owner', 'approved')
-  on conflict do nothing;
+  insert into public.app_users (user_id, email, role, status, invited_by)
+  values (v_uid, coalesce(v_email, ''), 'owner', 'approved', v_uid)
+  on conflict (user_id) do update set
+    role = 'owner',
+    status = 'approved',
+    email = excluded.email,
+    invited_by = excluded.user_id;
 end;
 $$;
 
@@ -723,9 +713,13 @@ language sql
 security definer
 set search_path = public
 as $$
-  insert into public.app_users (user_id, email, role, status)
-  values (auth.uid(), coalesce(auth.jwt() ->> 'email', ''), 'owner', 'approved')
-  on conflict (user_id) do update set role = 'owner', status = 'approved', email = excluded.email;
+  insert into public.app_users (user_id, email, role, status, invited_by)
+  values (auth.uid(), coalesce(auth.jwt() ->> 'email', ''), 'owner', 'approved', auth.uid())
+  on conflict (user_id) do update set
+    role = 'owner',
+    status = 'approved',
+    email = excluded.email,
+    invited_by = excluded.user_id;
 $$;
 
 grant execute on function public.app_users_become_owner() to authenticated;
@@ -753,22 +747,19 @@ create policy backlog_insert on backlog
 drop policy if exists backlog_update on backlog;
 create policy backlog_update on backlog
   for update using (
-    exists (select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner')
-    or created_by = auth.uid()
+    public.can_write()
+    and public.workspace_owner(created_by) = public.workspace_owner(auth.uid())
   ) with check (
-    exists (select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner')
-    or created_by = auth.uid()
+    public.can_write()
+    and public.workspace_owner(created_by) = public.workspace_owner(auth.uid())
   );
 
 -- Delete: owners can delete any; editors may delete their own
 drop policy if exists backlog_delete on backlog;
 create policy backlog_delete on backlog
   for delete using (
-    exists (select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner')
-    or (
-      exists (select 1 from app_users au where au.user_id = auth.uid() and au.status = 'approved' and au.role = 'editor')
-      and created_by = auth.uid()
-    )
+    public.can_delete()
+    and public.workspace_owner(created_by) = public.workspace_owner(auth.uid())
   );
 
 -- Schedule: read allowed to owner or approved users
@@ -781,20 +772,28 @@ create policy schedule_read on schedule
 -- Schedule: insert allowed to owner or approved writers (member/editor)
 drop policy if exists schedule_insert on schedule;
 create policy schedule_insert on schedule
-  for insert with check (public.can_write());
+  for insert with check (
+    public.can_write()
+    and public.workspace_owner((select b.created_by from public.backlog b where b.id = schedule.waiting_list_item_id)) = public.workspace_owner(auth.uid())
+  );
 
 -- Schedule: update/delete allowed to owner only
+drop policy if exists schedule_update_owner on schedule;
 create policy schedule_update_owner on schedule
-  for update using (exists (
-    select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner'
-  )) with check (exists (
-    select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner'
-  ));
+  for update using (
+    exists (select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner')
+    and public.workspace_owner((select b.created_by from public.backlog b where b.id = schedule.waiting_list_item_id)) = public.workspace_owner(auth.uid())
+  ) with check (
+    exists (select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner')
+    and public.workspace_owner((select b.created_by from public.backlog b where b.id = schedule.waiting_list_item_id)) = public.workspace_owner(auth.uid())
+  );
 
+drop policy if exists schedule_delete_owner on schedule;
 create policy schedule_delete_owner on schedule
-  for delete using (exists (
-    select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner'
-  ));
+  for delete using (
+    exists (select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner')
+    and public.workspace_owner((select b.created_by from public.backlog b where b.id = schedule.waiting_list_item_id)) = public.workspace_owner(auth.uid())
+  );
 
 -- patients_archive: read allowed to owner or approved; no direct writes from client
 alter table patients_archive enable row level security;
@@ -812,12 +811,15 @@ create policy patients_archive_read on patients_archive
 create policy app_users_read_self on app_users
   for select using (user_id = auth.uid());
 
+drop policy if exists app_users_owner_all on app_users;
 create policy app_users_owner_all on app_users
-  for all using (exists (
-    select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner'
-  )) with check (exists (
-    select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner'
-  ));
+  for all using (
+    exists (select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner')
+    and public.workspace_owner(user_id) = public.workspace_owner(auth.uid())
+  ) with check (
+    exists (select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner')
+    and public.workspace_owner(user_id) = public.workspace_owner(auth.uid())
+  );
 
 -- app_users bootstrap: allow inserting the first row when the table is empty
 drop policy if exists app_users_bootstrap_first on app_users;
@@ -825,31 +827,35 @@ create policy app_users_bootstrap_first on app_users
   for insert with check (not exists (select 1 from app_users));
 
 -- invitations: owner can manage all; invitee can read their own invite by email
+drop policy if exists invitations_owner_all on invitations;
 create policy invitations_owner_all on invitations
-  for all using (exists (
-    select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner'
-  )) with check (exists (
-    select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner'
-  ));
+  for all using (
+    exists (select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner')
+    and invited_by = auth.uid()
+  ) with check (
+    exists (select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner')
+    and invited_by = auth.uid()
+  );
 
 -- Allow an authenticated user to read invitations addressed to their email
 create policy invitations_read_self on invitations
   for select using ((auth.jwt() ->> 'email') is not null and lower(email) = lower(auth.jwt() ->> 'email'));
 
 -- owner_profiles: users can manage their own profile only
+drop policy if exists owner_profiles_self_rw on owner_profiles;
 create policy owner_profiles_self_rw on owner_profiles
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 -- intake_links RLS and policies
 alter table intake_links enable row level security;
--- Owner can manage their intake links
+-- Owners and invited team can manage intake links in their workspace
 drop policy if exists intake_links_owner_rw on intake_links;
 create policy intake_links_owner_rw on intake_links
-  for all using (exists (
-    select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner'
-  )) with check (exists (
-    select 1 from app_users au where au.user_id = auth.uid() and au.role = 'owner'
-  ));
+  for all using (
+    public.workspace_owner(created_by) = public.workspace_owner(auth.uid())
+  ) with check (
+    public.workspace_owner(created_by) = public.workspace_owner(auth.uid())
+  );
 
 -- Members can read intake links for their workspace owner
 drop policy if exists intake_links_read_workspace on intake_links;
@@ -867,10 +873,11 @@ create policy intake_submissions_owner_read on intake_submissions
   );
 
 -- Ensure at most one approved owner exists at the DB level
+-- Multi-tenant: remove single-owner global index if present
 DO $$ BEGIN
   BEGIN
-    CREATE UNIQUE INDEX IF NOT EXISTS one_approved_owner_idx ON public.app_users ((status='approved' and role='owner')) WHERE (status='approved' and role='owner');
-  EXCEPTION WHEN undefined_table THEN NULL; END;
+    DROP INDEX IF EXISTS one_approved_owner_idx;
+  EXCEPTION WHEN undefined_object THEN NULL; END;
 END $$;
 
 -- Allow writers to insert rows (normally inserted via function, but keep a policy consistent with can_write)
