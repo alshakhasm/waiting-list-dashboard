@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { hasAnyAppUsers } from '../client/api';
 import { supabase } from '../supabase/client';
 import { IconShield, IconLogIn } from './icons';
+import { navigateWithParams } from './url';
 
 function getThemeClass(): 'theme-default' | 'theme-contrast' | 'theme-warm' | 'theme-dark' {
   if (typeof document === 'undefined') return 'theme-default';
@@ -50,27 +51,11 @@ export function AuthLandingPage() {
 
   const isLightTheme = themeClass === 'theme-default' || themeClass === 'theme-warm' || themeClass === 'theme-contrast';
   function goOwnerCreate() {
-    const u = new URL(window.location.href);
-    // clear conflicting flags
-    u.searchParams.delete('accept');
-    u.searchParams.delete('token');
-      // route to create account flow
-      u.searchParams.delete('signin');
-      u.searchParams.delete('signup');
-      u.searchParams.delete('bootstrap');
-      u.searchParams.set('create', '1');
-    window.location.href = u.toString();
+    navigateWithParams({ set: { create: 1 }, delete: ['accept','token','signin','signup','bootstrap'] });
   }
 
   function goSignIn() {
-    const u = new URL(window.location.href);
-    // ensure we’re not in accept mode
-    u.searchParams.delete('accept');
-    u.searchParams.delete('token');
-    u.searchParams.delete('signup');
-    u.searchParams.delete('bootstrap');
-    u.searchParams.set('signin', '1');
-    window.location.href = u.toString();
+    navigateWithParams({ set: { signin: 1 }, delete: ['accept','token','signup','bootstrap'] });
   }
 
   if (!supabase) {

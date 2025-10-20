@@ -3,6 +3,7 @@ import { supabase } from '../supabase/client';
 import { enableGuest } from './guest';
 import { hasAnyAppUsers, becomeOwner } from '../client/api';
 import { IconLogIn } from '../ui/icons';
+import { getRedirectBase, navigateWithParams } from '../ui/url';
 
 export function SignInPage() {
   const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in');
@@ -22,17 +23,7 @@ export function SignInPage() {
     }
   }, []);
 
-  function getRedirectBase() {
-    try {
-      const origin = window.location.origin;
-      const path = window.location.pathname || '/';
-      const ghBase = '/waiting-list-dashboard';
-      const base = path.startsWith(ghBase) ? ghBase : '';
-      return origin + base;
-    } catch {
-      return window.location.origin;
-    }
-  }
+  // Centralized helpers now used from ../ui/url
 
   // Read URL hints and compute if sign-up is allowed (owner bootstrap or invite acceptance)
   useEffect(() => {
@@ -117,9 +108,8 @@ export function SignInPage() {
           const bootstrap = url.searchParams.get('bootstrap');
           if (bootstrap === '1' || bootstrap === 'true') {
             await becomeOwner();
-            // clean bootstrap flag to avoid re-running
-            url.searchParams.delete('bootstrap');
-            window.history.replaceState({}, '', url.toString());
+            // Atomically clear bootstrap flag
+            navigateWithParams({ delete: ['bootstrap'], mode: 'replace' });
           }
         } catch {}
       } else {
@@ -152,16 +142,16 @@ export function SignInPage() {
   async function sendReset() {
     setStatus(null);
     try {
-      // Link to dedicated reset page
-      let redirect = getRedirectBase();
-      try {
-        const u = new URL(redirect);
-        u.searchParams.set('reset', '1');
-        redirect = u.toString();
-      } catch {
-        redirect = `${redirect}?reset=1`;
-      }
-      const { error } = await supabase!.auth.resetPasswordForEmail(email, { redirectTo: redirect });
+      const redirect = navigateWithParams({ set: { reset: 1 }, navigate: false });
+      setStatus('Sending password reset…');
+      const withTimeout = <T,>(p: Promise<T>, ms: number) => Promise.race([
+        p,
+        new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Request timed out. Please try again.')), ms))
+      ] as any);
+      const { error } = await withTimeout(
+        supabase!.auth.resetPasswordForEmail(email, { redirectTo: redirect }),
+        8000
+      );
       if (error) throw error;
       setStatus('Password reset email sent. Check your inbox.');
     } catch (err: any) {
@@ -341,13 +331,7 @@ export function SignInPage() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                const u = new URL(window.location.href);
-                u.searchParams.set('create','1');
-                u.searchParams.delete('signin');
-                u.searchParams.delete('signup');
-                window.location.href = u.toString();
-              }}
+              onClick={() => navigateWithParams({ set: { create: 1 }, delete: ['signin','signup'], mode: 'assign' })}
               style={{ border: '1px solid var(--border)', borderRadius: 999, padding: '6px 12px', background: 'transparent', color: 'var(--text)' }}
             >
               Go to Create Account →
