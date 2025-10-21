@@ -768,22 +768,6 @@ export async function deleteSchedule(id: string): Promise<void> {
   emitDashboardChange();
 }
 
-export type MappingProfile = { id: string; name: string; owner: string; fieldMappings: Record<string, string> };
-export async function listMappingProfiles(): Promise<MappingProfile[]> {
-  const handleRequest = await getHandleRequest();
-  const res = await handleRequest({ method: 'GET', path: '/mapping-profiles' });
-  if (res.status !== 200) throw new Error('Failed to list mapping profiles');
-  return res.body as MappingProfile[];
-}
-export async function createMappingProfile(body: { name: string; owner: string; fieldMappings: Record<string, string> }): Promise<MappingProfile> {
-  const handleRequest = await getHandleRequest();
-  const res = await handleRequest({ method: 'POST', path: '/mapping-profiles', body });
-  if (res.status !== 201) throw new Error('Failed to create mapping profile');
-  return res.body as MappingProfile;
-}
-
-// Legend API removed per request
-
 // --- Access control: app users & invitations (MVP manual link) ---
 
 export type AppUser = {
@@ -794,6 +778,8 @@ export type AppUser = {
   invitedBy?: string | null;
 };
 
+export type InvitationRole = 'member' | 'viewer' | 'editor';
+
 export type Invitation = {
   id: string;
   email: string;
@@ -801,6 +787,7 @@ export type Invitation = {
   status: 'pending' | 'accepted' | 'expired';
   expiresAt: string; // ISO
   invitedBy: string;
+  invitedRole: InvitationRole;
 };
 
 export async function getCurrentAppUser(): Promise<AppUser | null> {
@@ -860,7 +847,7 @@ export async function becomeOwner(): Promise<void> {
   }
 }
 
-export async function inviteByEmail(email: string): Promise<Invitation> {
+export async function inviteByEmail(email: string, role: InvitationRole): Promise<Invitation> {
   if (!supabase) throw new Error('Invites require Supabase to be configured');
   const { data: auth } = await supabase.auth.getUser();
   const inviter = auth.user?.id;
@@ -870,7 +857,7 @@ export async function inviteByEmail(email: string): Promise<Invitation> {
   const expires_at = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
   const { data, error } = await (supabase as any)
     .from('invitations')
-    .insert({ email, token, invited_by: inviter, expires_at })
+    .insert({ email, token, invited_by: inviter, expires_at, invited_role: role })
     .select('*')
     .single();
   if (error) throw error;
@@ -881,6 +868,7 @@ export async function inviteByEmail(email: string): Promise<Invitation> {
     status: data.status,
     expiresAt: data.expires_at,
     invitedBy: data.invited_by,
+    invitedRole: data.invited_role ?? 'member',
   } as Invitation;
 }
 
@@ -888,7 +876,29 @@ export async function listInvitations(): Promise<Invitation[]> {
   if (!supabase) return [];
   const { data, error } = await supabase.from('invitations').select('*').order('created_at', { ascending: false });
   if (error) throw error;
-  return (data || []).map((r: any) => ({ id: r.id, email: r.email, token: r.token, status: r.status, expiresAt: r.expires_at, invitedBy: r.invited_by }));
+  return (data || []).map((r: any) => ({ id: r.id, email: r.email, token: r.token, status: r.status, expiresAt: r.expires_at, invitedBy: r.invited_by, invitedRole: r.invited_role ?? 'member' }));
+}
+
+export async function deleteInvitation(id: string): Promise<void> {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { error } = await supabase.from('invitations').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function getInvitationByToken(token: string): Promise<Invitation | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.from('invitations').select('*').eq('token', token).maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    id: data.id,
+    email: data.email,
+    token: data.token,
+    status: data.status,
+    expiresAt: data.expires_at,
+    invitedBy: data.invited_by,
+    invitedRole: data.invited_role ?? 'member',
+  } as Invitation;
 }
 
 export async function sendInviteLink(email: string, token: string): Promise<void> {

@@ -3,7 +3,6 @@ import { BacklogPage } from './BacklogPage';
 import { SchedulePage } from './SchedulePage';
 import { MonthlySchedulePage } from './MonthlySchedulePage';
 import { DummyCasePage } from './DummyCasePage';
-import { MappingProfilesPage } from './MappingProfilesPage';
 import { OperatedTablePage } from './OperatedTablePage';
 import { ThemeToggle } from './ThemeToggle';
 import { AuthBox } from '../auth/AuthBox';
