@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase/client';
 import { getInvitationByToken, Invitation, InvitationRole } from '../client/api';
 import { SignInPage } from '../auth/SignInPage';
+import { getRedirectBase } from './url';
 
 function describeRole(role: InvitationRole): string {
   if (role === 'viewer') return 'viewer (read-only access)';
@@ -204,7 +205,7 @@ export function AcceptInvitePage() {
         {phase === 'accepted' && (
           <div style={{ marginTop: 16 }}>
             <p>You can close this page or head straight into the app.</p>
-            <button onClick={() => { window.location.href = window.location.origin; }}>Go to app</button>
+            <button onClick={() => { window.location.href = getRedirectBase(); }}>Go to app</button>
           </div>
         )}
         {phase === 'needs-register' && invite && !session && (

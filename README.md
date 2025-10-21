@@ -15,12 +15,15 @@ A thin REST-like adapter is available for UI wiring and tests. Import `handleReq
 ```ts
 import { handleRequest } from './src';
 
+// Create a mapping profile
+await handleRequest({ method: 'POST', path: '/mapping-profiles', body: { name: 'Default', owner: 'ops', fieldMappings: { A: 'a' } } });
+
 // Import rows and list backlog
 await handleRequest({ method: 'POST', path: '/imports/excel', body: { fileName: 'seed.xlsx', rows: [ { patientName: 'A', mrn: '1', procedure: 'Proc', estDurationMin: 30 } ] } });
 const backlog = await handleRequest({ method: 'GET', path: '/backlog' });
 ```
 
-Routes supported: POST imports, GET backlog, POST/PATCH/DELETE schedule, GET exports/schedule, GET legend.
+Routes supported: GET/POST mapping profiles, POST imports, GET backlog, POST/PATCH/DELETE schedule, GET exports/schedule, GET legend.
 
 ## UI app (Vite + React)
 UI lives under `apps/ui`. To run it locally:
@@ -48,7 +51,6 @@ If you want real authentication and persistence via Supabase (optional for local
 
 Notes
 - Do not commit real keys. `.gitignore` already excludes `apps/ui/.env*`.
-- When building for deployment (GitHub Pages or otherwise), ensure those env vars are set so Supabase auth works in production.
 - An example file exists at `apps/ui/.env.example`.
 - Full schema, RLS policies, and auth configuration are in `SUPABASE.md`.
  - The UI shows an EnvDebug badge with `/?debug=1` indicating if Supabase is enabled.
@@ -101,3 +103,4 @@ Troubleshooting
 
 
 <!-- ci: pages ping 2025-10-11 -->
+

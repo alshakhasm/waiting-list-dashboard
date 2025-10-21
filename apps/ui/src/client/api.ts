@@ -768,6 +768,20 @@ export async function deleteSchedule(id: string): Promise<void> {
   emitDashboardChange();
 }
 
+export type MappingProfile = { id: string; name: string; owner: string; fieldMappings: Record<string, string> };
+export async function listMappingProfiles(): Promise<MappingProfile[]> {
+  const handleRequest = await getHandleRequest();
+  const res = await handleRequest({ method: 'GET', path: '/mapping-profiles' });
+  if (res.status !== 200) throw new Error('Failed to list mapping profiles');
+  return res.body as MappingProfile[];
+}
+export async function createMappingProfile(body: { name: string; owner: string; fieldMappings: Record<string, string> }): Promise<MappingProfile> {
+  const handleRequest = await getHandleRequest();
+  const res = await handleRequest({ method: 'POST', path: '/mapping-profiles', body });
+  if (res.status !== 201) throw new Error('Failed to create mapping profile');
+  return res.body as MappingProfile;
+}
+
 // Legend API removed per request
 
 // --- Access control: app users & invitations (MVP manual link) ---
@@ -780,8 +794,6 @@ export type AppUser = {
   invitedBy?: string | null;
 };
 
-export type InvitationRole = 'member' | 'viewer' | 'editor';
-
 export type Invitation = {
   id: string;
   email: string;
@@ -789,7 +801,6 @@ export type Invitation = {
   status: 'pending' | 'accepted' | 'expired';
   expiresAt: string; // ISO
   invitedBy: string;
-  invitedRole: InvitationRole;
 };
 
 export async function getCurrentAppUser(): Promise<AppUser | null> {
@@ -849,18 +860,17 @@ export async function becomeOwner(): Promise<void> {
   }
 }
 
-export async function inviteByEmail(email: string, role: InvitationRole = 'member'): Promise<Invitation> {
+export async function inviteByEmail(email: string): Promise<Invitation> {
   if (!supabase) throw new Error('Invites require Supabase to be configured');
   const { data: auth } = await supabase.auth.getUser();
   const inviter = auth.user?.id;
   if (!inviter) throw new Error('Not authenticated');
   // random token
   const token = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-  // Invitations remain valid for 30 days by default to give invitees ample time to register.
-  const expires_at = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
+  const expires_at = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
   const { data, error } = await (supabase as any)
     .from('invitations')
-    .insert({ email, token, invited_by: inviter, invited_role: role, expires_at })
+    .insert({ email, token, invited_by: inviter, expires_at })
     .select('*')
     .single();
   if (error) throw error;
@@ -871,7 +881,6 @@ export async function inviteByEmail(email: string, role: InvitationRole = 'membe
     status: data.status,
     expiresAt: data.expires_at,
     invitedBy: data.invited_by,
-    invitedRole: data.invited_role ?? 'member',
   } as Invitation;
 }
 
@@ -879,30 +888,7 @@ export async function listInvitations(): Promise<Invitation[]> {
   if (!supabase) return [];
   const { data, error } = await supabase.from('invitations').select('*').order('created_at', { ascending: false });
   if (error) throw error;
-  return (data || []).map((r: any) => ({ id: r.id, email: r.email, token: r.token, status: r.status, expiresAt: r.expires_at, invitedBy: r.invited_by, invitedRole: r.invited_role ?? 'member' }));
-}
-
-export async function getInvitationByToken(token: string): Promise<Invitation | null> {
-  if (!supabase) return null;
-  const { data, error } = await (supabase as any).rpc('invitations_lookup', { p_token: token });
-  if (error) throw error;
-  const row = Array.isArray(data) ? data[0] : data;
-  if (!row) return null;
-  return {
-    id: row.id ?? token,
-    email: row.email,
-    token,
-    status: row.status,
-    expiresAt: row.expires_at,
-    invitedBy: row.invited_by,
-    invitedRole: row.invited_role ?? 'member',
-  } as Invitation;
-}
-
-export async function deleteInvitation(invitationId: string): Promise<void> {
-  if (!supabase) throw new Error('Supabase not configured');
-  const { error } = await supabase.from('invitations').delete().eq('id', invitationId);
-  if (error) throw error;
+  return (data || []).map((r: any) => ({ id: r.id, email: r.email, token: r.token, status: r.status, expiresAt: r.expires_at, invitedBy: r.invited_by }));
 }
 
 export async function sendInviteLink(email: string, token: string): Promise<void> {
@@ -1071,13 +1057,9 @@ export async function acceptInvite(token: string): Promise<{ ok: boolean; reason
   if (upErr) throw upErr;
   const { data: existing, error: exErr } = await supabase.from('app_users').select('*').eq('user_id', uid).maybeSingle();
   if (exErr) throw exErr;
-  const invitedRole = invRow.invited_role ?? 'member';
   if (!existing) {
-    const { error: insErr } = await (supabase as any).from('app_users').insert({ user_id: uid, email, role: invitedRole, status: 'pending', invited_by: invRow.invited_by });
+    const { error: insErr } = await (supabase as any).from('app_users').insert({ user_id: uid, email, role: 'member', status: 'pending', invited_by: invRow.invited_by });
     if (insErr) throw insErr;
-  } else if (existing.role !== invitedRole) {
-    const { error: updErr } = await (supabase as any).from('app_users').update({ role: invitedRole }).eq('user_id', uid);
-    if (updErr) throw updErr;
   }
   return { ok: true };
 }
@@ -1302,11 +1284,8 @@ export async function updateIntakeLink(id: string, patch: Partial<{
 
 export function getIntakeShareUrl(token: string): string {
   try {
-    const current = new URL(window.location.href);
-    const path = current.pathname || '/';
-    const ghBase = '/waiting-list-dashboard';
-    const basePath = path.startsWith(ghBase) ? ghBase : '';
-    return `${current.origin}${basePath}/?intake=1&token=${encodeURIComponent(token)}`;
+    const base = window.location.origin;
+    return `${base}?intake=1&token=${encodeURIComponent(token)}`;
   } catch {
     return `?intake=1&token=${encodeURIComponent(token)}`;
   }

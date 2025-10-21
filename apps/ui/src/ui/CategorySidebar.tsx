@@ -53,8 +53,8 @@ export function CategorySidebar({
   const builtIns = useMemo(() => categoryPrefs.filter((p) => p.builtIn), [categoryPrefs]);
   const customs = useMemo(() => categoryPrefs.filter((p) => !p.builtIn), [categoryPrefs]);
 
-  function setVisibility(key: string, visible: boolean) {
-    setPrefs((prev) => prev.map((p) => (p.key === key ? { ...p, hidden: !visible } : p)));
+  function toggleHidden(key: string) {
+    setPrefs((prev) => prev.map((p) => (p.key === key ? { ...p, hidden: !p.hidden } : p)));
   }
   // Drag state for DnD reordering
   const [dragKey, setDragKey] = useState<string | null>(null);
@@ -365,10 +365,10 @@ export function CategorySidebar({
                 <span style={{ flex: 1, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label}</span>
                 <input
                   type="checkbox"
-                  title="Show category"
-                  aria-label={`Show ${p.label}`}
-                  checked={!p.hidden}
-                  onChange={(e) => setVisibility(p.key, e.target.checked)}
+                  title="Hide category"
+                  aria-label={`Hide ${p.label}`}
+                  checked={p.hidden}
+                  onChange={() => toggleHidden(p.key)}
                   style={{ width: 14, height: 14 }}
                 />
                 <button
@@ -459,10 +459,10 @@ export function CategorySidebar({
                 <span style={{ flex: 1, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label}</span>
                 <input
                   type="checkbox"
-                  title="Show category"
-                  aria-label={`Show ${p.label}`}
-                  checked={!p.hidden}
-                  onChange={(e) => setVisibility(p.key, e.target.checked)}
+                  title="Hide category"
+                  aria-label={`Hide ${p.label}`}
+                  checked={p.hidden}
+                  onChange={() => toggleHidden(p.key)}
                   style={{ width: 14, height: 14 }}
                 />
                 <button
