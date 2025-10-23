@@ -9,6 +9,9 @@ const __dirname_esm = fileURLToPath(new URL('.', import.meta.url));
 export default defineConfig(({ mode }) => {
   // Load only VITE_ variables from env files in apps/ui
   const env = loadEnv(mode, __dirname_esm, 'VITE_');
+  const rawPort = process.env.VITE_PORT || process.env.PORT || env.VITE_PORT;
+  const parsedPort = rawPort ? Number.parseInt(rawPort, 10) : NaN;
+  const serverPort = Number.isInteger(parsedPort) && parsedPort > 0 ? parsedPort : 5173;
   return {
     // Use a relative base in production so it works on GitHub Pages (project subpath)
     // and any static hosting where the app is not served from domain root.
@@ -23,7 +26,8 @@ export default defineConfig(({ mode }) => {
       }
     },
     server: {
-      port: 5173,
+      port: serverPort,
+      strictPort: true,
       fs: {
         // Allow serving files from monorepo folders in dev
         allow: [
