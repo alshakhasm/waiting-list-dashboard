@@ -281,22 +281,6 @@ export function SignInPage() {
             </button>
           )}
         </div>
-        <div style={{ marginTop: 16, fontSize: 12, opacity: 0.8 }}>
-          Creating a new workspace? Use the Create Account flow instead.
-          <button
-            type="button"
-            onClick={() => {
-              const u = new URL(window.location.href);
-              u.searchParams.set('create','1');
-              u.searchParams.delete('signin');
-              u.searchParams.delete('signup');
-              window.location.href = u.toString();
-            }}
-            style={{ marginLeft: 8, border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', background: 'transparent', color: 'var(--text)' }}
-          >
-            Go to Create Account →
-          </button>
-        </div>
         <div style={{ marginTop: 12, textAlign: 'center' }}>
           <button
             type="button"
@@ -310,7 +294,7 @@ export function SignInPage() {
             }}
             style={{ border: 'none', background: 'transparent', color: 'var(--primary)', cursor: 'pointer', padding: 0, fontSize: 13 }}
           >
-            ← Back to home
+            Home page
           </button>
         </div>
       </form>
