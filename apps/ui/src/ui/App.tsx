@@ -409,6 +409,9 @@ export function App() {
       `}</style>
     <header style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', gap: 12, alignItems: 'center', padding: 12, background: 'var(--surface-3)', borderBottom: '1px solid var(--border)', boxShadow: `0 2px 6px var(--shadow)` }}>
   <strong style={{ whiteSpace: 'nowrap', color: 'var(--text)' }}>{appTitle}</strong>
+        <span style={{ fontSize: 12, padding: '2px 6px', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', opacity: 0.8 }}>
+          Live preview refreshed
+        </span>
         {typeof window !== 'undefined' && new URL(window.location.href).searchParams.get('debug') === '1' && (
           <div style={{ marginLeft: 8 }}>
             <EnvDebug />

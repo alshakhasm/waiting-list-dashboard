@@ -175,9 +175,12 @@ export function SignInPage() {
           color: 'var(--text)',
         }}
       >
-        <h1 style={{ marginTop: 0, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <h1 style={{ marginTop: 0, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
           <IconLogIn size={21} style={{ opacity: 0.9, marginRight: -1 }} /> Welcome
         </h1>
+        <p style={{ marginTop: 0, marginBottom: 18, fontSize: 14, opacity: 0.75 }}>
+          Sign in below or browse the latest dashboard preview as a guest.
+        </p>
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, justifyContent: 'space-between', alignItems: 'center' }}>
           {canSignUp ? (
             <div style={{ display: 'inline-flex', gap: 8 }}>
