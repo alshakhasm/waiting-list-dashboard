@@ -178,8 +178,24 @@ export function SignInPage() {
           <IconLogIn size={21} style={{ opacity: 0.9, marginRight: -1 }} /> Welcome
         </h1>
         <p style={{ marginTop: 0, marginBottom: 18, fontSize: 14, opacity: 0.75 }}>
-          Sign in below or browse the latest dashboard preview as a guest.
+          Sign in to access the latest dashboard updates. Need help? Contact your workspace owner.
         </p>
+        <div style={{ marginBottom: 16 }}>
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                const u = new URL(window.location.href);
+                u.searchParams.delete('signin');
+                u.searchParams.delete('auth');
+                window.location.href = u.toString();
+              } catch {}
+            }}
+            style={{ border: 'none', background: 'transparent', color: 'var(--primary)', cursor: 'pointer', padding: 0, fontSize: 13 }}
+          >
+            ← Back to home
+          </button>
+        </div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, justifyContent: 'space-between', alignItems: 'center' }}>
           {canSignUp ? (
             <div style={{ display: 'inline-flex', gap: 8 }}>
