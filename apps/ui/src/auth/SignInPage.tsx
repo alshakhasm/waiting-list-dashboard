@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabase/client';
-import { enableGuest } from './guest';
 import { hasAnyAppUsers, becomeOwner } from '../client/api';
 import { IconLogIn } from '../ui/icons';
 
@@ -281,17 +280,6 @@ export function SignInPage() {
               Forgot password?
             </button>
           )}
-        </div>
-        <div style={{ marginTop: 16, textAlign: 'center' }}>
-          <button
-            type="button"
-            onClick={() => enableGuest()}
-            title="Browse the app without signing in"
-            style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', background: 'transparent', color: 'var(--text)' }}
-          >
-            Continue as guest
-          </button>
-          <div style={{ fontSize: 12, opacity: 0.7, marginTop: 6 }}>Some actions may be limited in guest mode.</div>
         </div>
         <div style={{ marginTop: 16, fontSize: 12, opacity: 0.8 }}>
           Creating a new workspace? Use the Create Account flow instead.
