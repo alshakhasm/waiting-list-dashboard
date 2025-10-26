@@ -9,9 +9,26 @@ type Props = {
   style?: React.CSSProperties;
 };
 
+const STORAGE_KEY = 'schedule-split-left-pct';
+
 export function SplitPane({ initialLeft = 35, minLeft = 20, maxLeft = 80, left, right, style }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [leftPct, setLeftPct] = useState<number>(initialLeft);
+  
+  // Initialize from localStorage or props
+  const [leftPct, setLeftPct] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = parseFloat(saved);
+        if (Number.isFinite(parsed) && parsed >= minLeft && parsed <= maxLeft) {
+          return parsed;
+        }
+      }
+    } catch {
+      // localStorage not available or error reading
+    }
+    return initialLeft;
+  });
   const dragging = useRef(false);
 
   const onDown = useCallback((e: React.MouseEvent) => {
@@ -35,6 +52,20 @@ export function SplitPane({ initialLeft = 35, minLeft = 20, maxLeft = 80, left, 
     setLeftPct(clamped);
   }, [minLeft, maxLeft]);
 
+  // Persist split position to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, String(leftPct));
+    } catch {
+      // localStorage not available - silently fail
+    }
+  }, [leftPct]);
+
+  // Handle keyboard reset
+  const handleDividerDoubleClick = useCallback(() => {
+    setLeftPct(initialLeft);
+  }, [initialLeft]);
+
   useEffect(() => {
     const doc = window.document;
     doc.addEventListener('mousemove', onMove);
@@ -45,6 +76,8 @@ export function SplitPane({ initialLeft = 35, minLeft = 20, maxLeft = 80, left, 
     };
   }, [onMove, onUp]);
 
+  const [dividerHovered, setDividerHovered] = useState(false);
+
   return (
     <div ref={containerRef} style={{ display: 'grid', gridTemplateColumns: `${leftPct}% 6px ${100 - leftPct}%`, width: '100%', height: '100%', ...style }}>
       <div style={{ minWidth: 0, overflow: 'auto' }}>{left}</div>
@@ -52,8 +85,17 @@ export function SplitPane({ initialLeft = 35, minLeft = 20, maxLeft = 80, left, 
         role="separator"
         aria-orientation="vertical"
         onMouseDown={onDown}
-        style={{ cursor: 'col-resize', background: '#e5e7eb', width: 6 }}
-        title="Drag to resize"
+        onDoubleClick={handleDividerDoubleClick}
+        onMouseEnter={() => setDividerHovered(true)}
+        onMouseLeave={() => setDividerHovered(false)}
+        style={{
+          cursor: 'col-resize',
+          background: dividerHovered ? '#d1d5db' : '#e5e7eb',
+          width: 6,
+          transition: 'background 200ms ease',
+          userSelect: 'none',
+        }}
+        title="Drag to resize, double-click to reset"
       />
       <div style={{ minWidth: 0, overflow: 'auto' }}>{right}</div>
     </div>

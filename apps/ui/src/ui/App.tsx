@@ -26,8 +26,10 @@ import { EnvDebug } from './EnvDebug';
 import { CreateAccountPage } from './CreateAccountPage';
 import { IntakePage } from './IntakePage';
 import { IntakeLinksPage } from './IntakeLinksPage';
+import { MappingProfilesPage } from './MappingProfilesPage';
 import { CardRollerPage } from './CardRollerPage';
 import { OwnerSettingsPage } from './OwnerSettingsPage';
+import { TabButton } from './TabButton';
 import { BUILD_INFO } from '../buildInfo';
 
 const THEME_KEY = 'ui-theme';
@@ -110,9 +112,15 @@ export function App() {
   const [scheduleFull, setScheduleFull] = useState<boolean>(() => {
     try { return (localStorage.getItem('schedule.full') === '1'); } catch { return false; }
   });
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
+    try { return (localStorage.getItem('sidebar.open') !== '0'); } catch { return true; }
+  });
   useEffect(() => {
     try { localStorage.setItem('schedule.full', scheduleFull ? '1' : '0'); } catch {}
   }, [scheduleFull]);
+  useEffect(() => {
+    try { localStorage.setItem('sidebar.open', sidebarOpen ? '1' : '0'); } catch {}
+  }, [sidebarOpen]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const onDataChanged = () => setBacklogReloadKey(k => k + 1);
@@ -242,6 +250,37 @@ export function App() {
   useEffect(() => {
     try { localStorage.setItem(TAB_KEY, tab); } catch {}
   }, [tab]);
+
+  // Keyboard shortcuts for tab navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only trigger on Shift key combinations
+      if (!e.shiftKey) return;
+      
+      // Prevent conflicts with text inputs
+      if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return;
+      
+      const key = e.key.toLowerCase();
+      const shortcuts: Record<string, Tab> = {
+        'd': 'backlog',        // Shift+D for Dashboard
+        'r': 'roller',         // Shift+R for Roller
+        's': 'schedule',       // Shift+S for Schedule
+        'm': 'monthly',        // Shift+M for Monthly
+        'c': 'dummy',          // Shift+C for Case (Dummy)
+        'l': 'list',           // Shift+L for List
+        'a': 'archive',        // Shift+A for Archive
+        'o': 'operated',       // Shift+O for Operated
+      };
+      
+      if (key in shortcuts) {
+        e.preventDefault();
+        setTab(shortcuts[key]);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Load owner profile name for header indicator
   useEffect(() => {
@@ -407,151 +446,149 @@ export function App() {
         option { color: var(--text); background: var(--surface-1); }
         ::placeholder { color: color-mix(in srgb, var(--text), transparent 45%); }
       `}</style>
-    <header style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', gap: 12, alignItems: 'center', padding: 12, background: 'var(--surface-3)', borderBottom: '1px solid var(--border)', boxShadow: `0 2px 6px var(--shadow)` }}>
-  <strong style={{ whiteSpace: 'nowrap', color: 'var(--text)' }}>{appTitle}</strong>
-        <span style={{ fontSize: 12, padding: '2px 6px', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', opacity: 0.8 }}>
-          Live preview refreshed
-        </span>
-        {typeof window !== 'undefined' && new URL(window.location.href).searchParams.get('debug') === '1' && (
-          <div style={{ marginLeft: 8 }}>
-            <EnvDebug />
-          </div>
+    <header style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', gap: 16, alignItems: 'center', padding: '12px 20px', background: 'var(--surface-3)', borderBottom: '1px solid var(--border)', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)' }}>
+      {/* Logo/Title Section */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 'fit-content' }}>
+        <strong style={{ fontSize: 16, fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--text)' }}>{appTitle}</strong>
+      </div>
+
+      {/* Navigation Section */}
+      <nav style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', flex: 1 }}>
+        {/* Sidebar Toggle - placed next to navigation */}
+        {!(tab === 'schedule' && scheduleFull) && tab !== 'operated' && tab !== 'roller' && tab !== 'owner-settings' && tab !== 'monthly' && (
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+            aria-label="Toggle sidebar"
+            aria-pressed={sidebarOpen}
+            style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)', background: sidebarOpen ? 'var(--surface-2)' : 'transparent', cursor: 'pointer', fontSize: 14, lineHeight: 1, transition: 'all 0.2s', color: 'var(--text)', marginRight: 4 }}
+          >
+            {sidebarOpen ? '✕' : '☰'}
+          </button>
         )}
-  <nav style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => setTab('backlog')}
-            aria-current={tab === 'backlog' ? 'page' : undefined}
-            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'backlog' ? 'var(--surface-2)' : 'transparent', fontWeight: tab === 'backlog' ? 600 : 500, color: 'var(--text)' }}
-          >
-            {backlogLabel}
-          </button>
-          <button
-            onClick={() => setTab('roller')}
-            aria-current={tab === 'roller' ? 'page' : undefined}
-            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'roller' ? 'var(--surface-2)' : 'transparent', fontWeight: tab === 'roller' ? 600 : 500, color: 'var(--text)' }}
-          >
-            Roller
-          </button>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <TabButton label={backlogLabel} isActive={tab === 'backlog'} onClick={() => setTab('backlog')} shortcut="Shift+D" />
+        <TabButton label="Roller Viewer" isActive={tab === 'roller'} onClick={() => setTab('roller')} shortcut="Shift+R" />
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <TabButton label="Schedule Viewer" isActive={tab === 'schedule'} onClick={() => setTab('schedule')} shortcut="Shift+S" />
+          {tab === 'schedule' && (
             <button
-              onClick={() => setTab('schedule')}
-              aria-current={tab === 'schedule' ? 'page' : undefined}
-              style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'schedule' ? 'var(--surface-2)' : 'transparent', fontWeight: tab === 'schedule' ? 600 : 500, color: 'var(--text)' }}
+              title={scheduleFull ? 'Exit full screen calendar' : 'Full screen calendar'}
+              aria-label={scheduleFull ? 'Exit full screen calendar' : 'Full screen calendar'}
+              aria-pressed={scheduleFull}
+              onClick={() => setScheduleFull(v => !v)}
+              style={{ width: 32, height: 32, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, border: '1px solid var(--border)', background: scheduleFull ? 'var(--surface-2)' : 'transparent', cursor: 'pointer', transition: 'all 0.2s' }}
             >
-              Schedule
+              <span aria-hidden="true" style={{ fontSize: 16, lineHeight: '1' }}>
+                {scheduleFull ? '⤢' : '⛶'}
+              </span>
             </button>
-            {tab === 'schedule' && (
-              <button
-                title={scheduleFull ? 'Exit full screen calendar' : 'Full screen calendar'}
-                aria-label={scheduleFull ? 'Exit full screen calendar' : 'Full screen calendar'}
-                aria-pressed={scheduleFull}
-                onClick={() => setScheduleFull(v => !v)}
-                style={{ width: 32, height: 32, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid var(--border)' }}
-              >
-                <span aria-hidden="true" style={{ fontSize: 16, lineHeight: '1' }}>
-                  {scheduleFull ? '⤢' : '⛶'}
-                </span>
-              </button>
+          )}
+        </span>
+        <TabButton label="Monthly Viewer" isActive={tab === 'monthly'} onClick={() => setTab('monthly')} shortcut="Shift+M" />
+        <TabButton label="Case Creator" isActive={tab === 'dummy'} onClick={() => setTab('dummy')} shortcut="Shift+C" />
+        <TabButton label="List Viewer" isActive={tab === 'list'} onClick={() => setTab('list')} shortcut="Shift+L" />
+        <details style={{ position: 'relative' }}
+          onClick={(e) => {
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'BUTTON') {
+              const details = (target.closest('details')) as HTMLDetailsElement | null;
+              details?.removeAttribute('open');
+            }
+          }}
+        >
+          <summary style={{ listStyle: 'none', cursor: 'pointer', padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)', color: 'var(--text)', background: 'transparent', fontSize: 13, fontWeight: 500, transition: 'all 0.2s', userSelect: 'none' }}>More ▾</summary>
+          <div style={{ position: 'absolute', marginTop: 6, minWidth: 220, background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)', padding: 10, display: 'grid', gap: 6, zIndex: 1000 }}>
+            {/* Data Views Section */}
+            <div style={{ fontSize: 10, opacity: 0.65, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, paddingLeft: 4, marginTop: 4 }}>📊 Data Views</div>
+            <button onClick={() => setTab('archive')} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 13, borderRadius: 4, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', transition: 'background 0.15s' }} onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-2)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>Archive</button>
+            <button onClick={() => setTab('operated')} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 13, borderRadius: 4, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', transition: 'background 0.15s' }} onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-2)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>Operated</button>
+            
+            {/* Configuration Section */}
+            <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '8px 0', opacity: 0.5 }} />
+            <div style={{ fontSize: 10, opacity: 0.65, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, paddingLeft: 4 }}>⚙️ Configuration</div>
+            <button onClick={() => setTab('mappings')} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 13, borderRadius: 4, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', transition: 'background 0.15s' }} onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-2)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>Mapping Profiles</button>
+            
+            {/* Admin Section */}
+            {profile?.role === 'owner' && (
+              <>
+                <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '8px 0', opacity: 0.5 }} />
+                <div style={{ fontSize: 10, opacity: 0.65, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, paddingLeft: 4 }}>🔐 Admin</div>
+                <button onClick={() => setTab('members')} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 13, borderRadius: 4, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', transition: 'background 0.15s' }} onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-2)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>Members</button>
+                <button onClick={() => setTab('intake-links')} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 13, borderRadius: 4, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', transition: 'background 0.15s' }} onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-2)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>Intake Links</button>
+                <button onClick={() => setTab('owner-settings')} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 13, borderRadius: 4, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', transition: 'background 0.15s' }} onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-2)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>Owner Settings</button>
+                
+                {/* Customization Section */}
+                <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '8px 0', opacity: 0.5 }} />
+                <div style={{ fontSize: 10, opacity: 0.65, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, paddingLeft: 4 }}>✏️ Customize</div>
+                <div style={{ display: 'grid', gap: 6, padding: '6px 0' }}>
+                  <label style={{ fontSize: 11, opacity: 0.75, fontWeight: 600 }}>Rename "Backlog" tab</label>
+                  <input
+                    value={backlogLabel}
+                    onChange={(e) => {
+                      const v = e.target.value || 'Dashboard';
+                      setBacklogLabel(v);
+                      try { localStorage.setItem('ui-backlog-label', v); } catch {}
+                    }}
+                    placeholder={backlogLabel || 'Dashboard'}
+                    style={{ padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 5, fontSize: 12, background: 'var(--surface-1)', color: 'var(--text)' }}
+                  />
+                </div>
+                <div style={{ display: 'grid', gap: 6, padding: '6px 0' }}>
+                  <label style={{ fontSize: 11, opacity: 0.75, fontWeight: 600 }}>App title</label>
+                  <input
+                    value={appTitle}
+                    onChange={(e) => {
+                      const v = e.target.value || 'Surgery Schedule';
+                      setAppTitle(v);
+                      try { localStorage.setItem('ui-app-title', v); } catch {}
+                    }}
+                    placeholder="Surgery Schedule"
+                    style={{ padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 5, fontSize: 12, background: 'var(--surface-1)', color: 'var(--text)' }}
+                  />
+                </div>
+              </>
             )}
+          </div>
+        </details>
+      </nav>
+
+      {/* Right Section - User Info & Controls */}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 'fit-content', marginLeft: 'auto' }}>
+        {/* Divider */}
+        <div style={{ width: '1px', height: 24, background: 'var(--border)', opacity: 0.5 }} />
+
+        {/* User Info */}
+        {profile?.role === 'owner' && ownerName && (
+          <span title="Owner" style={{ fontSize: 14, padding: '6px 12px', borderRadius: 6, background: 'var(--primary)', color: 'var(--primary-contrast)', fontWeight: 700, minWidth: 'fit-content', letterSpacing: '0.3px' }}>
+            {ownerName}
           </span>
-          <button
-            onClick={() => setTab('monthly')}
-            aria-current={tab === 'monthly' ? 'page' : undefined}
-            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'monthly' ? 'var(--surface-2)' : 'transparent', fontWeight: tab === 'monthly' ? 600 : 500, color: 'var(--text)' }}
-          >
-            Monthly
-          </button>
-          <button
-            onClick={() => setTab('dummy')}
-            aria-current={tab === 'dummy' ? 'page' : undefined}
-            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'dummy' ? 'var(--surface-2)' : 'transparent', fontWeight: tab === 'dummy' ? 600 : 500, color: 'var(--text)' }}
-          >
-            Dummy Case
-          </button>
-          <button
-            onClick={() => setTab('list')}
-            aria-current={tab === 'list' ? 'page' : undefined}
-            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: tab === 'list' ? 'var(--surface-2)' : 'transparent', fontWeight: tab === 'list' ? 600 : 500, color: 'var(--text)' }}
-          >
-            List
-          </button>
-          <details style={{ position: 'relative' }}
-            onClick={(e) => {
-              const target = e.target as HTMLElement;
-              if (target.tagName === 'BUTTON') {
-                const details = (target.closest('details')) as HTMLDetailsElement | null;
-                details?.removeAttribute('open');
-              }
-            }}
-          >
-            <summary style={{ listStyle: 'none', cursor: 'pointer', padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', color: 'var(--text)' }}>More ▾</summary>
-            <div style={{ position: 'absolute', marginTop: 6, minWidth: 180, background: 'var(--surface-3)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 6px 18px var(--shadow)', padding: 8, display: 'grid', gap: 6 }}>
-              <button onClick={() => setTab('archive')} style={{ textAlign: 'left' }}>Archive</button>
-              <button onClick={() => setTab('operated')} style={{ textAlign: 'left' }}>Operated</button>
-              <button onClick={() => setTab('mappings')} style={{ textAlign: 'left' }}>Mapping Profiles</button>
-              {profile?.role === 'owner' && (
-                <>
-                  <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '6px 0' }} />
-                  <button onClick={() => setTab('members')} style={{ textAlign: 'left' }}>Members</button>
-                  <button onClick={() => setTab('intake-links')} style={{ textAlign: 'left' }}>Intake Links</button>
-                  <button onClick={() => setTab('owner-settings')} style={{ textAlign: 'left' }}>Owner Settings</button>
-                  <div style={{ display: 'grid', gap: 6 }}>
-                    <label style={{ fontSize: 12, opacity: 0.8 }}>Rename "Backlog" tab</label>
-                    <input
-                      value={backlogLabel}
-                      onChange={(e) => {
-                        const v = e.target.value || 'Dashboard';
-                        setBacklogLabel(v);
-                        try { localStorage.setItem('ui-backlog-label', v); } catch {}
-                      }}
-                      placeholder={backlogLabel || 'Dashboard'}
-                      style={{ padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 8 }}
-                    />
-                  </div>
-                  <div style={{ display: 'grid', gap: 6 }}>
-                    <label style={{ fontSize: 12, opacity: 0.8 }}>App title</label>
-                    <input
-                      value={appTitle}
-                      onChange={(e) => {
-                        const v = e.target.value || 'Surgery Schedule';
-                        setAppTitle(v);
-                        try { localStorage.setItem('ui-app-title', v); } catch {}
-                      }}
-                      placeholder="Surgery Schedule"
-                      style={{ padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 8 }}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-          </details>
-        </nav>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
-          {profile?.role === 'owner' && ownerName && (
-            <span title="Owner" style={{ fontSize: 12, padding: '2px 6px', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)' }}>
-              {ownerName}
-            </span>
-          )}
-          <span style={{ fontSize: 12, color: 'var(--text)', opacity: role ? 0.85 : 0 }}>{role ? `role: ${role}` : ''}</span>
-          {guest && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '2px 6px', border: '1px dashed var(--border)', borderRadius: 6, fontSize: 12 }}>
-              Guest
-              <button onClick={() => { disableGuest(); setGuest(false); }} title="Exit guest mode">Exit</button>
-            </span>
-          )}
-          <ThemeToggle theme={theme} onChange={(t) => setTheme(t)} />
-          <AuthBox />
-        </div>
-      </header>
+        )}
+        {role && (
+          <span style={{ fontSize: 11, padding: '4px 8px', borderRadius: 5, background: 'var(--surface-1)', color: 'var(--text)', opacity: 0.75, minWidth: 'fit-content', fontWeight: 500 }}>
+            {role}
+          </span>
+        )}
+        {guest && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 8px', border: '1px dashed var(--border)', borderRadius: 5, fontSize: 11, fontWeight: 500 }}>
+            🔓 Guest
+            <button onClick={() => { disableGuest(); setGuest(false); }} title="Exit guest mode" style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--text)', fontWeight: 600 }}>✕</button>
+          </span>
+        )}
+
+        {/* Theme & Auth */}
+        <ThemeToggle theme={theme} onChange={(t) => setTheme(t)} />
+        <AuthBox />
+      </div>
+    </header>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: (tab === 'schedule' && scheduleFull) || tab === 'operated' || tab === 'roller' || tab === 'owner-settings' || tab === 'monthly' ? '1fr' : 'auto 1fr',
+        gridTemplateColumns: (tab === 'schedule' && scheduleFull) || tab === 'operated' || tab === 'roller' || tab === 'owner-settings' || tab === 'monthly' ? '1fr' : (sidebarOpen ? 'auto 1fr' : '1fr'),
         gap: 0,
   padding: 12,
         // Ensure the content area (including sidebar) fills the viewport below the header
         minHeight: 'calc(100vh - 64px)'
       }}>
-        {!(tab === 'schedule' && scheduleFull) && tab !== 'operated' && tab !== 'roller' && tab !== 'owner-settings' && tab !== 'monthly' && (
+        {!(tab === 'schedule' && scheduleFull) && tab !== 'operated' && tab !== 'roller' && tab !== 'owner-settings' && tab !== 'monthly' && sidebarOpen && (
           <CategorySidebar
             onChange={setCategoryPrefs}
             onAddedCase={() => setBacklogReloadKey(k => k + 1)}

@@ -6,7 +6,7 @@ import { CardRollerCard } from './CardRollerCard';
 
 export function CardRollerPage() {
   // Require category selection; show a selector at top.
-  const [category, setCategory] = useState<ProcedureGroupKey | '' | 'ALL'>('');
+  const [category, setCategory] = useState<ProcedureGroupKey | '' | 'ALL'>('ALL');
   const [items, setItems] = useState<BacklogItem[]>([]);
   const [idx, setIdx] = useState(0);
   const [loading, setLoading] = useState(true);

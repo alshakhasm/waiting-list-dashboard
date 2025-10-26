@@ -423,8 +423,8 @@ export function BacklogPage({
                 ) : (
                   list.map((i) => {
                     const isPending = pendingIds.includes(i.id);
-                    const cardBackground = isPending ? '#e5e7eb' : cardBg;
-                    const cardText = isPending ? '#374151' : bodyText;
+                    const cardBackground = isPending ? 'var(--surface-2)' : cardBg;
+                    const cardText = isPending ? 'var(--muted)' : bodyText;
                     return (
                       <div
                       key={i.id}
@@ -446,7 +446,7 @@ export function BacklogPage({
                         cursor: onSelect ? 'pointer' : 'default',
                         position: 'relative',
                         color: cardText,
-                        boxShadow: isPending ? 'inset 0 0 0 1px #cbd5f5' : undefined,
+                        boxShadow: isPending ? 'inset 0 0 0 1px var(--border)' : undefined,
                         opacity: isPending ? 0.9 : 1,
                         filter: isPending ? 'grayscale(0.15)' : 'none',
                       }}
@@ -520,42 +520,42 @@ export function BacklogPage({
       {/* Edit Modal */}
       {editingId && editDraft && (
         <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }} onClick={() => { /* click backdrop closes */ setEditingId(null); setEditDraft(null); }}>
-          <div style={{ background: '#fff', borderRadius: 8, width: 'min(560px, 92vw)', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 10px 24px rgba(0,0,0,0.15)' }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ background: 'var(--surface-1)', borderRadius: 8, width: 'min(560px, 92vw)', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 10px 24px rgba(0,0,0,0.15)' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <strong>Edit backlog item</strong>
               <button onClick={() => { setEditingId(null); setEditDraft(null); }} aria-label="Close" style={{ background: 'transparent', border: 'none', fontSize: 18, cursor: 'pointer' }}>×</button>
             </div>
             <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <label style={{ display: 'grid', gap: 6 }}>
                 <span style={{ fontSize: 12, opacity: 0.8 }}>Patient name</span>
-                <input value={editDraft.patientName} onChange={(e) => setEditDraft({ ...editDraft, patientName: e.target.value })} style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb' }} />
+                <input value={editDraft.patientName} onChange={(e) => setEditDraft({ ...editDraft, patientName: e.target.value })} style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface-2)' }} />
               </label>
               <label style={{ display: 'grid', gap: 6 }}>
                 <span style={{ fontSize: 12, opacity: 0.8 }}>MRN</span>
-                <input value={editDraft.mrn} onChange={(e) => setEditDraft({ ...editDraft, mrn: e.target.value })} style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb' }} />
+                <input value={editDraft.mrn} onChange={(e) => setEditDraft({ ...editDraft, mrn: e.target.value })} style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface-2)' }} />
               </label>
               <label style={{ display: 'grid', gap: 6, gridColumn: '1 / -1' }}>
                 <span style={{ fontSize: 12, opacity: 0.8 }}>Procedure / arrangement</span>
-                <input value={editDraft.procedure} onChange={(e) => setEditDraft({ ...editDraft, procedure: e.target.value })} style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb' }} />
+                <input value={editDraft.procedure} onChange={(e) => setEditDraft({ ...editDraft, procedure: e.target.value })} style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface-2)' }} />
               </label>
               <label style={{ display: 'grid', gap: 6 }}>
                 <span style={{ fontSize: 12, opacity: 0.8 }}>Phone 1</span>
-                <input value={editDraft.phone1 || ''} onChange={(e) => setEditDraft({ ...editDraft, phone1: e.target.value || undefined })} style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb' }} />
+                <input value={editDraft.phone1 || ''} onChange={(e) => setEditDraft({ ...editDraft, phone1: e.target.value || undefined })} style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface-2)' }} />
               </label>
               <label style={{ display: 'grid', gap: 6 }}>
                 <span style={{ fontSize: 12, opacity: 0.8 }}>Phone 2</span>
-                <input value={editDraft.phone2 || ''} onChange={(e) => setEditDraft({ ...editDraft, phone2: e.target.value || undefined })} style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb' }} />
+                <input value={editDraft.phone2 || ''} onChange={(e) => setEditDraft({ ...editDraft, phone2: e.target.value || undefined })} style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface-2)' }} />
               </label>
               <label style={{ display: 'grid', gap: 6 }}>
                 <span style={{ fontSize: 12, opacity: 0.8 }}>Estimated duration (min)</span>
-                <input type="number" min={0} value={editDraft.estDurationMin} onChange={(e) => setEditDraft({ ...editDraft, estDurationMin: Math.max(0, parseInt(e.target.value || '0', 10)) })} style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb' }} />
+                <input type="number" min={0} value={editDraft.estDurationMin} onChange={(e) => setEditDraft({ ...editDraft, estDurationMin: Math.max(0, parseInt(e.target.value || '0', 10)) })} style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface-2)' }} />
               </label>
               <label style={{ display: 'grid', gap: 6 }}>
                 <span style={{ fontSize: 12, opacity: 0.8 }}>Surgeon</span>
                 <select
                   value={editDraft.surgeonId || ''}
                   onChange={(e) => setEditDraft({ ...editDraft, surgeonId: e.target.value || undefined })}
-                  style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb' }}
+                  style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface-2)' }}
                 >
                   <option value="">— None —</option>
                   {surgeonOptions.map((sid) => (
@@ -568,7 +568,7 @@ export function BacklogPage({
                 <select
                   value={editDraft.caseTypeId}
                   onChange={(e) => setEditDraft({ ...editDraft, caseTypeId: e.target.value })}
-                  style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb' }}
+                  style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface-2)' }}
                 >
                   {caseTypeOptions.map((ct) => (
                     <option key={ct} value={ct}>{ct}</option>
@@ -577,15 +577,15 @@ export function BacklogPage({
               </label>
               <label style={{ display: 'grid', gap: 6 }}>
                 <span style={{ fontSize: 12, opacity: 0.8 }}>Preferred date</span>
-                <input type="date" value={editDraft.preferredDate || ''} onChange={(e) => setEditDraft({ ...editDraft, preferredDate: e.target.value || undefined })} style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb' }} />
+                <input type="date" value={editDraft.preferredDate || ''} onChange={(e) => setEditDraft({ ...editDraft, preferredDate: e.target.value || undefined })} style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface-2)' }} />
               </label>
               <label style={{ display: 'grid', gap: 6, gridColumn: '1 / -1' }}>
                 <span style={{ fontSize: 12, opacity: 0.8 }}>Notes</span>
-                <textarea rows={3} value={editDraft.notes || ''} onChange={(e) => setEditDraft({ ...editDraft, notes: e.target.value || undefined })} style={{ padding: 8, borderRadius: 6, border: '1px solid #e5e7eb', resize: 'vertical' }} />
+                <textarea rows={3} value={editDraft.notes || ''} onChange={(e) => setEditDraft({ ...editDraft, notes: e.target.value || undefined })} style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface-2)', resize: 'vertical' }} />
               </label>
             </div>
-            <div style={{ padding: 16, display: 'flex', justifyContent: 'flex-end', gap: 8, borderTop: '1px solid #e5e7eb' }}>
-              <button onClick={() => { setEditingId(null); setEditDraft(null); }} style={{ background: '#fff', border: '1px solid #e5e7eb', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>Cancel</button>
+            <div style={{ padding: 16, display: 'flex', justifyContent: 'flex-end', gap: 8, borderTop: '1px solid var(--border)' }}>
+              <button onClick={() => { setEditingId(null); setEditDraft(null); }} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>Cancel</button>
               <button
                 onClick={() => {
                   if (!editDraft) return;
@@ -607,7 +607,7 @@ export function BacklogPage({
                   setEditingId(null);
                   setEditDraft(null);
                 }}
-                style={{ background: '#3b82f6', color: '#fff', border: '1px solid #3b82f6', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}
+                style={{ background: 'var(--primary)', color: 'var(--primary-contrast)', border: '1px solid var(--primary)', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}
               >
                 Save
               </button>
