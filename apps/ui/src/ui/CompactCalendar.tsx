@@ -3,6 +3,80 @@ import type { ScheduleEntry, BacklogItem } from '../client/api';
 
 type ViewMode = 'day' | 'week' | 'month';
 
+// ============================================================================
+// CONSTANTS & STYLE DEFINITIONS (Phase 1 Refactoring)
+// ============================================================================
+
+/** Month view styling constants */
+const MONTH_VIEW = {
+  COMPACT_HEIGHT: 120,
+  EXPANDED_HEIGHT: 320,
+  PADDING: 12,
+  HEADER_MARGIN_BOTTOM: 10,
+  HEADER_PADDING_BOTTOM: 10,
+  ENTRIES_GAP: 8,
+  CARD_COMPACT_PADDING: '6px 8px',
+  CARD_EXPANDED_PADDING: 10,
+  CASE_BADGE_FONT_SIZE: 13,
+  DATE_FONT_SIZE: 16,
+  MIN_COL_WIDTH: 200,
+} as const;
+
+/** Week view styling constants */
+const WEEK_VIEW = {
+  HEIGHT: 120,
+  PADDING: 8,
+  HEADER_MARGIN_BOTTOM: 6,
+  ENTRIES_GAP: 6,
+  CASE_BADGE_FONT_SIZE: 12,
+  DATE_FONT_SIZE: 14,
+  MIN_COL_WIDTH: 160,
+} as const;
+
+/** Day view styling constants */
+const DAY_VIEW = {
+  HEIGHT: 120,
+  PADDING: 8,
+  MIN_COL_WIDTH: 360,
+} as const;
+
+/** Status color scheme */
+const STATUS_COLORS = {
+  operated: {
+    bg: '#DCFCE7',
+    border: '#16a34a',
+    badge: '#047857',
+    name: 'Operated',
+  },
+  confirmed: {
+    bg: '#E6F4EA',
+    border: '#84cc16',
+    badge: '#65a30d',
+    name: 'Confirmed',
+  },
+  tentative: {
+    bg: '#FEF3C7',
+    border: '#F59E0B',
+    badge: '#b45309',
+    name: 'Tentative',
+  },
+} as const;
+
+type StatusKey = keyof typeof STATUS_COLORS;
+
+/** Animation & transition durations */
+const ANIMATIONS = {
+  TRANSITION_FAST: '0.2s ease',
+  TRANSITION_MEDIUM: '0.3s ease',
+  TRANSITION_SLOW: '0.15s ease',
+} as const;
+
+// Helper function to get status colors
+function getStatusColors(status?: string): (typeof STATUS_COLORS)[StatusKey] {
+  const key = (status === 'operated' || status === 'confirmed' ? status : 'tentative') as StatusKey;
+  return STATUS_COLORS[key];
+}
+
 export type DropData = { itemId?: string; estDurationMin?: number; surgeonId?: string };
 
 export type CompactCalendarDrop = {
@@ -17,7 +91,7 @@ export function CompactCalendar(props: {
   view?: ViewMode;
   entries: ScheduleEntry[];
   onDrop: (info: CompactCalendarDrop) => void | Promise<void>;
-  onRemoveEntry?: (id: string) => void | Promise<void>; // Prefixing unused parameter
+  onRemoveEntry?: (id: string) => void | Promise<void>;
   canEdit?: boolean;
   itemById?: Record<string, BacklogItem | undefined>;
   onToggleConfirm?: (id: string, confirmed: boolean) => void | Promise<void>;
@@ -25,6 +99,11 @@ export function CompactCalendar(props: {
 }) {
   const { date, view = 'week', entries, onDrop, onRemoveEntry, canEdit = true, itemById, onToggleConfirm, onToggleOperated } = props;
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+
+  // View flags for cleaner conditional logic
+  const isMonthView = view === 'month';
+  const isWeekView = view === 'week';
+  const isDayView = view === 'day';
 
   const toggleDayExpand = (dayDate: string) => {
     setExpandedDays((prev) => {
@@ -42,11 +121,13 @@ export function CompactCalendar(props: {
   const anchorDate = useMemo(() => new Date(`${date}T00:00:00Z`), [date]);
   const anchorYear = anchorDate.getUTCFullYear();
   const anchorMonthIndex = anchorDate.getUTCMonth();
-  const gridTemplateColumns = view === 'day'
-    ? 'repeat(1, minmax(360px, 1fr))'
-    : view === 'month'
-    ? 'repeat(7, minmax(200px, 1fr))'
-    : 'repeat(7, minmax(160px, 1fr))';
+
+  // Grid layout based on view mode
+  const gridTemplateColumns = isMonthView
+    ? `repeat(7, minmax(${MONTH_VIEW.MIN_COL_WIDTH}px, 1fr))`
+    : isWeekView
+    ? `repeat(7, minmax(${WEEK_VIEW.MIN_COL_WIDTH}px, 1fr))`
+    : `repeat(1, minmax(${DAY_VIEW.MIN_COL_WIDTH}px, 1fr))`;
 
   function handleDrop(e: React.DragEvent<HTMLDivElement>, day: string) {
     e.preventDefault();
@@ -70,8 +151,16 @@ export function CompactCalendar(props: {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns, gap: 8, height: '100%', overflow: 'auto' }}
-         onDragOver={(e) => { e.preventDefault(); }}>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns,
+        gap: 8,
+        height: '100%',
+        overflow: 'auto',
+      }}
+      onDragOver={(e) => { e.preventDefault(); }}
+    >
       {days.map((d) => {
         const cellDate = new Date(`${d}T00:00:00Z`);
         const isCurrentMonth = cellDate.getUTCFullYear() === anchorYear && cellDate.getUTCMonth() === anchorMonthIndex;

@@ -38,21 +38,18 @@ jobs:
 
       - name: Write .env for Vite (no logging)
         working-directory: apps/ui
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          # Optional: override Backlog tab label via environment secret; defaults to 'Dashboard'
-          VITE_BACKLOG_TAB_LABEL: ${{ secrets.VITE_BACKLOG_TAB_LABEL }}
-          # Optional: app title; provide default via expression so it's always set
-          VITE_APP_TITLE: ${{ secrets.VITE_APP_TITLE || 'Surgery Schedule' }}
         run: |
           set -euo pipefail
-          printf "VITE_SUPABASE_URL=%s\n" "$VITE_SUPABASE_URL" > .env
-          printf "VITE_SUPABASE_ANON_KEY=%s\n" "$VITE_SUPABASE_ANON_KEY" >> .env
-          printf "VITE_BACKLOG_TAB_LABEL=%s\n" "${VITE_BACKLOG_TAB_LABEL:-Dashboard}" >> .env
-          printf "VITE_APP_TITLE=%s\n" "$VITE_APP_TITLE" >> .env
+          printf "VITE_SUPABASE_URL=%s\n" "${{ secrets.VITE_SUPABASE_URL }}" > .env
+          printf "VITE_SUPABASE_ANON_KEY=%s\n" "${{ secrets.VITE_SUPABASE_ANON_KEY }}" >> .env
+          printf "VITE_BACKLOG_TAB_LABEL=%s\n" "${{ secrets.VITE_BACKLOG_TAB_LABEL }}" >> .env
+          printf "VITE_APP_TITLE=%s\n" "${{ secrets.VITE_APP_TITLE }}" >> .env
           printf "VITE_BUILD_SHA=%s\n" "${{ github.sha }}" >> .env
           printf "VITE_BUILD_TIME=%s\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> .env
+          
+          # Apply defaults if secrets are empty
+          sed -i '/^VITE_BACKLOG_TAB_LABEL=$/s/$/Dashboard/' .env
+          sed -i '/^VITE_APP_TITLE=$/s/$/Surgery Schedule/' .env
 
       - name: Sanity check env (names only)
         working-directory: apps/ui
