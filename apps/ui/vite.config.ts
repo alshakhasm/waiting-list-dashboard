@@ -21,13 +21,14 @@ export default defineConfig(({ mode }) => {
     // Do not hard-override import.meta.env.*; let Vite expose VITE_* from .env and CI process.env
     plugins: [react()],
     resolve: {
-      alias: {
-        '@core': path.resolve(__dirname_esm, '../../dist/src/index.js'),
-      }
+      // Disabled broken alias — dist/src/index.js does not exist
+      // alias: {
+      //   '@core': path.resolve(__dirname_esm, '../../dist/src/index.js'),
+      // }
     },
     server: {
       port: serverPort,
-      strictPort: true,
+      strictPort: false,
       fs: {
         // Allow serving files from monorepo folders in dev
         allow: [

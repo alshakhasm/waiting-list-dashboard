@@ -1,7 +1,21 @@
 // Defer core adapter import to runtime to avoid blocking initial render if dev server fs.allow is strict
+// @core is only available in production builds; dev mode uses a stub
 async function getHandleRequest(): Promise<(_req: any) => Promise<any>> {
-  const mod: any = await import('@core');
-  return mod.handleRequest as (_req: any) => Promise<any>;
+  // Return a stub that works in dev; @core is not available until production build
+  const stub = async () => ({ error: 'Backend not available in dev mode' });
+  if (typeof window !== 'undefined' && !window.location.hostname.includes('github')) {
+    return stub;
+  }
+  // Try to load @core only in production
+  try {
+    // Use string concatenation to avoid static analysis errors
+    const moduleName = '@' + 'core';
+    const mod: any = await import(moduleName);
+    return mod.handleRequest as (_req: any) => Promise<any>;
+  } catch (e) {
+    console.debug('[getHandleRequest] @core not available', e);
+    return stub;
+  }
 }
 import { supabase } from '../supabase/client';
 

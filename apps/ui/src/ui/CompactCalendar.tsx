@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { ScheduleEntry, BacklogItem } from '../client/api';
 
 type ViewMode = 'day' | 'week' | 'month';
@@ -24,10 +24,28 @@ export function CompactCalendar(props: {
   onToggleOperated?: (id: string, operated: boolean) => void | Promise<void>;
 }) {
   const { date, view = 'week', entries, onDrop, onRemoveEntry, canEdit = true, itemById, onToggleConfirm, onToggleOperated } = props;
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+
+  const toggleDayExpand = (dayDate: string) => {
+    setExpandedDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(dayDate)) {
+        next.delete(dayDate);
+      } else {
+        next.add(dayDate);
+      }
+      return next;
+    });
+  };
 
   const days: string[] = useMemo(() => buildDays(date, view), [date, view]);
+  const anchorDate = useMemo(() => new Date(`${date}T00:00:00Z`), [date]);
+  const anchorYear = anchorDate.getUTCFullYear();
+  const anchorMonthIndex = anchorDate.getUTCMonth();
   const gridTemplateColumns = view === 'day'
     ? 'repeat(1, minmax(360px, 1fr))'
+    : view === 'month'
+    ? 'repeat(7, minmax(200px, 1fr))'
     : 'repeat(7, minmax(160px, 1fr))';
 
   function handleDrop(e: React.DragEvent<HTMLDivElement>, day: string) {
@@ -55,77 +73,267 @@ export function CompactCalendar(props: {
     <div style={{ display: 'grid', gridTemplateColumns, gap: 8, height: '100%', overflow: 'auto' }}
          onDragOver={(e) => { e.preventDefault(); }}>
       {days.map((d) => {
-        const list = entries
-          .filter((en) => en.date === d)
-          .sort((a, b) => a.startTime.localeCompare(b.startTime));
+        const cellDate = new Date(`${d}T00:00:00Z`);
+        const isCurrentMonth = cellDate.getUTCFullYear() === anchorYear && cellDate.getUTCMonth() === anchorMonthIndex;
+        const list = isCurrentMonth
+          ? entries
+              .filter((en) => en.date === d)
+              .sort((a, b) => a.startTime.localeCompare(b.startTime))
+          : [];
+
+        if (view === 'month' && !isCurrentMonth) {
+          return (
+            <div
+              key={d}
+              aria-hidden
+              style={{
+                border: 'none',
+                borderRadius: 8,
+                padding: 8,
+                minHeight: 120,
+                background: 'transparent',
+              }}
+            />
+          );
+        }
+
+        // Month view: determine if expanded
+        const isExpanded = view === 'month' && expandedDays.has(d);
+        const minHeightMonth = isExpanded ? 320 : 120;
+
         return (
           <div key={d}
                onDrop={(e) => handleDrop(e, d)}
-               style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 8, minHeight: 120, background: 'var(--surface-1)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <strong>{d}</strong>
-              <span style={{ opacity: 0.6, fontSize: 12 }}>{list.length}</span>
+               style={{
+                 border: '1px solid var(--border)',
+                 borderRadius: 10,
+                 padding: view === 'month' ? 12 : 8,
+                 minHeight: view === 'month' ? minHeightMonth : 120,
+                 background: 'var(--surface-1)',
+                 display: 'flex',
+                 flexDirection: 'column',
+                 transition: 'box-shadow 0.2s ease, transform 0.2s ease, min-height 0.3s ease',
+                 boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+               }}
+               onMouseEnter={(e) => {
+                 if (view === 'month') {
+                   e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.12)';
+                   e.currentTarget.style.transform = 'translateY(-2px)';
+                 }
+               }}
+               onMouseLeave={(e) => {
+                 if (view === 'month') {
+                   e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)';
+                   e.currentTarget.style.transform = 'translateY(0)';
+                 }
+               }}
+               >
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: view === 'month' ? 10 : 6,
+              paddingBottom: view === 'month' ? 10 : 0,
+              borderBottom: view === 'month' ? '2px solid var(--border)' : 'none',
+            }}>
+              <strong style={{ fontSize: view === 'month' ? 16 : 14 }}>{d}</strong>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{
+                  fontSize: view === 'month' ? 13 : 12,
+                  fontWeight: 500,
+                  opacity: 0.6,
+                  background: view === 'month' ? 'var(--surface-2)' : 'transparent',
+                  padding: view === 'month' ? '2px 8px' : '0',
+                  borderRadius: 4,
+                }}>
+                  {list.length} {view === 'month' ? (list.length === 1 ? 'case' : 'cases') : `(${list.length})`}
+                </span>
+                {view === 'month' && (
+                  <button
+                    onClick={() => toggleDayExpand(d)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 20,
+                      height: 20,
+                      color: 'var(--text)',
+                      opacity: 0.7,
+                      transition: 'opacity 0.2s ease, transform 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.opacity = '1';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.opacity = '0.7';
+                    }}
+                    title={isExpanded ? 'Collapse' : 'Expand'}
+                  >
+                    <span style={{
+                      fontSize: 14,
+                      transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s ease',
+                    }}>
+                      ▼
+                    </span>
+                  </button>
+                )}
+              </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {list.map((en) => (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: view === 'month' ? 8 : 6,
+              flex: 1,
+              overflowY: view === 'month' ? 'auto' : 'visible',
+            }}>
+              {list.map((en) => {
+                const isOperated = (en.status || 'tentative') === 'operated';
+                const isConfirmed = isOperated || (en.status || 'tentative') === 'confirmed';
+                const cardBg = view === 'month'
+                  ? (isOperated ? '#DCFCE7' : isConfirmed ? '#E6F4EA' : '#FEF3C7')
+                  : 'var(--surface-2)';
+                const borderColor = view === 'month'
+                  ? (isOperated ? '#16a34a' : isConfirmed ? '#84cc16' : '#F59E0B')
+                  : 'var(--border)';
+                const statusColor = isOperated ? '#047857' : isConfirmed ? '#65a30d' : '#b45309';
+
+                // Compact vs expanded layout
+                const showCompactLayout = view === 'month' && !isExpanded;
+
+                return (
                 <div key={en.id}
                      draggable={false}
                      style={{
-                       border: '1px solid var(--border)',
+                       border: `${view === 'month' ? '1.5px' : '1px'} solid ${borderColor}`,
                        borderRadius: 6,
-                       padding: '6px 8px',
-                       background: 'var(--surface-2)',
-                       fontSize: 13
-                     }}>
+                       padding: view === 'month' ? (showCompactLayout ? '6px 8px' : 10) : '6px 8px',
+                       background: cardBg,
+                       fontSize: view === 'month' ? 12 : 13,
+                       transition: 'transform 0.15s ease, box-shadow 0.15s ease, padding 0.3s ease',
+                     }}
+                     onMouseEnter={(e) => {
+                       if (view === 'month') {
+                         e.currentTarget.style.transform = 'scale(1.02)';
+                         e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+                       }
+                     }}
+                     onMouseLeave={(e) => {
+                       if (view === 'month') {
+                         e.currentTarget.style.transform = 'scale(1)';
+                         e.currentTarget.style.boxShadow = '0 0 0 transparent';
+                       }
+                     }}
+                     >
                   {(() => {
                     const item = itemById ? itemById[en.waitingListItemId] : undefined;
                     const start = en.startTime;
                     const end = en.endTime;
                     const time = `${start}–${end}`;
                     const dur = durationLabel(start, end);
+
+                    // Compact layout: minimal info
+                    if (showCompactLayout) {
+                      return (
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 4 }}>
+                            <strong style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{start}</strong>
+                            <span style={{ fontSize: 10, opacity: 0.6, fontStyle: 'italic' }}>{dur}</span>
+                          </div>
+                          <div style={{
+                            fontSize: 11,
+                            fontWeight: 500,
+                            marginTop: 2,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}>
+                            {item?.patientName ?? 'Patient'}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // Expanded layout: full details
                     return (
                       <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                          <strong style={{ fontSize: 12 }}>{time}</strong>
-                          <span style={{ opacity: 0.6 }}>{dur}</span>
-                        </div>
-                        <div style={{ marginTop: 2 }}>
-                          <div style={{ fontWeight: 600 }}>{item?.patientName ?? 'Patient'}</div>
-                          <div style={{ opacity: 0.8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item?.procedure ?? 'Scheduled case'}</div>
-                          <div style={{ fontSize: 12, opacity: 0.7 }}>Surgeon: {en.surgeonId}</div>
+                        {view === 'month' && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6, gap: 8 }}>
+                            <strong style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{time}</strong>
+                            <span style={{
+                              fontSize: 10,
+                              fontWeight: 600,
+                              padding: '2px 6px',
+                              borderRadius: 3,
+                              background: statusColor,
+                              color: 'white',
+                              textTransform: 'capitalize',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              {en.status || 'tentative'}
+                            </span>
+                          </div>
+                        )}
+                        {view !== 'month' && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                            <strong style={{ fontSize: 12 }}>{time}</strong>
+                            <span style={{ opacity: 0.6 }}>{dur}</span>
+                          </div>
+                        )}
+                        <div style={{ marginTop: view === 'month' ? 4 : 2 }}>
+                          <div style={{ fontWeight: view === 'month' ? 700 : 600, fontSize: view === 'month' ? 13 : 12 }}>{item?.patientName ?? 'Patient'}</div>
+                          <div style={{
+                            opacity: view === 'month' ? 0.85 : 0.8,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            fontSize: view === 'month' ? 11 : 12,
+                            marginBottom: view === 'month' ? 4 : 0,
+                          }}>
+                            {item?.procedure ?? 'Scheduled case'}
+                          </div>
+                          <div style={{ fontSize: view === 'month' ? 11 : 12, opacity: view === 'month' ? 0.75 : 0.7 }}>
+                            <strong>OR {en.roomId}</strong>
+                            {' · '}
+                            Surgeon: {en.surgeonId}
+                          </div>
                         </div>
                         {canEdit && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap', width: '100%' }}>
-                            {(() => {
-                              const isOperated = (en.status || 'tentative') === 'operated';
-                              const isConfirmed = isOperated || (en.status || 'tentative') === 'confirmed';
-                              return (
-                                <>
-                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-                                    <input
-                                      type="checkbox"
-                                      checked={isConfirmed}
-                                      disabled={isOperated}
-                                      onChange={(e) => onToggleConfirm?.(en.id, e.target.checked)}
-                                    />
-                                    Confirmed
-                                  </label>
-                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-                                    <input
-                                      type="checkbox"
-                                      checked={isOperated}
-                                      disabled={!isConfirmed && !isOperated}
-                                      onChange={(e) => onToggleOperated?.(en.id, e.target.checked)}
-                                    />
-                                    Operated
-                                  </label>
-                                </>
-                              );
-                            })()}
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            marginTop: view === 'month' ? 8 : 6,
+                            flexWrap: 'wrap',
+                            width: '100%',
+                            ...(view === 'month' ? { paddingTop: 8, borderTop: '1px solid rgba(0,0,0,0.05)' } : {}),
+                          }}>
+                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+                              <input
+                                type="checkbox"
+                                checked={isConfirmed}
+                                disabled={isOperated}
+                                onChange={(e) => onToggleConfirm?.(en.id, e.target.checked)}
+                              />
+                              <span>Confirmed</span>
+                            </label>
+                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+                              <input
+                                type="checkbox"
+                                checked={isOperated}
+                                disabled={!isConfirmed && !isOperated}
+                                onChange={(e) => onToggleOperated?.(en.id, e.target.checked)}
+                              />
+                              <span>Operated</span>
+                            </label>
                             {onRemoveEntry && (
                               <button
                                 onClick={() => onRemoveEntry(en.id)}
-                                style={{ fontSize: 12, marginLeft: 'auto' }}
+                                style={{ fontSize: 11, marginLeft: 'auto', padding: '4px 8px' }}
                               >
                                 Remove
                               </button>
@@ -136,7 +344,8 @@ export function CompactCalendar(props: {
                     );
                   })()}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         );
