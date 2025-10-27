@@ -12,7 +12,7 @@ import { CategoryPref } from './categoryPrefs';
 import { supabase } from '../supabase/client';
 import { isGuest, disableGuest, GUEST_EVENT } from '../auth/guest';
 import { useAppUserProfile } from '../auth/useAppUserProfile';
-import { becomeOwner, getMyOwnerProfile, getWorkspaceOwnerProfile, getCurrentAppUser } from '../client/api';
+import { becomeOwner, getMyOwnerProfile, getWorkspaceOwnerProfile, getCurrentAppUser, broadcastWorkspaceSync } from '../client/api';
 import { AwaitingApprovalPage } from './AwaitingApprovalPage';
 import { AccessDeniedPage } from './AccessDeniedPage';
 import { AcceptInvitePage } from './AcceptInvitePage';
@@ -605,13 +605,22 @@ export function App() {
 
       {/* Right Section - User Info & Controls */}
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 'fit-content', marginLeft: 'auto' }}>
-        {/* Sync Button - Forces all pages to refresh */}
+        {/* Sync Button - Forces all pages and workspace members to refresh */}
         <button
           onClick={async () => {
             console.log('[UI] manual sync triggered by user');
-            await triggerGlobalSync();
+            try {
+              // Broadcast to this workspace's members
+              await broadcastWorkspaceSync();
+              // Sync local tabs/windows
+              await triggerGlobalSync();
+            } catch (err) {
+              console.warn('[UI] broadcast sync failed, falling back to local sync:', err);
+              // Fallback to just local sync
+              await triggerGlobalSync();
+            }
           }}
-          title="Sync data across all open pages and windows"
+          title="Sync data across all open pages, windows, and workspace members"
           style={{
             display: 'inline-flex',
             alignItems: 'center',

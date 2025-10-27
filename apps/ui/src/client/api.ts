@@ -720,6 +720,24 @@ export async function softRemoveBacklogItem(id: string): Promise<void> {
   // Don't emit dashboard change - let realtime subscription handle the sync
 }
 
+/**
+ * Broadcast a workspace-wide sync signal to all members
+ * Members will see updates within 1-2 seconds via realtime, or fallback to 15-second refresh
+ */
+export async function broadcastWorkspaceSync(): Promise<void> {
+  if (supabase) {
+    console.log('[broadcastWorkspaceSync] calling RPC to broadcast workspace sync signal');
+    const { data, error } = await (supabase as any).rpc('broadcast_workspace_sync');
+    if (error) {
+      console.warn('[broadcastWorkspaceSync] RPC error:', error);
+      throw error;
+    }
+    console.log('[broadcastWorkspaceSync] ✅ broadcast sent:', data);
+    return;
+  }
+  throw new Error('Supabase not configured');
+}
+
 export async function updateBacklogItem(id: string, patch: Partial<{
   phone1: string | null;
   phone2: string | null;

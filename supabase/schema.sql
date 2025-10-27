@@ -1125,6 +1125,47 @@ $$;
 
 grant execute on function public.fix_member_invited_by() to authenticated;
 
+-- Broadcast workspace-wide sync signal via realtime
+-- This allows the owner (or any member) to force all workspace members to refresh
+-- All workspace members listen to 'workspace-sync' channel and react to this signal
+create or replace function public.broadcast_workspace_sync()
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_workspace_owner uuid;
+begin
+  -- Get the caller's workspace owner
+  v_workspace_owner := public.workspace_owner(auth.uid());
+  
+  -- Only allow members of this workspace to broadcast
+  if v_workspace_owner is null then
+    raise exception 'Not authorized';
+  end if;
+  
+  -- Emit a realtime event that all members can listen to
+  -- The event payload includes the workspace owner id so only relevant members sync
+  perform pg_notify(
+    'workspace-sync',
+    json_build_object(
+      'workspace_owner', v_workspace_owner,
+      'triggered_by', auth.uid(),
+      'timestamp', now()
+    )::text
+  );
+  
+  return json_build_object(
+    'success', true,
+    'workspace_owner', v_workspace_owner,
+    'message', 'Sync signal broadcast to workspace members'
+  );
+end;
+$$;
+
+grant execute on function public.broadcast_workspace_sync() to authenticated;
+
 -- Notes:
 -- - If you want stricter mutations (e.g., only owner can insert schedule), change schedule_insert policy accordingly.
 -- - Backlog rows are now owned by the creator (`created_by`) and RLS restricts non-owners to their own rows.
