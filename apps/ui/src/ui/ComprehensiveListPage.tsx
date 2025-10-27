@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BacklogItem, ScheduleEntry, getBacklog, getSchedule } from '../client/api';
+import { useRealtimeBacklog } from '../hooks/useRealtimeBacklog';
 
 type Row = {
   item: BacklogItem;
@@ -67,6 +68,9 @@ export function ComprehensiveListPage({ reloadKey }: { reloadKey: number }) {
   useEffect(() => {
     refresh();
   }, [refresh, reloadKey]);
+
+  // Real-time sync for comprehensive list
+  useRealtimeBacklog(refresh);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

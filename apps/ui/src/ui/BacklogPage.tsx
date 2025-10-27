@@ -3,7 +3,7 @@ import { getBacklog, BacklogItem, softRemoveBacklogItem } from '../client/api';
 import { classifyProcedure, GROUP_LABELS, GROUP_ORDER, GROUP_COLORS, ProcedureGroupKey } from './procedureGroups';
 import { loadCategoryPrefs, defaultCategoryPrefs, saveCategoryPrefs } from './categoryPrefs';
 import { getContrastText } from './color';
-import { supabase } from '../supabase/client';
+import { useRealtimeBacklog } from '../hooks/useRealtimeBacklog';
 
 export function BacklogPage({
   search = '',
@@ -82,68 +82,17 @@ export function BacklogPage({
     return () => { cancelled = true; };
   }, [reloadKey]);
 
-  // Real-time sync: subscribe to backlog changes to sync between owner and members
-  useEffect(() => {
-    if (!supabase) return;
-
-    let subscription: any;
-    let reloadTimeout: ReturnType<typeof setTimeout>;
-    let lastReloadTime = 0;
-    const DEBOUNCE_MS = 500; // Wait 500ms between reloads to batch changes
-
-    const scheduleReload = async () => {
-      // Clear pending timeout
-      if (reloadTimeout) clearTimeout(reloadTimeout);
-      
-      // Set new debounced reload
-      reloadTimeout = setTimeout(async () => {
-        const now = Date.now();
-        if (now - lastReloadTime < DEBOUNCE_MS) {
-          scheduleReload(); // Reschedule if debounce window not met
-          return;
-        }
-        
-        lastReloadTime = now;
-        try {
-          const data = await getBacklog();
-          setItems(data);
-        } catch (err) {
-          console.warn('[backlog sync] failed to reload:', err);
-          // Retry on error
-          scheduleReload();
-        }
-      }, DEBOUNCE_MS);
-    };
-
+  // Real-time sync: listen for any backlog/schedule changes from any user
+  const handleRealtimeChange = async () => {
     try {
-      subscription = supabase
-        .channel('backlog-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*', // all events: INSERT, UPDATE, DELETE
-            schema: 'public',
-            table: 'backlog',
-          },
-          (payload: any) => {
-            console.log('[backlog realtime] change detected:', payload.eventType);
-            scheduleReload();
-          }
-        )
-        .subscribe((status: string) => {
-          console.log('[backlog realtime] subscription status:', status);
-        });
+      const data = await getBacklog();
+      setItems(data);
     } catch (err) {
-      console.warn('[backlog realtime] subscription failed:', err);
+      console.warn('[backlog sync] failed to reload:', err);
     }
+  };
 
-    return () => {
-      if (reloadTimeout) clearTimeout(reloadTimeout);
-      try {
-        if (subscription && supabase) supabase.removeChannel(subscription);
-      } catch {}
-    };
-  }, []);
+  useRealtimeBacklog(handleRealtimeChange);
 
   // Sidebar category preferences (hidden + color overrides)
   const [prefs, setPrefs] = useState(() => loadCategoryPrefs(defaultCategoryPrefs()));

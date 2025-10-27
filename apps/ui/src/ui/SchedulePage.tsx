@@ -4,6 +4,7 @@ import { SplitPane } from './SplitPane';
 import { CompactCalendar } from './CompactCalendar';
 import { BacklogPage } from './BacklogPage';
 import { useSupabaseAuth } from '../auth/useSupabaseAuth';
+import { useRealtimeBacklog } from '../hooks/useRealtimeBacklog';
 
 const LOCAL_PENDING_OVERRIDE_KEY = 'backlog.pendingOverrides.v1';
 
@@ -115,6 +116,15 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
       setItems(data);
     })();
   }, []);
+
+  // Real-time sync for schedule and backlog
+  useRealtimeBacklog(() => {
+    refreshSchedule();
+    (async () => {
+      const data = await getBacklog();
+      setItems(data);
+    })();
+  });
 
   const itemLookup = useMemo(() => Object.fromEntries(items.map(i => [i.id, i])), [items]);
   const scheduleRef = useRef<ScheduleEntry[]>([]);
