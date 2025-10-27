@@ -422,7 +422,18 @@ export function App() {
         </div>
       );
     }
-    if (!profile) return <AccessDeniedPage />;
+    // Show loading state while profile is loading (prevents flash of AccessDenied)
+    if (profileLoading || !profile) {
+      if (!profile) return <AccessDeniedPage />;
+      return (
+        <div style={{ display: 'grid', placeItems: 'center', minHeight: '70vh' }}>
+          <div>
+            <div style={{ fontSize: 18, marginBottom: 8 }}>Loading your account…</div>
+            <div style={{ fontSize: 13, opacity: 0.7 }}>Please wait while we set up your access.</div>
+          </div>
+        </div>
+      );
+    }
     if (profile.status === 'pending') return <AwaitingApprovalPage />;
     if (profile.status === 'revoked') return <AccessDeniedPage />;
   }

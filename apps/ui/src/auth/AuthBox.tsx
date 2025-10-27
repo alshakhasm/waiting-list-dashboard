@@ -17,8 +17,28 @@ export function AuthBox() {
 
   const signOut = useCallback(async () => {
     if (!supabase) return;
-    try { await (supabase.auth as any).signOut({ scope: 'local' }); } catch {}
-    try { await (supabase.auth as any).signOut(); } catch {}
+    try {
+      // Clear all auth-related localStorage/sessionStorage to ensure clean session
+      try {
+        const keys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.includes('supabase') || key.includes('auth') || key.includes('sb-'))) {
+            keys.push(key);
+          }
+        }
+        keys.forEach(k => localStorage.removeItem(k));
+      } catch {}
+      
+      // Sign out from Supabase
+      try { await (supabase.auth as any).signOut({ scope: 'local' }); } catch {}
+      try { await (supabase.auth as any).signOut(); } catch {}
+      
+      // Force refresh to clear any cached state
+      setTimeout(() => window.location.href = window.location.pathname, 100);
+    } catch (err) {
+      console.error('[AuthBox] Sign out error:', err);
+    }
   }, []);
 
   const baseStyle: React.CSSProperties = {

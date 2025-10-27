@@ -81,6 +81,13 @@ export function SignInPage() {
     setLoading(true);
     try {
       if (!supabase) return;
+      
+      // Sign out any existing session before trying to sign in with new account
+      try {
+        await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+        await supabase.auth.signOut().catch(() => {});
+      } catch {}
+      
       if (isMagic) {
         const { error } = await supabase.auth.signInWithOtp({
           email,
