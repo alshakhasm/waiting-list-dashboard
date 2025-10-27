@@ -1131,23 +1131,29 @@ create table if not exists public.workspace_sync_signals (
   id uuid primary key default gen_random_uuid(),
   workspace_owner uuid not null references public.app_users(user_id) on delete cascade,
   triggered_by uuid not null references public.app_users(user_id) on delete cascade,
-  created_at timestamp with time zone default now(),
-  
-  unique(workspace_owner, created_at)
+  created_at timestamp with time zone default now()
 );
+
+-- Create index for faster lookups and cleanup
+create index if not exists idx_workspace_sync_signals_workspace_owner 
+  on public.workspace_sync_signals(workspace_owner);
+create index if not exists idx_workspace_sync_signals_created_at 
+  on public.workspace_sync_signals(created_at);
 
 alter table public.workspace_sync_signals enable row level security;
 
 -- Everyone in the workspace can read sync signals
+drop policy if exists workspace_sync_signals_read on public.workspace_sync_signals;
 create policy workspace_sync_signals_read on public.workspace_sync_signals
   for select using (
     public.workspace_owner(workspace_owner) = public.workspace_owner(auth.uid())
   );
 
--- Only the workspace can insert sync signals
+-- Anyone in the workspace can insert sync signals
+drop policy if exists workspace_sync_signals_insert on public.workspace_sync_signals;
 create policy workspace_sync_signals_insert on public.workspace_sync_signals
   for insert with check (
-    workspace_owner = public.workspace_owner(auth.uid())
+    public.workspace_owner(workspace_owner) = public.workspace_owner(auth.uid())
   );
 
 -- Auto-cleanup: delete signals older than 5 minutes to keep table clean
