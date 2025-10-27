@@ -32,6 +32,7 @@ import { OwnerSettingsPage } from './OwnerSettingsPage';
 import { AccountSettingsPage } from './AccountSettingsPage';
 import { TabButton } from './TabButton';
 import { BUILD_INFO } from '../buildInfo';
+import { triggerGlobalSync } from '../hooks/useSyncBroadcast';
 
 const THEME_KEY = 'ui-theme';
 
@@ -604,6 +605,38 @@ export function App() {
 
       {/* Right Section - User Info & Controls */}
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 'fit-content', marginLeft: 'auto' }}>
+        {/* Sync Button - Forces all pages to refresh */}
+        <button
+          onClick={() => {
+            console.log('[UI] manual sync triggered by user');
+            triggerGlobalSync();
+          }}
+          title="Sync data across all open pages and windows"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 12,
+            padding: '6px 10px',
+            borderRadius: 6,
+            background: 'var(--surface-2)',
+            color: 'var(--text)',
+            border: '1px solid var(--border)',
+            cursor: 'pointer',
+            fontWeight: 500,
+            whiteSpace: 'nowrap',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'var(--surface-3)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'var(--surface-2)';
+          }}
+        >
+          🔄 Sync
+        </button>
+
         {/* Divider */}
         <div style={{ width: '1px', height: 24, background: 'var(--border)', opacity: 0.5 }} />
 

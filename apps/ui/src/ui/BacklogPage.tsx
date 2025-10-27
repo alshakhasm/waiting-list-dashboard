@@ -4,6 +4,7 @@ import { classifyProcedure, GROUP_LABELS, GROUP_ORDER, GROUP_COLORS, ProcedureGr
 import { loadCategoryPrefs, defaultCategoryPrefs, saveCategoryPrefs } from './categoryPrefs';
 import { getContrastText } from './color';
 import { useRealtimeBacklog } from '../hooks/useRealtimeBacklog';
+import { useSyncBroadcast } from '../hooks/useSyncBroadcast';
 
 export function BacklogPage({
   search = '',
@@ -93,6 +94,9 @@ export function BacklogPage({
   };
 
   useRealtimeBacklog(handleRealtimeChange);
+
+  // Listen for manual sync broadcasts from UI button
+  useSyncBroadcast(handleRealtimeChange);
 
   // Sidebar category preferences (hidden + color overrides)
   const [prefs, setPrefs] = useState(() => loadCategoryPrefs(defaultCategoryPrefs()));

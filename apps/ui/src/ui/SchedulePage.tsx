@@ -5,6 +5,7 @@ import { CompactCalendar } from './CompactCalendar';
 import { BacklogPage } from './BacklogPage';
 import { useSupabaseAuth } from '../auth/useSupabaseAuth';
 import { useRealtimeBacklog } from '../hooks/useRealtimeBacklog';
+import { useSyncBroadcast } from '../hooks/useSyncBroadcast';
 
 const LOCAL_PENDING_OVERRIDE_KEY = 'backlog.pendingOverrides.v1';
 
@@ -119,6 +120,15 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
 
   // Real-time sync for schedule and backlog
   useRealtimeBacklog(() => {
+    refreshSchedule();
+    (async () => {
+      const data = await getBacklog();
+      setItems(data);
+    })();
+  });
+
+  // Listen for manual sync broadcasts from UI button
+  useSyncBroadcast(() => {
     refreshSchedule();
     (async () => {
       const data = await getBacklog();
