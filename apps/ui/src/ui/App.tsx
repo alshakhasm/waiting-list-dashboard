@@ -566,7 +566,6 @@ export function App() {
                 <div style={{ fontSize: 10, opacity: 0.65, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, paddingLeft: 4 }}>🔐 Admin</div>
                 <button onClick={() => setTab('members')} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 13, borderRadius: 4, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', transition: 'background 0.15s' }} onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-2)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>Members</button>
                 <button onClick={() => setTab('intake-links')} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 13, borderRadius: 4, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', transition: 'background 0.15s' }} onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-2)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>Intake Links</button>
-                <button onClick={() => setTab('owner-settings')} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 13, borderRadius: 4, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', transition: 'background 0.15s' }} onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-2)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>Owner Settings</button>
                 
                 {/* Customization Section */}
                 <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '8px 0', opacity: 0.5 }} />
@@ -610,9 +609,30 @@ export function App() {
 
         {/* User Info */}
         {profile?.role === 'owner' && ownerName && (
-          <span title="Owner" style={{ fontSize: 14, padding: '6px 12px', borderRadius: 6, background: 'var(--primary)', color: 'var(--primary-contrast)', fontWeight: 700, minWidth: 'fit-content', letterSpacing: '0.3px' }}>
+          <button
+            onClick={() => setTab('owner-settings')}
+            title="Click to edit owner settings"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 14,
+              padding: '8px 12px',
+              borderRadius: 6,
+              background: tab === 'owner-settings' ? 'var(--primary)' : 'var(--primary)',
+              color: tab === 'owner-settings' ? 'var(--primary-contrast)' : 'var(--primary-contrast)',
+              border: '1px solid var(--primary)',
+              cursor: 'pointer',
+              fontWeight: 700,
+              minWidth: 'fit-content',
+              letterSpacing: '0.3px',
+              transition: 'all 0.2s',
+              boxShadow: tab === 'owner-settings' ? 'inset 0 0 0 2px var(--border)' : 'none'
+            }}
+          >
             {ownerName}
-          </span>
+            <span style={{ fontSize: 14, fontWeight: 700 }}>›</span>
+          </button>
         )}
         {profile?.role !== 'owner' && ownerName && memberName && (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
