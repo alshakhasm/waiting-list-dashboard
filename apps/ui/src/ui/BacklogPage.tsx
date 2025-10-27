@@ -3,6 +3,7 @@ import { getBacklog, BacklogItem, softRemoveBacklogItem } from '../client/api';
 import { classifyProcedure, GROUP_LABELS, GROUP_ORDER, GROUP_COLORS, ProcedureGroupKey } from './procedureGroups';
 import { loadCategoryPrefs, defaultCategoryPrefs, saveCategoryPrefs } from './categoryPrefs';
 import { getContrastText } from './color';
+import { supabase } from '../supabase/client';
 
 export function BacklogPage({
   search = '',
@@ -80,6 +81,43 @@ export function BacklogPage({
     })();
     return () => { cancelled = true; };
   }, [reloadKey]);
+
+  // Real-time sync: subscribe to backlog changes to sync between owner and members
+  useEffect(() => {
+    if (!supabase) return;
+
+    let subscription: any;
+    try {
+      subscription = supabase
+        .channel('backlog-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*', // all events: INSERT, UPDATE, DELETE
+            schema: 'public',
+            table: 'backlog',
+          },
+          async (payload: any) => {
+            // Reload the entire backlog when any change is detected
+            try {
+              const data = await getBacklog();
+              setItems(data);
+            } catch (err) {
+              console.warn('[backlog sync] failed to reload:', err);
+            }
+          }
+        )
+        .subscribe();
+    } catch (err) {
+      console.warn('[backlog realtime] subscription failed:', err);
+    }
+
+    return () => {
+      try {
+        if (subscription && supabase) supabase.removeChannel(subscription);
+      } catch {}
+    };
+  }, []);
 
   // Sidebar category preferences (hidden + color overrides)
   const [prefs, setPrefs] = useState(() => loadCategoryPrefs(defaultCategoryPrefs()));
