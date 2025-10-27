@@ -491,10 +491,13 @@ export function BacklogPage({
                             style={{
                               background: 'transparent', border: 'none', padding: 0, margin: 0,
                               width: 24, height: 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                              cursor: 'pointer', opacity: 0.7,
+                              cursor: 'pointer', opacity: 0.6, color: 'var(--text)',
+                              transition: 'opacity 0.2s',
                             }}
+                            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; }}
                           >
-                            <span aria-hidden="true" style={{ lineHeight: '1', fontSize: 16 }}>⋮</span>
+                            <span aria-hidden="true" style={{ lineHeight: '1', fontSize: 18, fontWeight: 'bold' }}>⋮</span>
                           </button>
                           {openMenuId === i.id && (
                             <div role="menu" style={{ position: 'absolute', top: 6, right: 6, zIndex: 20, background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 6, boxShadow: '0 4px 10px var(--shadow)' }}>
