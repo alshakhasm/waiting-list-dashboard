@@ -1058,7 +1058,7 @@ begin
     v_p1,
     v_p2,
     nullif(p_notes, ''),
-    v_uid
+    public.workspace_owner(v_uid)  -- Set owner as the creator, not the member
   ) returning id into v_id;
 
   return v_id;
