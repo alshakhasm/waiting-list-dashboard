@@ -195,8 +195,12 @@ export async function getBacklog(params?: { caseTypeId?: string; surgeonId?: str
         data = res.data as any[];
         error = res.error;
         if (!error) HAS_BACKLOG_IS_REMOVED = true;
+        if (error) {
+          console.error('[getBacklog] Supabase error:', error);
+        }
       } catch (e: any) {
         error = e;
+        console.error('[getBacklog] Exception:', e);
       }
       // If column missing, retry without filter
       if (error && /column\s+backlog\.is_removed\s+does not exist/i.test(String(error.message || ''))) {
