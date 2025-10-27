@@ -679,8 +679,10 @@ export async function softRemoveBacklogItem(id: string): Promise<void> {
   if (supabase) {
     // Try RPC first for proper permission checks and realtime sync
     if (HAS_BACKLOG_IS_REMOVED !== false) {
+      console.log('[softRemoveBacklogItem] calling RPC backlog_set_removed with id:', id);
       const { error } = await (supabase as any).rpc('backlog_set_removed', { p_id: id, p_removed: true });
       if (error) {
+        console.warn('[softRemoveBacklogItem] RPC error:', error);
         if (/column\s+backlog\.is_removed\s+does not exist|function.*backlog_set_removed|function_not_found/i.test(String(error.message || ''))) {
           HAS_BACKLOG_IS_REMOVED = false;
         } else {
@@ -688,6 +690,7 @@ export async function softRemoveBacklogItem(id: string): Promise<void> {
           throw error;
         }
       } else {
+        console.log('[softRemoveBacklogItem] RPC succeeded for id:', id);
         HAS_BACKLOG_IS_REMOVED = true;
         rememberSoftRemovedId(id);
         emitDashboardChange();
@@ -695,9 +698,11 @@ export async function softRemoveBacklogItem(id: string): Promise<void> {
       }
     }
     // Fallback path: mark removal in notes
+    console.log('[softRemoveBacklogItem] falling back to notes marker for id:', id);
     const marker = `removed@${new Date().toISOString()}`;
     const { error: e2 } = await (supabase as any).from('backlog').update({ notes: marker }).eq('id', id);
     if (e2) {
+      console.warn('[softRemoveBacklogItem] fallback error:', e2);
       rememberSoftRemovedId(id);
       throw e2;
     }
