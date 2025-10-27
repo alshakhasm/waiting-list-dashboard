@@ -693,7 +693,7 @@ export async function softRemoveBacklogItem(id: string): Promise<void> {
         console.log('[softRemoveBacklogItem] RPC succeeded for id:', id);
         HAS_BACKLOG_IS_REMOVED = true;
         rememberSoftRemovedId(id);
-        emitDashboardChange();
+        // Don't emit dashboard change - let realtime subscription handle the sync
         return;
       }
     }
@@ -707,7 +707,7 @@ export async function softRemoveBacklogItem(id: string): Promise<void> {
       throw e2;
     }
     rememberSoftRemovedId(id);
-    emitDashboardChange();
+    // Don't emit dashboard change - let realtime subscription handle the sync
     return;
   }
   const handleRequest = await getHandleRequest();
@@ -717,7 +717,7 @@ export async function softRemoveBacklogItem(id: string): Promise<void> {
     throw new Error((res.body && (res.body as any).error) || 'Failed to remove backlog item');
   }
   rememberSoftRemovedId(id);
-  emitDashboardChange();
+  // Don't emit dashboard change - let realtime subscription handle the sync
 }
 
 export async function updateBacklogItem(id: string, patch: Partial<{
