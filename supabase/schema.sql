@@ -1061,6 +1061,46 @@ $$;
 
 grant execute on function public.submit_backlog_user(text, text, text, text, text, text, text, text, integer, text) to authenticated;
 
+-- Helper function to fix members without invited_by set (usually happens with old members created before this field existed)
+create or replace function public.fix_member_invited_by()
+returns table(user_id uuid, email text, role text, status text, old_invited_by uuid, new_invited_by uuid)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_owner_id uuid;
+  v_updated int;
+begin
+  -- Get the owner (should only be one per workspace)
+  select user_id into v_owner_id from public.app_users where role = 'owner' and status = 'approved' limit 1;
+  
+  if v_owner_id is null then
+    raise exception 'No approved owner found in workspace';
+  end if;
+
+  -- Update members with NULL invited_by to point to the owner
+  update public.app_users
+  set invited_by = v_owner_id
+  where role in ('member', 'editor', 'viewer')
+    and invited_by is null
+    and user_id != v_owner_id;
+
+  get diagnostics v_updated = row_count;
+  
+  -- Return the updated records
+  return query
+  select au.user_id, au.email, au.role, au.status, null::uuid, v_owner_id
+  from public.app_users au
+  where au.role in ('member', 'editor', 'viewer')
+    and au.invited_by = v_owner_id
+    and au.user_id != v_owner_id
+  limit v_updated;
+end;
+$$;
+
+grant execute on function public.fix_member_invited_by() to authenticated;
+
 -- Notes:
 -- - If you want stricter mutations (e.g., only owner can insert schedule), change schedule_insert policy accordingly.
 -- - Backlog rows are now owned by the creator (`created_by`) and RLS restricts non-owners to their own rows.
