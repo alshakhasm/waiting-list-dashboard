@@ -1073,7 +1073,7 @@ declare
   v_updated int;
 begin
   -- Get the owner (should only be one per workspace)
-  select user_id into v_owner_id from public.app_users where role = 'owner' and status = 'approved' limit 1;
+  select au.user_id into v_owner_id from public.app_users au where au.role = 'owner' and au.status = 'approved' limit 1;
   
   if v_owner_id is null then
     raise exception 'No approved owner found in workspace';
