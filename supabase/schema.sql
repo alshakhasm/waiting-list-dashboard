@@ -168,6 +168,7 @@ DECLARE
   v_inv record;
   v_uid uuid := auth.uid();
   v_email text;
+  v_full_name text;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'not authenticated';
@@ -190,9 +191,10 @@ BEGIN
     IF lower(v_email) <> lower(v_inv.email) THEN
       RAISE EXCEPTION 'email mismatch for invitation (expected %)', v_inv.email;
     END IF;
-    INSERT INTO public.app_users (user_id, email, role, status, invited_by, created_at)
-    VALUES (v_uid, v_email, coalesce(v_inv.invited_role, 'member'), 'approved', v_inv.invited_by, now())
-    ON CONFLICT (user_id) DO UPDATE SET email = EXCLUDED.email, role = coalesce(v_inv.invited_role, 'member'), invited_by = EXCLUDED.invited_by;
+    v_full_name := (auth.jwt() ->> 'user_metadata')::jsonb ->> 'full_name';
+    INSERT INTO public.app_users (user_id, email, full_name, role, status, invited_by, created_at)
+    VALUES (v_uid, v_email, v_full_name, coalesce(v_inv.invited_role, 'member'), 'approved', v_inv.invited_by, now())
+    ON CONFLICT (user_id) DO UPDATE SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, role = coalesce(v_inv.invited_role, 'member'), invited_by = EXCLUDED.invited_by;
     RETURN;
   END IF;
   -- Look up the email for the current auth user
@@ -214,9 +216,10 @@ BEGIN
     RAISE EXCEPTION 'email mismatch for invitation (expected %)', v_inv.email;
   END IF;
   -- Upsert app_users as approved member
-  INSERT INTO public.app_users (user_id, email, role, status, invited_by, created_at)
-  VALUES (v_uid, v_email, coalesce(v_inv.invited_role, 'member'), 'approved', v_inv.invited_by, now())
-  ON CONFLICT (user_id) DO UPDATE SET email = EXCLUDED.email, role = coalesce(v_inv.invited_role, 'member'), invited_by = EXCLUDED.invited_by;
+  v_full_name := (auth.jwt() ->> 'user_metadata')::jsonb ->> 'full_name';
+  INSERT INTO public.app_users (user_id, email, full_name, role, status, invited_by, created_at)
+  VALUES (v_uid, v_email, v_full_name, coalesce(v_inv.invited_role, 'member'), 'approved', v_inv.invited_by, now())
+  ON CONFLICT (user_id) DO UPDATE SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, role = coalesce(v_inv.invited_role, 'member'), invited_by = EXCLUDED.invited_by;
 
   -- Mark invitation accepted
   UPDATE public.invitations
@@ -326,6 +329,7 @@ create table if not exists schedule (
 create table if not exists app_users (
   user_id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
+  full_name text,
   role text not null check (role in ('owner','member','viewer','editor')),
   status text not null check (status in ('approved','pending','revoked')),
   invited_by uuid,

@@ -787,6 +787,7 @@ export async function deleteSchedule(id: string): Promise<void> {
 export type AppUser = {
   userId: string;
   email: string;
+  fullName?: string | null;
   role: 'owner' | 'member' | 'viewer' | 'editor';
   status: 'approved' | 'pending' | 'revoked';
   invitedBy?: string | null;
@@ -816,6 +817,7 @@ export async function getCurrentAppUser(): Promise<AppUser | null> {
   return {
     userId: r.user_id,
     email: r.email,
+    fullName: r.full_name,
     role: r.role,
     status: r.status,
     invitedBy: r.invited_by,
@@ -1137,6 +1139,78 @@ export async function getMyOwnerProfile(): Promise<OwnerProfile | null> {
     if (!raw) return null;
     return JSON.parse(raw) as OwnerProfile;
   } catch {
+    return null;
+  }
+}
+
+export async function getWorkspaceOwnerProfile(): Promise<OwnerProfile | null> {
+  if (!supabase) return null;
+  try {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth.user?.id;
+    if (!uid) return null;
+    
+    // Get current user's app_users record to find their owner
+    const { data: appUser, error: appUserError } = await supabase
+      .from('app_users')
+      .select('invited_by, role')
+      .eq('user_id', uid)
+      .maybeSingle();
+    
+    if (appUserError) throw appUserError;
+    if (!appUser) return null;
+    
+    const au = appUser as any;
+    
+    // If user is owner, get their own profile
+    if (au.role === 'owner') {
+      const { data, error } = await supabase
+        .from('owner_profiles')
+        .select('*')
+        .eq('user_id', uid)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const r: any = data as any;
+      return {
+        userId: r.user_id,
+        fullName: r.full_name,
+        workspaceName: r.workspace_name,
+        orgName: r.org_name || undefined,
+        phone: r.phone || undefined,
+        timezone: r.timezone || undefined,
+        locale: r.locale || undefined,
+        createdAt: r.created_at || undefined,
+        updatedAt: r.updated_at || undefined,
+      } as OwnerProfile;
+    }
+    
+    // If user is member, get owner's profile using invited_by
+    if (au.invited_by) {
+      const { data, error } = await supabase
+        .from('owner_profiles')
+        .select('*')
+        .eq('user_id', au.invited_by)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const r: any = data as any;
+      return {
+        userId: r.user_id,
+        fullName: r.full_name,
+        workspaceName: r.workspace_name,
+        orgName: r.org_name || undefined,
+        phone: r.phone || undefined,
+        timezone: r.timezone || undefined,
+        locale: r.locale || undefined,
+        createdAt: r.created_at || undefined,
+        updatedAt: r.updated_at || undefined,
+      } as OwnerProfile;
+    }
+    
+    return null;
+  } catch (error) {
+    console.warn('[getWorkspaceOwnerProfile] error:', error);
     return null;
   }
 }

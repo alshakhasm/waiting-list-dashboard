@@ -12,7 +12,7 @@ import { CategoryPref } from './categoryPrefs';
 import { supabase } from '../supabase/client';
 import { isGuest, disableGuest, GUEST_EVENT } from '../auth/guest';
 import { useAppUserProfile } from '../auth/useAppUserProfile';
-import { becomeOwner, getMyOwnerProfile } from '../client/api';
+import { becomeOwner, getMyOwnerProfile, getWorkspaceOwnerProfile, getCurrentAppUser } from '../client/api';
 import { AwaitingApprovalPage } from './AwaitingApprovalPage';
 import { AccessDeniedPage } from './AccessDeniedPage';
 import { AcceptInvitePage } from './AcceptInvitePage';
@@ -142,6 +142,7 @@ export function App() {
   const { loading: profileLoading, profile, error: profileError } = useAppUserProfile();
   const [ownerAction, setOwnerAction] = useState<{ pending: boolean; msg: string | null }>({ pending: false, msg: null });
   const [ownerName, setOwnerName] = useState<string>('');
+  const [memberName, setMemberName] = useState<string>('');
   // React to external changes to guest mode (e.g., SignInPage action)
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -282,20 +283,58 @@ export function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Load owner profile name for header indicator
+  // Load owner profile name for header indicator (for all users, not just owners)
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        if (profile?.role !== 'owner') { setOwnerName(''); return; }
-        const p = await getMyOwnerProfile();
-        if (!cancelled) setOwnerName(p?.fullName || user?.email || '');
+        // Get workspace owner profile (works for both owners and members)
+        const p = await getWorkspaceOwnerProfile();
+        if (!cancelled) setOwnerName(p?.fullName || '');
       } catch {
         if (!cancelled) setOwnerName(user?.email || '');
       }
     })();
     return () => { cancelled = true; };
   }, [profile?.role, user?.email]);
+
+  // Load member/current user name for header display
+  useEffect(() => {
+    if (supabase && user?.id) {
+      // Try to get full name from database first
+      (async () => {
+        try {
+          const appUser = await getCurrentAppUser();
+          if (appUser?.fullName) {
+            setMemberName(appUser.fullName);
+            return;
+          }
+        } catch {}
+        
+        // Fallback: try auth user's user_metadata
+        try {
+          const { data, error } = await supabase.auth.getUser();
+          if (!error && data.user) {
+            const fullName = (data.user.user_metadata as any)?.full_name || (data.user.user_metadata as any)?.name || '';
+            if (fullName) {
+              setMemberName(fullName);
+              return;
+            }
+          }
+        } catch {}
+        
+        // Final fallback: use email name (part before @)
+        if (user.email) {
+          const emailName = user.email.split('@')[0];
+          setMemberName(emailName);
+        }
+      })();
+    } else if (user?.email) {
+      // Fallback: use email name (part before @)
+      const emailName = user.email.split('@')[0];
+      setMemberName(emailName);
+    }
+  }, [user?.email, user?.id]);
 
   // Do not auto-switch tabs; restricted tabs will render an AccessDenied page for non-owners
 
@@ -572,6 +611,22 @@ export function App() {
         {profile?.role === 'owner' && ownerName && (
           <span title="Owner" style={{ fontSize: 14, padding: '6px 12px', borderRadius: 6, background: 'var(--primary)', color: 'var(--primary-contrast)', fontWeight: 700, minWidth: 'fit-content', letterSpacing: '0.3px' }}>
             {ownerName}
+          </span>
+        )}
+        {profile?.role !== 'owner' && ownerName && memberName && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span title="Workspace Owner" style={{ fontSize: 13, padding: '6px 10px', borderRadius: 6, background: 'var(--surface-2)', color: 'var(--text)', fontWeight: 600, minWidth: 'fit-content', border: '1px solid var(--border)' }}>
+              👤 {ownerName}
+            </span>
+            <div style={{ width: '1px', height: 20, background: 'var(--border)', opacity: 0.3 }} />
+            <span title="Your Account" style={{ fontSize: 13, padding: '6px 10px', borderRadius: 6, background: 'var(--surface-1)', color: 'var(--text)', fontWeight: 500, minWidth: 'fit-content' }}>
+              {memberName}
+            </span>
+          </div>
+        )}
+        {profile?.role !== 'owner' && !ownerName && memberName && (
+          <span style={{ fontSize: 12, padding: '6px 10px', borderRadius: 6, background: 'var(--surface-1)', color: 'var(--text)', minWidth: 'fit-content', opacity: 0.7 }}>
+            {memberName}
           </span>
         )}
         {role && (
