@@ -1080,11 +1080,11 @@ begin
   end if;
 
   -- Update members with NULL invited_by to point to the owner
-  update public.app_users
+  update public.app_users au
   set invited_by = v_owner_id
-  where role in ('member', 'editor', 'viewer')
-    and invited_by is null
-    and user_id != v_owner_id;
+  where au.role in ('member', 'editor', 'viewer')
+    and au.invited_by is null
+    and au.user_id != v_owner_id;
 
   get diagnostics v_updated = row_count;
   
