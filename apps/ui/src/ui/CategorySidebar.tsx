@@ -365,9 +365,9 @@ export function CategorySidebar({
                 <span style={{ flex: 1, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label}</span>
                 <input
                   type="checkbox"
-                  title="Hide category"
-                  aria-label={`Hide ${p.label}`}
-                  checked={p.hidden}
+                  title="Visible (toggle to hide)"
+                  aria-label={`Toggle visibility for ${p.label}`}
+                  checked={!p.hidden}
                   onChange={() => toggleHidden(p.key)}
                   style={{ width: 14, height: 14 }}
                 />
@@ -459,9 +459,9 @@ export function CategorySidebar({
                 <span style={{ flex: 1, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label}</span>
                 <input
                   type="checkbox"
-                  title="Hide category"
-                  aria-label={`Hide ${p.label}`}
-                  checked={p.hidden}
+                  title="Visible (toggle to hide)"
+                  aria-label={`Toggle visibility for ${p.label}`}
+                  checked={!p.hidden}
                   onChange={() => toggleHidden(p.key)}
                   style={{ width: 14, height: 14 }}
                 />
