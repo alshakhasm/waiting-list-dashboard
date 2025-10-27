@@ -1125,9 +1125,50 @@ $$;
 
 grant execute on function public.fix_member_invited_by() to authenticated;
 
--- Broadcast workspace-wide sync signal via realtime
--- This allows the owner (or any member) to force all workspace members to refresh
--- All workspace members listen to 'workspace-sync' channel and react to this signal
+-- Sync signals table for workspace-wide broadcast
+-- When a sync signal is created, all members listen via realtime and refresh
+create table if not exists public.workspace_sync_signals (
+  id uuid primary key default gen_random_uuid(),
+  workspace_owner uuid not null references public.app_users(user_id) on delete cascade,
+  triggered_by uuid not null references public.app_users(user_id) on delete cascade,
+  created_at timestamp with time zone default now(),
+  
+  unique(workspace_owner, created_at)
+);
+
+alter table public.workspace_sync_signals enable row level security;
+
+-- Everyone in the workspace can read sync signals
+create policy workspace_sync_signals_read on public.workspace_sync_signals
+  for select using (
+    public.workspace_owner(workspace_owner) = public.workspace_owner(auth.uid())
+  );
+
+-- Only the workspace can insert sync signals
+create policy workspace_sync_signals_insert on public.workspace_sync_signals
+  for insert with check (
+    workspace_owner = public.workspace_owner(auth.uid())
+  );
+
+-- Auto-cleanup: delete signals older than 5 minutes to keep table clean
+create or replace function public._cleanup_old_sync_signals() returns trigger
+language plpgsql
+as $$
+begin
+  delete from public.workspace_sync_signals
+  where created_at < now() - interval '5 minutes';
+  return new;
+end;
+$$;
+
+drop trigger if exists cleanup_old_sync_signals on public.workspace_sync_signals;
+create trigger cleanup_old_sync_signals
+  after insert on public.workspace_sync_signals
+  for each statement
+  execute function public._cleanup_old_sync_signals();
+
+-- Broadcast workspace-wide sync signal
+-- All members listening to workspace_sync_signals table will see the new row via realtime
 create or replace function public.broadcast_workspace_sync()
 returns json
 language plpgsql
@@ -1136,6 +1177,7 @@ set search_path = public
 as $$
 declare
   v_workspace_owner uuid;
+  v_signal_id uuid;
 begin
   -- Get the caller's workspace owner
   v_workspace_owner := public.workspace_owner(auth.uid());
@@ -1145,19 +1187,14 @@ begin
     raise exception 'Not authorized';
   end if;
   
-  -- Emit a realtime event that all members can listen to
-  -- The event payload includes the workspace owner id so only relevant members sync
-  perform pg_notify(
-    'workspace-sync',
-    json_build_object(
-      'workspace_owner', v_workspace_owner,
-      'triggered_by', auth.uid(),
-      'timestamp', now()
-    )::text
-  );
+  -- Insert a sync signal that all members will see via realtime
+  insert into public.workspace_sync_signals (workspace_owner, triggered_by)
+  values (v_workspace_owner, auth.uid())
+  returning id into v_signal_id;
   
   return json_build_object(
     'success', true,
+    'signal_id', v_signal_id,
     'workspace_owner', v_workspace_owner,
     'message', 'Sync signal broadcast to workspace members'
   );

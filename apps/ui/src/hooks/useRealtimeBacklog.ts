@@ -61,6 +61,18 @@ class RealtimeManager {
             this.notifyListeners();
           }
         )
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'workspace_sync_signals',
+          },
+          (payload: any) => {
+            console.log('[realtime] 🔄 workspace sync signal received:', payload.new);
+            this.notifyListeners();
+          }
+        )
         .subscribe((status: string) => {
           console.log('[realtime] subscription status:', status);
           if (status === 'SUBSCRIBED') {
