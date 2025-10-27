@@ -600,7 +600,25 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_workspace_owner uuid;
+  v_caller_workspace uuid;
 begin
+  -- Get the workspace owner of the backlog item
+  v_workspace_owner := (
+    select public.workspace_owner(created_by)
+    from public.backlog where id = p_id
+  );
+  
+  -- Get the caller's workspace owner
+  v_caller_workspace := public.workspace_owner(auth.uid());
+  
+  -- Only allow removal if the item is in the same workspace
+  if v_workspace_owner != v_caller_workspace then
+    raise exception 'Permission denied: item not in your workspace';
+  end if;
+  
+  -- Perform the soft delete
   update public.backlog
      set is_removed = coalesce(p_removed, false),
          notes = case
