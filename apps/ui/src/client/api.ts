@@ -588,12 +588,12 @@ export async function confirmSchedule(id: string): Promise<void> {
   if (supabase) {
     const { error } = await (supabase as any).from('schedule').update({ status: 'confirmed' }).eq('id', id);
     if (error) throw error;
-    emitDashboardChange();
+    // Don't emit dashboard change - let realtime subscription handle the sync
     return;
   }
   const handleRequest = await getHandleRequest();
   await handleRequest({ method: 'PATCH', path: `/schedule/${id}`, body: { status: 'confirmed' } });
-  emitDashboardChange();
+  // Don't emit dashboard change - let realtime subscription handle the sync
 }
 
 export async function markScheduleOperated(id: string, operated: boolean): Promise<void> {
@@ -616,12 +616,12 @@ export async function markScheduleOperated(id: string, operated: boolean): Promi
         console.warn('[markScheduleOperated] failed to sync backlog removal flag:', e);
       }
     }
-    emitDashboardChange();
+    // Don't emit dashboard change - let realtime subscription handle the sync
     return;
   }
   const handleRequest = await getHandleRequest();
   await handleRequest({ method: 'PATCH', path: `/schedule/${id}`, body: { status: operated ? 'operated' : 'confirmed' } });
-  emitDashboardChange();
+  // Don't emit dashboard change - let realtime subscription handle the sync
 }
 
 export async function updateSchedule(id: string, patch: Partial<{ date: string; startTime: string; endTime: string; roomId: string; surgeonId: string; notes: string; status: string }>): Promise<void> {
@@ -636,12 +636,12 @@ export async function updateSchedule(id: string, patch: Partial<{ date: string; 
     if (patch.status) payload.status = patch.status;
     const { error } = await (supabase as any).from('schedule').update(payload).eq('id', id);
     if (error) throw error;
-    emitDashboardChange();
+    // Don't emit dashboard change - let realtime subscription handle the sync
     return;
   }
   const handleRequest = await getHandleRequest();
   await handleRequest({ method: 'PATCH', path: `/schedule/${id}`, body: patch as any });
-  emitDashboardChange();
+  // Don't emit dashboard change - let realtime subscription handle the sync
 }
 
 export type ArchivedPatient = {
