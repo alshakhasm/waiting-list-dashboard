@@ -620,15 +620,53 @@ export function App() {
               👤 {ownerName}
             </span>
             <div style={{ width: '1px', height: 20, background: 'var(--border)', opacity: 0.3 }} />
-            <span title="Your Account" style={{ fontSize: 13, padding: '6px 10px', borderRadius: 6, background: 'var(--surface-1)', color: 'var(--text)', fontWeight: 500, minWidth: 'fit-content' }}>
+            <button
+              onClick={() => setTab('account-settings')}
+              title="Edit account details"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: 13,
+                padding: '6px 10px',
+                borderRadius: 6,
+                background: tab === 'account-settings' ? 'var(--primary)' : 'var(--surface-1)',
+                color: tab === 'account-settings' ? 'var(--primary-contrast)' : 'var(--text)',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: 500,
+                minWidth: 'fit-content',
+                transition: 'all 0.2s'
+              }}
+            >
               {memberName}
-            </span>
+              <span style={{ fontSize: 12, opacity: 0.7 }}>›</span>
+            </button>
           </div>
         )}
         {profile?.role !== 'owner' && !ownerName && memberName && (
-          <span style={{ fontSize: 12, padding: '6px 10px', borderRadius: 6, background: 'var(--surface-1)', color: 'var(--text)', minWidth: 'fit-content', opacity: 0.7 }}>
+          <button
+            onClick={() => setTab('account-settings')}
+            title="Edit account details"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              fontSize: 12,
+              padding: '6px 10px',
+              borderRadius: 6,
+              background: tab === 'account-settings' ? 'var(--primary)' : 'var(--surface-1)',
+              color: tab === 'account-settings' ? 'var(--primary-contrast)' : 'var(--text)',
+              border: 'none',
+              cursor: 'pointer',
+              minWidth: 'fit-content',
+              opacity: 0.7,
+              transition: 'all 0.2s'
+            }}
+          >
             {memberName}
-          </span>
+            <span style={{ fontSize: 12, opacity: 0.7 }}>›</span>
+          </button>
         )}
         {role && (
           <span style={{ fontSize: 11, padding: '4px 8px', borderRadius: 5, background: 'var(--surface-1)', color: 'var(--text)', opacity: 0.75, minWidth: 'fit-content', fontWeight: 500 }}>
@@ -640,27 +678,6 @@ export function App() {
             🔓 Guest
             <button onClick={() => { disableGuest(); setGuest(false); }} title="Exit guest mode" style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--text)', fontWeight: 600 }}>✕</button>
           </span>
-        )}
-
-        {/* Account Settings for Members */}
-        {profile?.role !== 'owner' && (
-          <button
-            onClick={() => setTab('account-settings')}
-            title="Edit account details"
-            style={{
-              padding: '6px 12px',
-              borderRadius: 6,
-              border: '1px solid var(--border)',
-              background: tab === 'account-settings' ? 'var(--primary)' : 'var(--surface-2)',
-              color: tab === 'account-settings' ? 'var(--primary-contrast)' : 'var(--text)',
-              cursor: 'pointer',
-              fontSize: 12,
-              fontWeight: 500,
-              transition: 'all 0.2s'
-            }}
-          >
-            ⚙️ Account
-          </button>
         )}
 
         {/* Theme & Auth */}
