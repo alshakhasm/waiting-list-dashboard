@@ -677,11 +677,11 @@ export async function getArchivedPatients(params?: { search?: string }): Promise
 
 export async function softRemoveBacklogItem(id: string): Promise<void> {
   if (supabase) {
-    // Try soft-delete flag; fallback to notes marker if column missing
+    // Try RPC first for proper permission checks and realtime sync
     if (HAS_BACKLOG_IS_REMOVED !== false) {
-      const { error } = await (supabase as any).from('backlog').update({ is_removed: true }).eq('id', id);
+      const { error } = await (supabase as any).rpc('backlog_set_removed', { p_id: id, p_removed: true });
       if (error) {
-        if (/column\s+backlog\.is_removed\s+does not exist/i.test(String(error.message || ''))) {
+        if (/column\s+backlog\.is_removed\s+does not exist|function.*backlog_set_removed|function_not_found/i.test(String(error.message || ''))) {
           HAS_BACKLOG_IS_REMOVED = false;
         } else {
           rememberSoftRemovedId(id);

@@ -761,14 +761,14 @@ create policy backlog_read on backlog
     public.workspace_owner(created_by) = public.workspace_owner(auth.uid())
   );
 
--- Insert: allowed to owner or approved writers; inserted row must be owned by caller
+-- Insert: allowed to owner or approved writers; inserted row must be owned by workspace owner
 drop policy if exists backlog_insert on backlog;
 create policy backlog_insert on backlog
   for insert with check (
     (
       exists (select 1 from app_users au where au.user_id = auth.uid() and (au.role = 'owner' or (au.status = 'approved' and au.role in ('member','editor'))))
     )
-    and created_by = auth.uid()
+    and created_by = public.workspace_owner(auth.uid())
   );
 
 -- Update: owners can update all; non-owners can update only their own rows
