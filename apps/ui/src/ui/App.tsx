@@ -622,50 +622,52 @@ export function App() {
             <div style={{ width: '1px', height: 20, background: 'var(--border)', opacity: 0.3 }} />
             <button
               onClick={() => setTab('account-settings')}
-              title="Edit account details"
+              title="Click to edit your account details"
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 4,
+                gap: 6,
                 fontSize: 13,
-                padding: '6px 10px',
+                padding: '8px 12px',
                 borderRadius: 6,
-                background: tab === 'account-settings' ? 'var(--primary)' : 'var(--surface-1)',
-                color: tab === 'account-settings' ? 'var(--primary-contrast)' : 'var(--text)',
-                border: 'none',
+                background: tab === 'account-settings' ? 'var(--primary)' : 'var(--primary)',
+                color: tab === 'account-settings' ? 'var(--primary-contrast)' : 'var(--primary-contrast)',
+                border: '1px solid var(--primary)',
                 cursor: 'pointer',
-                fontWeight: 500,
+                fontWeight: 600,
                 minWidth: 'fit-content',
-                transition: 'all 0.2s'
+                transition: 'all 0.2s',
+                boxShadow: tab === 'account-settings' ? 'inset 0 0 0 2px var(--border)' : 'none'
               }}
             >
               {memberName}
-              <span style={{ fontSize: 12, opacity: 0.7 }}>›</span>
+              <span style={{ fontSize: 14, fontWeight: 700 }}>›</span>
             </button>
           </div>
         )}
         {profile?.role !== 'owner' && !ownerName && memberName && (
           <button
             onClick={() => setTab('account-settings')}
-            title="Edit account details"
+            title="Click to edit your account details"
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 4,
-              fontSize: 12,
-              padding: '6px 10px',
+              gap: 6,
+              fontSize: 13,
+              padding: '8px 12px',
               borderRadius: 6,
-              background: tab === 'account-settings' ? 'var(--primary)' : 'var(--surface-1)',
-              color: tab === 'account-settings' ? 'var(--primary-contrast)' : 'var(--text)',
-              border: 'none',
+              background: 'var(--primary)',
+              color: 'var(--primary-contrast)',
+              border: '1px solid var(--primary)',
               cursor: 'pointer',
+              fontWeight: 600,
               minWidth: 'fit-content',
-              opacity: 0.7,
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              boxShadow: tab === 'account-settings' ? 'inset 0 0 0 2px var(--border)' : 'none'
             }}
           >
             {memberName}
-            <span style={{ fontSize: 12, opacity: 0.7 }}>›</span>
+            <span style={{ fontSize: 14, fontWeight: 700 }}>›</span>
           </button>
         )}
         {role && (
