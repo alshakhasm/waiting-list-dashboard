@@ -315,11 +315,14 @@ export async function createBacklogItem(input: {
         try { console.debug('[createBacklogItem] RPC fallback submit_backlog_user params', { p_category_key: rpcParams.p_category_key }); } catch {}
         const { data: rpcData, error: rpcErr } = await (supabase as any).rpc('submit_backlog_user', rpcParams as any);
         if (rpcErr) throw rpcErr;
+        if (!rpcData) throw new Error('submit_backlog_user RPC returned no data');
         // rpcData may be the returned id or an array/record; normalize to id
         const returnedId = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+        if (!returnedId) throw new Error('submit_backlog_user RPC returned invalid id');
         // Fetch the inserted row by id
         const { data: fetched, error: fetchErr } = await (supabase as any).from('backlog').select('*').eq('id', returnedId).maybeSingle();
         if (fetchErr) throw fetchErr;
+        if (!fetched) throw new Error('Failed to retrieve inserted backlog item');
         const row = fetched;
         const out: BacklogItem = {
           id: row.id,
