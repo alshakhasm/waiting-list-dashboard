@@ -814,10 +814,28 @@ export async function getCurrentAppUser(): Promise<AppUser | null> {
   if (error) throw error;
   if (!data) return null;
   const r: any = data as any;
+  
+  // Get full_name from auth metadata if not in database
+  let fullName = r.full_name;
+  if (!fullName && auth.user) {
+    const authFullName = (auth.user.user_metadata as any)?.full_name || (auth.user.user_metadata as any)?.name;
+    if (authFullName) {
+      fullName = authFullName;
+      // Update database with full_name from auth metadata (fire and forget)
+      (async () => {
+        try {
+          await (supabase as any).from('app_users').update({ full_name: authFullName }).eq('user_id', uid);
+        } catch (err) {
+          console.warn('Could not update full_name:', err);
+        }
+      })();
+    }
+  }
+  
   return {
     userId: r.user_id,
     email: r.email,
-    fullName: r.full_name,
+    fullName: fullName,
     role: r.role,
     status: r.status,
     invitedBy: r.invited_by,
