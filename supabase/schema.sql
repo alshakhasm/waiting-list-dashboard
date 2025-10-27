@@ -301,6 +301,9 @@ do $$ begin
   end if;
 end $$;
 
+-- Enable realtime for backlog table (required for Supabase postgres_changes subscription)
+alter table public.backlog replica identity full;
+
 -- Patients archive: one row per MRN, persists forever (logical archive)
 create table if not exists patients_archive (
   mrn text primary key,
