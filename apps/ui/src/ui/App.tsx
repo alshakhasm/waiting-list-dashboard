@@ -463,8 +463,7 @@ export function App() {
       );
     }
     // Show loading state while profile is loading (prevents flash of AccessDenied)
-    if (profileLoading || !profile) {
-      if (!profile) return <AccessDeniedPage />;
+    if (profileLoading) {
       return (
         <div style={{ display: 'grid', placeItems: 'center', minHeight: '70vh' }}>
           <div>
@@ -474,6 +473,7 @@ export function App() {
         </div>
       );
     }
+    if (!profile) return <AccessDeniedPage />;
     if (profile.status === 'pending') return <AwaitingApprovalPage />;
     if (profile.status === 'revoked') return <AccessDeniedPage />;
   }
