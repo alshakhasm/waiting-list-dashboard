@@ -3,6 +3,7 @@ import { BacklogItem, createSchedule, getBacklog, softRemoveBacklogItem } from '
 import { GROUP_LABELS, ProcedureGroupKey, classifyProcedure, GROUP_ORDER } from './procedureGroups';
 import { loadCategoryPrefs, defaultCategoryPrefs } from './categoryPrefs';
 import { CardRollerCard } from './CardRollerCard';
+import { useRealtimeBacklog } from '../hooks/useRealtimeBacklog';
 
 export function CardRollerPage() {
   // Require category selection; show a selector at top.
@@ -39,6 +40,12 @@ export function CardRollerPage() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // Real-time sync for card roller
+  useRealtimeBacklog(async () => {
+    const data = await getBacklog();
+    setItems(data);
+  });
 
   // Prefer built-ins only for selection; hide hidden categories
   const prefs = useMemo(() => loadCategoryPrefs(defaultCategoryPrefs()), []);
