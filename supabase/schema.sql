@@ -816,6 +816,17 @@ create policy schedule_update_owner on schedule
     and public.workspace_owner((select b.created_by from public.backlog b where b.id = schedule.waiting_list_item_id)) = public.workspace_owner(auth.uid())
   );
 
+-- Allow editors and members to update schedule status (confirm/operated)
+drop policy if exists schedule_update_approved on schedule;
+create policy schedule_update_approved on schedule
+  for update using (
+    exists (select 1 from app_users au where au.user_id = auth.uid() and au.status = 'approved' and au.role in ('editor', 'member'))
+    and public.workspace_owner((select b.created_by from public.backlog b where b.id = schedule.waiting_list_item_id)) = public.workspace_owner(auth.uid())
+  ) with check (
+    exists (select 1 from app_users au where au.user_id = auth.uid() and au.status = 'approved' and au.role in ('editor', 'member'))
+    and public.workspace_owner((select b.created_by from public.backlog b where b.id = schedule.waiting_list_item_id)) = public.workspace_owner(auth.uid())
+  );
+
 drop policy if exists schedule_delete_owner on schedule;
 create policy schedule_delete_owner on schedule
   for delete using (
