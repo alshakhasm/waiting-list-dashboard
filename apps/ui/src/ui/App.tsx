@@ -607,9 +607,9 @@ export function App() {
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 'fit-content', marginLeft: 'auto' }}>
         {/* Sync Button - Forces all pages to refresh */}
         <button
-          onClick={() => {
+          onClick={async () => {
             console.log('[UI] manual sync triggered by user');
-            triggerGlobalSync();
+            await triggerGlobalSync();
           }}
           title="Sync data across all open pages and windows"
           style={{
