@@ -1000,16 +1000,18 @@ declare
   v_p1 text;
   v_p2 text;
   v_surgeon text;
+  v_uid uuid;
 begin
   -- Require authenticated call
-  if auth.uid() is null then
+  v_uid := auth.uid();
+  if v_uid is null then
     raise exception 'not authenticated';
   end if;
 
   -- Ensure the caller is allowed to write (owner or approved member/editor)
   if not exists (
     select 1 from public.app_users au
-    where au.user_id = auth.uid()
+    where au.user_id = v_uid
       and (
         au.role = 'owner'
         or (au.status = 'approved' and au.role in ('member','editor'))
@@ -1037,7 +1039,7 @@ begin
   insert into public.backlog (
     patient_name, mrn, masked_mrn, procedure,
     category_key, est_duration_min, surgeon_id, case_type_id,
-    phone1, phone2, notes
+    phone1, phone2, notes, created_by
   ) values (
     trim(p_patient_name),
     v_mrn,
@@ -1049,7 +1051,8 @@ begin
     coalesce(p_case_type_id, 'case:elective'),
     v_p1,
     v_p2,
-    nullif(p_notes, '')
+    nullif(p_notes, ''),
+    v_uid
   ) returning id into v_id;
 
   return v_id;
