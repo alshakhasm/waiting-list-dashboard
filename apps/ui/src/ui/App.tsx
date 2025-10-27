@@ -29,6 +29,7 @@ import { IntakeLinksPage } from './IntakeLinksPage';
 import { MappingProfilesPage } from './MappingProfilesPage';
 import { CardRollerPage } from './CardRollerPage';
 import { OwnerSettingsPage } from './OwnerSettingsPage';
+import { AccountSettingsPage } from './AccountSettingsPage';
 import { TabButton } from './TabButton';
 import { BUILD_INFO } from '../buildInfo';
 
@@ -37,10 +38,10 @@ const THEME_KEY = 'ui-theme';
 type ThemeMode = 'auto' | 'default' | 'warm' | 'high-contrast' | 'dark';
 
 export function App() {
-  type Tab = 'backlog' | 'schedule' | 'monthly' | 'dummy' | 'mappings' | 'operated' | 'list' | 'archive' | 'members' | 'intake-links' | 'roller' | 'owner-settings';
+  type Tab = 'backlog' | 'schedule' | 'monthly' | 'dummy' | 'mappings' | 'operated' | 'list' | 'archive' | 'members' | 'intake-links' | 'roller' | 'owner-settings' | 'account-settings';
   const TAB_KEY = 'ui-last-tab';
   const isTab = (v: any): v is Tab => (
-    v === 'backlog' || v === 'schedule' || v === 'mappings' || v === 'operated' || v === 'list' || v === 'archive' || v === 'members' || v === 'intake-links' || v === 'roller' || v === 'owner-settings'
+    v === 'backlog' || v === 'schedule' || v === 'mappings' || v === 'operated' || v === 'list' || v === 'archive' || v === 'members' || v === 'intake-links' || v === 'roller' || v === 'owner-settings' || v === 'account-settings'
   );
   // Backlog label can be overridden via env (build-time) or localStorage (runtime)
   const ENV_BACKLOG_LABEL = (import.meta as any)?.env?.VITE_BACKLOG_TAB_LABEL as string | undefined;
@@ -650,6 +651,27 @@ export function App() {
           </span>
         )}
 
+        {/* Account Settings for Members */}
+        {profile?.role !== 'owner' && (
+          <button
+            onClick={() => setTab('account-settings')}
+            title="Edit account details"
+            style={{
+              padding: '6px 12px',
+              borderRadius: 6,
+              border: '1px solid var(--border)',
+              background: tab === 'account-settings' ? 'var(--primary)' : 'var(--surface-2)',
+              color: tab === 'account-settings' ? 'var(--primary-contrast)' : 'var(--text)',
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 500,
+              transition: 'all 0.2s'
+            }}
+          >
+            ⚙️ Account
+          </button>
+        )}
+
         {/* Theme & Auth */}
         <ThemeToggle theme={theme} onChange={(t) => setTheme(t)} />
         <AuthBox />
@@ -657,7 +679,7 @@ export function App() {
     </header>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: (tab === 'schedule' && scheduleFull) || tab === 'operated' || tab === 'roller' || tab === 'owner-settings' || tab === 'monthly' ? '1fr' : (sidebarOpen ? 'auto 1fr' : '1fr'),
+        gridTemplateColumns: (tab === 'schedule' && scheduleFull) || tab === 'operated' || tab === 'roller' || tab === 'owner-settings' || tab === 'account-settings' || tab === 'monthly' ? '1fr' : (sidebarOpen ? 'auto 1fr' : '1fr'),
         gap: 0,
   padding: 12,
         // Ensure the content area (including sidebar) fills the viewport below the header
@@ -692,6 +714,7 @@ export function App() {
           {tab === 'list' && <ComprehensiveListPage reloadKey={backlogReloadKey} />}
           {tab === 'archive' && <ArchivePage reloadKey={backlogReloadKey} />}
           {tab === 'owner-settings' && <OwnerSettingsPage />}
+          {tab === 'account-settings' && <AccountSettingsPage />}
         </div>
       </div>
       {/* Build footer */}
