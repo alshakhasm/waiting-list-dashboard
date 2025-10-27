@@ -87,6 +87,34 @@ export function BacklogPage({
     if (!supabase) return;
 
     let subscription: any;
+    let reloadTimeout: ReturnType<typeof setTimeout>;
+    let lastReloadTime = 0;
+    const DEBOUNCE_MS = 500; // Wait 500ms between reloads to batch changes
+
+    const scheduleReload = async () => {
+      // Clear pending timeout
+      if (reloadTimeout) clearTimeout(reloadTimeout);
+      
+      // Set new debounced reload
+      reloadTimeout = setTimeout(async () => {
+        const now = Date.now();
+        if (now - lastReloadTime < DEBOUNCE_MS) {
+          scheduleReload(); // Reschedule if debounce window not met
+          return;
+        }
+        
+        lastReloadTime = now;
+        try {
+          const data = await getBacklog();
+          setItems(data);
+        } catch (err) {
+          console.warn('[backlog sync] failed to reload:', err);
+          // Retry on error
+          scheduleReload();
+        }
+      }, DEBOUNCE_MS);
+    };
+
     try {
       subscription = supabase
         .channel('backlog-changes')
@@ -97,22 +125,20 @@ export function BacklogPage({
             schema: 'public',
             table: 'backlog',
           },
-          async (payload: any) => {
-            // Reload the entire backlog when any change is detected
-            try {
-              const data = await getBacklog();
-              setItems(data);
-            } catch (err) {
-              console.warn('[backlog sync] failed to reload:', err);
-            }
+          (payload: any) => {
+            console.log('[backlog realtime] change detected:', payload.eventType);
+            scheduleReload();
           }
         )
-        .subscribe();
+        .subscribe((status: string) => {
+          console.log('[backlog realtime] subscription status:', status);
+        });
     } catch (err) {
       console.warn('[backlog realtime] subscription failed:', err);
     }
 
     return () => {
+      if (reloadTimeout) clearTimeout(reloadTimeout);
       try {
         if (subscription && supabase) supabase.removeChannel(subscription);
       } catch {}
