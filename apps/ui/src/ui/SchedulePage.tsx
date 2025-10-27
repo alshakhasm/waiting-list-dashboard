@@ -119,22 +119,26 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
   }, []);
 
   // Real-time sync for schedule and backlog
-  useRealtimeBacklog(() => {
-    refreshSchedule();
-    (async () => {
-      const data = await getBacklog();
-      setItems(data);
-    })();
-  });
+  const handleScheduleSync = async () => {
+    await refreshSchedule();
+    const data = await getBacklog();
+    setItems(data);
+  };
+
+  useRealtimeBacklog(handleScheduleSync);
 
   // Listen for manual sync broadcasts from UI button
-  useSyncBroadcast(() => {
-    refreshSchedule();
-    (async () => {
-      const data = await getBacklog();
-      setItems(data);
-    })();
-  });
+  useSyncBroadcast(handleScheduleSync);
+
+  // Fallback: auto-refresh every 15 seconds (handles cases where realtime fails)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('[schedule] auto-refresh interval triggered');
+      handleScheduleSync();
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [refreshSchedule]);
 
   const itemLookup = useMemo(() => Object.fromEntries(items.map(i => [i.id, i])), [items]);
   const scheduleRef = useRef<ScheduleEntry[]>([]);

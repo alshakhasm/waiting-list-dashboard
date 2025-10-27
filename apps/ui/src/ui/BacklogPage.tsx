@@ -98,6 +98,16 @@ export function BacklogPage({
   // Listen for manual sync broadcasts from UI button
   useSyncBroadcast(handleRealtimeChange);
 
+  // Fallback: auto-refresh every 15 seconds to ensure sync (handles cases where realtime fails)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('[backlog] auto-refresh interval triggered');
+      handleRealtimeChange();
+    }, 15000); // 15 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Sidebar category preferences (hidden + color overrides)
   const [prefs, setPrefs] = useState(() => loadCategoryPrefs(defaultCategoryPrefs()));
   const hiddenKeys = useMemo(() => new Set(prefs.filter((p) => p.hidden).map((p) => p.key)), [prefs]);
