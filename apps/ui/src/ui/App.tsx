@@ -306,36 +306,27 @@ export function App() {
       (async () => {
         try {
           const appUser = await getCurrentAppUser();
-          console.log('📋 currentAppUser:', appUser);
           if (appUser?.fullName) {
-            console.log('✅ Setting memberName from DB:', appUser.fullName);
             setMemberName(appUser.fullName);
             return;
           }
-        } catch (err) {
-          console.error('❌ Error fetching currentAppUser:', err);
-        }
+        } catch {}
         
         // Fallback: try auth user's user_metadata
         try {
           const { data, error } = await supabase.auth.getUser();
           if (!error && data.user) {
             const fullName = (data.user.user_metadata as any)?.full_name || (data.user.user_metadata as any)?.name || '';
-            console.log('🔐 Auth metadata full_name:', fullName);
             if (fullName) {
-              console.log('✅ Setting memberName from auth metadata:', fullName);
               setMemberName(fullName);
               return;
             }
           }
-        } catch (err) {
-          console.error('❌ Error fetching auth user:', err);
-        }
+        } catch {}
         
         // Final fallback: use email name (part before @)
         if (user.email) {
           const emailName = user.email.split('@')[0];
-          console.log('⚠️ Falling back to email prefix:', emailName);
           setMemberName(emailName);
         }
       })();
