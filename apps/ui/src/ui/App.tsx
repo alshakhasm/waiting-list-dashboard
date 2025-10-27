@@ -12,7 +12,7 @@ import { CategoryPref } from './categoryPrefs';
 import { supabase } from '../supabase/client';
 import { isGuest, disableGuest, GUEST_EVENT } from '../auth/guest';
 import { useAppUserProfile } from '../auth/useAppUserProfile';
-import { becomeOwner, getMyOwnerProfile, getWorkspaceOwnerProfile, getCurrentAppUser, broadcastWorkspaceSync } from '../client/api';
+import { becomeOwner, getMyOwnerProfile, getWorkspaceOwnerProfile, getCurrentAppUser } from '../client/api';
 import { AwaitingApprovalPage } from './AwaitingApprovalPage';
 import { AccessDeniedPage } from './AccessDeniedPage';
 import { AcceptInvitePage } from './AcceptInvitePage';
@@ -32,7 +32,6 @@ import { OwnerSettingsPage } from './OwnerSettingsPage';
 import { AccountSettingsPage } from './AccountSettingsPage';
 import { TabButton } from './TabButton';
 import { BUILD_INFO } from '../buildInfo';
-import { triggerGlobalSync } from '../hooks/useSyncBroadcast';
 
 const THEME_KEY = 'ui-theme';
 
@@ -605,50 +604,6 @@ export function App() {
 
       {/* Right Section - User Info & Controls */}
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 'fit-content', marginLeft: 'auto' }}>
-        {/* Sync Button - Forces all pages and workspace members to refresh */}
-        <button
-          onClick={async () => {
-            console.log('[UI] manual sync triggered by user');
-            try {
-              // Broadcast to this workspace's members
-              await broadcastWorkspaceSync();
-              // Sync local tabs/windows
-              await triggerGlobalSync();
-            } catch (err) {
-              console.warn('[UI] broadcast sync failed, falling back to local sync:', err);
-              // Fallback to just local sync
-              await triggerGlobalSync();
-            }
-          }}
-          title="Sync data across all open pages, windows, and workspace members"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 12,
-            padding: '6px 10px',
-            borderRadius: 6,
-            background: 'var(--surface-2)',
-            color: 'var(--text)',
-            border: '1px solid var(--border)',
-            cursor: 'pointer',
-            fontWeight: 500,
-            whiteSpace: 'nowrap',
-            transition: 'all 0.2s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--surface-3)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'var(--surface-2)';
-          }}
-        >
-          🔄 Sync
-        </button>
-
-        {/* Divider */}
-        <div style={{ width: '1px', height: 24, background: 'var(--border)', opacity: 0.5 }} />
-
         {/* User Info */}
         {profile?.role === 'owner' && ownerName && (
           <button
