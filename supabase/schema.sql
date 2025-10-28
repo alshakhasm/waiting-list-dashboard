@@ -1220,7 +1220,14 @@ $$;
 
 grant execute on function public.broadcast_workspace_sync() to authenticated;
 
+-- Add entry_date column to backlog if it doesn't exist
+-- entry_date: when the case was entered into the system (can be past/future)
+-- Defaults to now() but can be set to any date for historical/retroactive entries
+alter table public.backlog add column if not exists entry_date timestamp with time zone default now();
+create index if not exists idx_backlog_entry_date on public.backlog(entry_date desc);
+
 -- Notes:
+-- - entry_date allows retroactive case entry (e.g., entering a case from last week)
 -- - If you want stricter mutations (e.g., only owner can insert schedule), change schedule_insert policy accordingly.
 -- - Backlog rows are now owned by the creator (`created_by`) and RLS restricts non-owners to their own rows.
 -- - The app bootstraps the first signed-in user as owner when app_users is empty.

@@ -157,6 +157,7 @@ export type BacklogItem = {
   phone1?: string;
   phone2?: string;
   preferredDate?: string; // YYYY-MM-DD
+  entryDate?: string; // ISO timestamp - when case was entered (can be past for retroactive entry)
   notes?: string;
   isRemoved?: boolean;
   createdAt?: string;
@@ -241,6 +242,7 @@ export async function getBacklog(params?: { caseTypeId?: string; surgeonId?: str
       phone1: r.phone1 || undefined,
       phone2: r.phone2 || undefined,
       preferredDate: r.preferred_date || undefined,
+      entryDate: r.entry_date || undefined,
         notes: r.notes || undefined,
         // Consider row removed if boolean flag is true, or (fallback) notes starts with our marker
         isRemoved: Boolean(r.is_removed) || (typeof r.notes === 'string' && /^removed@/i.test(r.notes)),
@@ -266,6 +268,7 @@ export async function createBacklogItem(input: {
   phone1?: string;
   phone2?: string;
   preferredDate?: string; // YYYY-MM-DD
+  entryDate?: string; // YYYY-MM-DD - when case was entered (can be past for retroactive entry)
   notes?: string;
 }): Promise<BacklogItem> {
   if (!supabase) throw new Error('Supabase not configured');
@@ -294,6 +297,7 @@ export async function createBacklogItem(input: {
     phone1: normalizePhone(input.phone1) ?? null,
     phone2: normalizePhone(input.phone2) ?? null,
     preferred_date: input.preferredDate ?? null,
+    entry_date: input.entryDate ? new Date(input.entryDate).toISOString() : new Date().toISOString(),
     notes: input.notes ?? null,
   };
   const { data, error } = await (supabase as any).from('backlog').insert(payload).select('*').single();
@@ -341,6 +345,7 @@ export async function createBacklogItem(input: {
           phone1: row.phone1 || undefined,
           phone2: row.phone2 || undefined,
           preferredDate: row.preferred_date || undefined,
+          entryDate: row.entry_date || undefined,
           notes: row.notes || undefined,
           isRemoved: row.is_removed || false,
         };
@@ -365,6 +370,7 @@ export async function createBacklogItem(input: {
     phone1: data.phone1 || undefined,
     phone2: data.phone2 || undefined,
     preferredDate: data.preferred_date || undefined,
+    entryDate: data.entry_date || undefined,
     notes: data.notes || undefined,
     isRemoved: data.is_removed || false,
   };

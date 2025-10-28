@@ -34,6 +34,10 @@ export function CategorySidebar({
   const [caseErr, setCaseErr] = useState<string | null>(null);
   const [caseTypeId, setCaseTypeId] = useState<'case:elective' | 'case:urgent' | 'case:emergency'>('case:elective');
   const [categoryKey, setCategoryKey] = useState<string>('dental');
+  const [caseEntryDate, setCaseEntryDate] = useState<string>(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0]; // YYYY-MM-DD
+  });
 
   const presetColors = useMemo(() => {
     const base = defaultCategoryPrefs().map((p) => p.color);
@@ -265,6 +269,10 @@ export function CategorySidebar({
             <input placeholder="MRN (digits only)" value={caseMrn} onChange={(e) => setCaseMrn(e.target.value.replace(/\\D+/g, ''))} style={{ height: 28, padding: '4px 8px', fontSize: 13 }} />
             <input placeholder="Procedure" value={caseProc} onChange={(e) => setCaseProc(e.target.value)} style={{ height: 28, padding: '4px 8px', fontSize: 13 }} />
             <label style={{ display: 'grid', gap: 4 }}>
+              <span style={{ fontSize: 11, opacity: 0.7 }}>Entry Date</span>
+              <input type="date" value={caseEntryDate} onChange={(e) => setCaseEntryDate(e.target.value)} style={{ height: 28, padding: '4px 8px', fontSize: 13 }} />
+            </label>
+            <label style={{ display: 'grid', gap: 4 }}>
               <span style={{ fontSize: 11, opacity: 0.7 }}>Priority</span>
               <select value={caseTypeId} onChange={(e) => setCaseTypeId(e.target.value as any)} style={{ height: 28, padding: '4px 6px', fontSize: 13 }}>
                 <option value="case:elective">Elective</option>
@@ -303,6 +311,7 @@ export function CategorySidebar({
                     estDurationMin: Math.max(0, caseMinutes),
                     caseTypeId,
                     categoryKey,
+                    entryDate: caseEntryDate,
                   });
                   // Success: inform console which categoryKey we attempted to save
                   try { console.debug('[CategorySidebar] createBacklogItem succeeded, requested categoryKey:', categoryKey); } catch {}
@@ -312,6 +321,7 @@ export function CategorySidebar({
                   setCaseMinutes(60);
                   setCaseTypeId('case:elective');
                   setCategoryKey('dental');
+                  setCaseEntryDate(new Date().toISOString().split('T')[0]);
                   onAddedCase?.();
                 } catch (e: any) {
                   const msg = e?.message || String(e);
