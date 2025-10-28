@@ -24,8 +24,8 @@ export function useAppUserProfile(): AppUserState {
     }
     // Timeout fallback to avoid indefinite loading in case of network hiccups
     const timeout = setTimeout(() => {
-      if (!cancelled) {
-        setState((s) => s.loading ? { loading: false, profile: null, error: 'Timed out while contacting the database. Please refresh or try Sign in again.' } : s);
+      if (!cancelled && state.loading) {
+        setState((s) => s.loading ? { loading: false, profile: null, error: 'Connection timeout. Please refresh the page.' } : s);
       }
     }, 20000);
     async function run() {

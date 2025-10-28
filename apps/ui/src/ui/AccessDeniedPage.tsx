@@ -38,8 +38,9 @@ export function AccessDeniedPage() {
     <div style={{ display: 'grid', placeItems: 'center', minHeight: '70vh', padding: 24 }}>
       <div style={{ maxWidth: 520 }}>
         <h1>Access denied</h1>
-        <p style={{ opacity: 0.85 }}>Your account is signed in, but no access record was found. If this is your first time, you can create your own owner workspace now.</p>
-        <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center' }}>
+        <p style={{ opacity: 0.85 }}>Your account is signed in, but no access record was found. This sometimes happens if you just signed up - try refreshing the page first. If this persists, you can create your own owner workspace now.</p>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button onClick={() => window.location.reload()} disabled={busy}>Refresh page</button>
           <button onClick={doBecomeOwner} disabled={busy}>{busy ? 'Creating access…' : 'Become owner now'}</button>
           <button onClick={() => { const u = new URL(window.location.href); u.searchParams.set('signin','1'); window.location.href = u.toString(); }} disabled={busy}>Go to Sign in</button>
           <button onClick={doSignOut} disabled={busy}>Sign out</button>
