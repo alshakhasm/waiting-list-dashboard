@@ -511,7 +511,7 @@ export function BacklogPage({
                       <div style={{ opacity: 0.9 }}>{i.procedure}</div>
                       <div style={{ opacity: 0.8, fontSize: 12 }}>{i.estDurationMin} min</div>
                       {i.entryDate && (
-                        <div style={{ opacity: 0.7, fontSize: 12 }}>Entered: {new Date(i.entryDate).toLocaleDateString()}</div>
+                        <div style={{ opacity: 0.7, fontSize: 12 }}>{new Date(i.entryDate).toLocaleDateString()}</div>
                       )}
                       {isPending && (
                         <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>

@@ -313,6 +313,7 @@ export async function createBacklogItem(input: {
           p_phone1: payload.phone1,
           p_phone2: payload.phone2,
           p_notes: payload.notes,
+          p_entry_date: payload.entry_date,
           // ensure we send a trimmed non-empty string or null so server preserves legitimate custom keys
           p_category_key: (typeof payload.category_key === 'string' && payload.category_key.trim() !== '') ? payload.category_key.trim() : null,
           p_case_type_id: payload.case_type_id,
