@@ -523,7 +523,7 @@ export function BacklogPage({
                       {(() => {
                         const p = getPriorityInfo(i.caseTypeId);
                         return (
-                          <div style={{ display: 'inline-block', padding: '2px 6px', borderRadius: 4, backgroundColor: p.bgColor, color: p.color, fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+                          <div style={{ display: 'inline-block', padding: '1px 4px', borderRadius: 3, backgroundColor: p.bgColor, color: p.color, fontSize: 10, fontWeight: 600 }}>
                             {p.label}
                           </div>
                         );
