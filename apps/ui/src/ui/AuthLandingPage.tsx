@@ -174,7 +174,7 @@ export function AuthLandingPage() {
           </h1>
         </header>
         <p style={{ margin: 0, opacity: 0.72, textAlign: 'center', fontSize: 15 }}>
-          Pick the path that fits your role to get started quickly.
+          Waiting list and surgery booking solution made for you.
         </p>
         <div style={actionRow}>
           <button
