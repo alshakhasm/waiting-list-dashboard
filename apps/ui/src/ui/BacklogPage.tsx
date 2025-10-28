@@ -528,11 +528,13 @@ export function BacklogPage({
                           </div>
                         );
                       })()}
-                      <div style={{ opacity: 0.9 }}>{i.procedure}</div>
-                      <div style={{ opacity: 0.8, fontSize: 12 }}>{i.estDurationMin} min</div>
-                      {i.entryDate && (
-                        <div style={{ opacity: 0.7, fontSize: 12 }}>{new Date(i.entryDate).toLocaleDateString()}</div>
-                      )}
+                      <div style={{ opacity: 0.9, marginTop: 2 }}>{i.procedure}</div>
+                      <div style={{ display: 'flex', gap: 12, fontSize: 12, opacity: 0.8, marginTop: 2 }}>
+                        <span>{i.estDurationMin} min</span>
+                        {i.entryDate && (
+                          <span style={{ opacity: 0.7 }}>{new Date(i.entryDate).toLocaleDateString()}</span>
+                        )}
+                      </div>
                       {isPending && (
                         <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                           {canConfirm ? (
