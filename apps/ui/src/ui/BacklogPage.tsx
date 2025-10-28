@@ -6,6 +6,18 @@ import { getContrastText } from './color';
 import { useRealtimeBacklog } from '../hooks/useRealtimeBacklog';
 import { useSyncBroadcast } from '../hooks/useSyncBroadcast';
 
+function getPriorityInfo(caseTypeId?: string): { label: string; color: string; bgColor: string } {
+  switch (caseTypeId) {
+    case 'case:emergency':
+      return { label: 'Emergency', color: '#fff', bgColor: '#dc2626' };
+    case 'case:urgent':
+      return { label: 'Urgent', color: '#fff', bgColor: '#ea580c' };
+    case 'case:elective':
+    default:
+      return { label: 'Elective', color: '#000', bgColor: '#d1d5db' };
+  }
+}
+
 export function BacklogPage({
   search = '',
   onSelect,
@@ -508,6 +520,14 @@ export function BacklogPage({
                           )}
                         </div>
                       </div>
+                      {(() => {
+                        const p = getPriorityInfo(i.caseTypeId);
+                        return (
+                          <div style={{ display: 'inline-block', padding: '2px 6px', borderRadius: 4, backgroundColor: p.bgColor, color: p.color, fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+                            {p.label}
+                          </div>
+                        );
+                      })()}
                       <div style={{ opacity: 0.9 }}>{i.procedure}</div>
                       <div style={{ opacity: 0.8, fontSize: 12 }}>{i.estDurationMin} min</div>
                       {i.entryDate && (
