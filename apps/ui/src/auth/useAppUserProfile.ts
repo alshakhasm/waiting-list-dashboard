@@ -15,6 +15,10 @@ export function useAppUserProfile(): AppUserState {
     let cancelled = false;
     let running = false;
     let channel: any = null;
+    let retryCount = 0;
+    const MAX_RETRIES = 1;
+    const TIMEOUT_MS = 10000; // 10 seconds
+    
     // Simple promise timeout wrapper so any single call can't block the whole flow
     function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
       return Promise.race([
@@ -22,17 +26,23 @@ export function useAppUserProfile(): AppUserState {
         new Promise<T>((_r, reject) => setTimeout(() => reject(new Error(`${label} timed out`)), ms))
       ]) as Promise<T>;
     }
+    
     // Timeout fallback to avoid indefinite loading in case of network hiccups
-    const timeout = setTimeout(() => {
-      if (!cancelled && state.loading) {
-        setState((s) => s.loading ? { loading: false, profile: null, error: 'Connection timeout. Please refresh the page.' } : s);
-      }
-    }, 20000);
+    const timeoutRef = { id: 0 };
+    function setGlobalTimeout() {
+      timeoutRef.id = window.setTimeout(() => {
+        if (!cancelled && state.loading) {
+          setState((s) => s.loading ? { loading: false, profile: null, error: 'Connection timeout. Please refresh the page.' } : s);
+        }
+      }, TIMEOUT_MS * (retryCount + 1) + 1000) as any;
+    }
+    setGlobalTimeout();
+    
     async function run() {
       if (running) { return; }
       running = true;
       try {
-        console.log('[profile] start');
+        console.log('[profile] start (attempt', retryCount + 1, ')');
         if (!supabase) {
           setState({ loading: false, profile: { userId: 'guest', email: 'guest@example.com', role: 'owner', status: 'approved' }, error: null });
           return;
@@ -99,6 +109,7 @@ export function useAppUserProfile(): AppUserState {
         if (cancelled) return;
         console.log('[profile] loaded:', profile);
         setState({ loading: false, profile, error: null });
+        retryCount = 0; // Reset on success
 
         // Subscribe to realtime changes for this user's app_users row to auto-refresh role/status
         try {
@@ -125,6 +136,19 @@ export function useAppUserProfile(): AppUserState {
       } catch (err: any) {
         if (cancelled) return;
         console.error('[profile] error:', err);
+        
+        // Auto-retry once on timeout
+        if (retryCount < MAX_RETRIES && err?.message?.includes('timed out')) {
+          console.log('[profile] retrying after timeout...');
+          retryCount++;
+          running = false;
+          // Clear the old timeout and set a new one for the retry
+          clearTimeout(timeoutRef.id);
+          setGlobalTimeout();
+          run();
+          return;
+        }
+        
         setState({ loading: false, profile: null, error: err?.message || String(err) });
       }
       finally {
@@ -137,13 +161,19 @@ export function useAppUserProfile(): AppUserState {
       // Opportunistic refresh when tab is focused again
       run();
     }
-    if (typeof window !== 'undefined') window.addEventListener('visibilitychange', onFocus);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('visibilitychange', onFocus);
+      window.addEventListener('focus', onFocus);
+    }
     return () => {
       cancelled = true;
-      clearTimeout(timeout);
+      clearTimeout(timeoutRef.id);
       sub?.subscription?.unsubscribe();
       try { channel?.unsubscribe?.(); } catch {}
-      if (typeof window !== 'undefined') window.removeEventListener('visibilitychange', onFocus);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('visibilitychange', onFocus);
+        window.removeEventListener('focus', onFocus);
+      }
     };
   }, []);
 
