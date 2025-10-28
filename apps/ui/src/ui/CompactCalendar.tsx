@@ -385,6 +385,11 @@ export function CompactCalendar(props: {
                           }}>
                             {item?.procedure ?? 'Scheduled case'}
                           </div>
+                          {item?.entryDate && (
+                            <div style={{ fontSize: 10, opacity: view === 'month' ? 0.65 : 0.6, marginBottom: 4 }}>
+                              Entered: {new Date(item.entryDate).toLocaleDateString()}
+                            </div>
+                          )}
                           <div style={{ fontSize: view === 'month' ? 11 : 12, opacity: view === 'month' ? 0.75 : 0.7 }}>
                             <strong>OR {en.roomId}</strong>
                             {' · '}
