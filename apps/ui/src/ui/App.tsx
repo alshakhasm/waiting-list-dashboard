@@ -4,6 +4,7 @@ import { SchedulePage } from './SchedulePage';
 import { MonthlySchedulePage } from './MonthlySchedulePage';
 import { DummyCasePage } from './DummyCasePage';
 import { OperatedTablePage } from './OperatedTablePage';
+import { AnalyticsPage } from './AnalyticsPage';
 import { ThemeToggle } from './ThemeToggle';
 import { AuthBox } from '../auth/AuthBox';
 import { useSupabaseAuth } from '../auth/useSupabaseAuth';
@@ -38,10 +39,10 @@ const THEME_KEY = 'ui-theme';
 type ThemeMode = 'auto' | 'default' | 'warm' | 'high-contrast' | 'dark';
 
 export function App() {
-  type Tab = 'backlog' | 'schedule' | 'monthly' | 'dummy' | 'mappings' | 'operated' | 'list' | 'archive' | 'members' | 'intake-links' | 'roller' | 'owner-settings' | 'account-settings';
+  type Tab = 'backlog' | 'schedule' | 'monthly' | 'dummy' | 'mappings' | 'operated' | 'list' | 'archive' | 'members' | 'analytics' | 'intake-links' | 'roller' | 'owner-settings' | 'account-settings';
   const TAB_KEY = 'ui-last-tab';
   const isTab = (v: any): v is Tab => (
-    v === 'backlog' || v === 'schedule' || v === 'mappings' || v === 'operated' || v === 'list' || v === 'archive' || v === 'members' || v === 'intake-links' || v === 'roller' || v === 'owner-settings' || v === 'account-settings'
+    v === 'backlog' || v === 'schedule' || v === 'mappings' || v === 'operated' || v === 'list' || v === 'archive' || v === 'members' || v === 'analytics' || v === 'intake-links' || v === 'roller' || v === 'owner-settings' || v === 'account-settings'
   );
   
   // Helper to get URL params from both query string and hash
@@ -581,6 +582,7 @@ export function App() {
                 <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '8px 0', opacity: 0.5 }} />
                 <div style={{ fontSize: 10, opacity: 0.65, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, paddingLeft: 4 }}>🔐 Admin</div>
                 <button onClick={() => setTab('members')} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 13, borderRadius: 4, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', transition: 'background 0.15s' }} onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-2)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>Members</button>
+                <button onClick={() => setTab('analytics')} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 13, borderRadius: 4, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', transition: 'background 0.15s' }} onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-2)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>Analytics</button>
                 <button onClick={() => setTab('intake-links')} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 13, borderRadius: 4, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', transition: 'background 0.15s' }} onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-2)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>Intake Links</button>
                 
                 {/* Customization Section */}
@@ -753,6 +755,7 @@ export function App() {
           {tab === 'mappings' && <MappingProfilesPage />}
           {tab === 'operated' && <OperatedTablePage />}
           {tab === 'members' && (profile?.role === 'owner' ? <MembersPage /> : <AccessDeniedPage />)}
+          {tab === 'analytics' && (profile?.role === 'owner' ? <AnalyticsPage /> : <AccessDeniedPage />)}
           {tab === 'intake-links' && (profile?.role === 'owner' ? <IntakeLinksPage /> : <AccessDeniedPage />)}
           {tab === 'list' && <ComprehensiveListPage reloadKey={backlogReloadKey} />}
           {tab === 'archive' && <ArchivePage reloadKey={backlogReloadKey} />}
