@@ -955,6 +955,14 @@ begin
     values (p_token, 'rejected', 'invalid or inactive token');
     raise exception 'invalid or inactive token';
   end if;
+  
+  -- Ensure the link has an owner
+  if v_link.created_by is null then
+    insert into public.intake_submissions (token, link_id, status, error_message)
+    values (p_token, v_link.id, 'rejected', 'intake link has no owner');
+    raise exception 'intake link has no owner';
+  end if;
+  
   -- Normalize inputs
   v_mrn := nullif(regexp_replace(coalesce(p_mrn,''), '\\D', '', 'g'), '');
   v_p1 := nullif(regexp_replace(coalesce(p_phone1,''), '\\D', '', 'g'), '');
@@ -983,7 +991,7 @@ begin
   insert into public.backlog (
     patient_name, mrn, masked_mrn, procedure,
     category_key, est_duration_min, surgeon_id, case_type_id,
-    phone1, phone2, notes
+    phone1, phone2, notes, created_by
   ) values (
     trim(p_patient_name),
     v_mrn,
@@ -995,7 +1003,8 @@ begin
     coalesce(p_case_type_id, v_link.default_case_type_id, 'case:elective'),
     v_p1,
     v_p2,
-    nullif(p_notes, '')
+    nullif(p_notes, ''),
+    v_link.created_by
   ) returning id into v_id;
 
   insert into public.intake_submissions (
