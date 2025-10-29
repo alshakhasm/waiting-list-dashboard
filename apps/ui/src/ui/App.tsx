@@ -43,6 +43,25 @@ export function App() {
   const isTab = (v: any): v is Tab => (
     v === 'backlog' || v === 'schedule' || v === 'mappings' || v === 'operated' || v === 'list' || v === 'archive' || v === 'members' || v === 'intake-links' || v === 'roller' || v === 'owner-settings' || v === 'account-settings'
   );
+  
+  // Helper to get URL params from both query string and hash
+  const getUrlParam = (key: string): string | null => {
+    if (typeof window === 'undefined') return null;
+    const url = new URL(window.location.href);
+    // First check query params
+    let val = url.searchParams.get(key);
+    if (val) return val;
+    // Then check hash-based params (e.g., #/?intake=1&token=...)
+    if (url.hash) {
+      try {
+        const hashUrl = new URL(url.hash.replace(/^#/, ''), url.origin);
+        val = hashUrl.searchParams.get(key);
+        if (val) return val;
+      } catch {}
+    }
+    return null;
+  };
+  
   // Backlog label can be overridden via env (build-time) or localStorage (runtime)
   const ENV_BACKLOG_LABEL = (import.meta as any)?.env?.VITE_BACKLOG_TAB_LABEL as string | undefined;
   // App title can be overridden via env or localStorage
@@ -362,30 +381,27 @@ export function App() {
   // If Supabase is configured and user is not signed in, show the sign-in page unless in guest mode.
   if (supabase && !user && !guest) {
     // Show landing first; it will route to sign-in, owner create, or accept invite
-    const url = new URL(window.location.href);
     // Dedicated reset password page (linked from email), flagged by ?reset=1
-    if (url.searchParams.get('reset') === '1') return <ResetPasswordPage />;
-    if (url.searchParams.get('intake') === '1') return <IntakePage />;
-    if (url.searchParams.get('create') === '1') return <CreateAccountPage />;
-    if (url.searchParams.get('accept') === '1') return <AcceptInvitePage />;
-    if (url.searchParams.get('signin') === '1') return <SignInPage />;
+    if (getUrlParam('reset') === '1') return <ResetPasswordPage />;
+    if (getUrlParam('intake') === '1') return <IntakePage />;
+    if (getUrlParam('create') === '1') return <CreateAccountPage />;
+    if (getUrlParam('accept') === '1') return <AcceptInvitePage />;
+    if (getUrlParam('signin') === '1') return <SignInPage />;
     return <AuthLandingPage />;
   }
   // Manual auth landing trigger (works even if Supabase is not configured)
   if (typeof window !== 'undefined') {
-    const url = new URL(window.location.href);
-      if (url.searchParams.get('auth') === '1' && (!supabase || !user)) {
-      if (url.searchParams.get('create') === '1') return <CreateAccountPage />;
+    if (getUrlParam('auth') === '1' && (!supabase || !user)) {
+      if (getUrlParam('create') === '1') return <CreateAccountPage />;
       return <AuthLandingPage />;
     }
   }
-  // Accept invite route shortcut: /?accept=1&token=...
+  // Accept invite and intake route shortcuts: /?accept=1&token=... and /#/?intake=1&token=...
   if (typeof window !== 'undefined') {
-    const url = new URL(window.location.href);
-    if (url.searchParams.get('accept') === '1') {
+    if (getUrlParam('accept') === '1') {
       return <AcceptInvitePage />;
     }
-    if (url.searchParams.get('intake') === '1') {
+    if (getUrlParam('intake') === '1') {
       return <IntakePage />;
     }
   }
