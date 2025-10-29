@@ -152,6 +152,7 @@ export function IntakeLinksPage() {
             <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>Token</th>
             <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>Defaults</th>
             <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>Owner</th>
+            <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>Created</th>
             <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>Active</th>
             <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>Actions</th>
           </tr>
@@ -212,6 +213,9 @@ export function IntakeLinksPage() {
                     <option key={o.userId} value={o.userId}>{o.email}</option>
                   ))}
                 </select>
+              </td>
+              <td style={{ fontSize: 12, opacity: 0.8 }}>
+                {new Date(l.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
               </td>
               <td>
                 <input type="checkbox" checked={l.active} onChange={(e) => onToggleActive(l.id, e.target.checked)} />
