@@ -319,7 +319,7 @@ export async function createBacklogItem(input: {
     phone1: normalizePhone(input.phone1) ?? null,
     phone2: normalizePhone(input.phone2) ?? null,
     preferred_date: input.preferredDate ?? null,
-    entry_date: input.entryDate ? new Date(input.entryDate).toISOString() : new Date().toISOString(),
+    entry_date: input.entryDate ?? new Date().toISOString().split('T')[0],
     notes: input.notes ?? null,
   };
   const { data, error } = await (supabase as any).from('backlog').insert(payload).select('*').single();
