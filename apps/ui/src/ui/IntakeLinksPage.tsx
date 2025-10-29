@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AppUser, getCurrentAppUser, listMembers } from '../client/api';
-import { IntakeLink, listIntakeLinks, createIntakeLink, updateIntakeLink, getIntakeShareUrl } from '../client/api';
+import { IntakeLink, listIntakeLinks, createIntakeLink, updateIntakeLink, deleteIntakeLink, getIntakeShareUrl } from '../client/api';
 
 export function IntakeLinksPage() {
   const [me, setMe] = useState<AppUser | null>(null);
@@ -78,6 +78,17 @@ export function IntakeLinksPage() {
 
   async function onSaveDefaults(id: string, patch: Partial<{ label: string; defaultCategoryKey: string | null; defaultCaseTypeId: string | null; defaultSurgeonId: string | null; ownerUserId: string }>) {
     try { await updateIntakeLink(id, patch as any); refresh(); } catch (e: any) { setError(e?.message || String(e)); }
+  }
+
+  async function onDelete(id: string) {
+    if (!window.confirm('Are you sure you want to delete this intake link? This cannot be undone.')) return;
+    try {
+      setError(null);
+      await deleteIntakeLink(id);
+      refresh();
+    } catch (e: any) {
+      setError(e?.message || String(e));
+    }
   }
 
   return (
@@ -207,6 +218,8 @@ export function IntakeLinksPage() {
               </td>
               <td>
                 <a href={getIntakeShareUrl(l.token)} target="_blank" rel="noreferrer">Open</a>
+                {' | '}
+                <button onClick={() => onDelete(l.id)} style={{ background: 'none', border: 'none', color: '#d97706', cursor: 'pointer', textDecoration: 'underline', padding: 0, font: 'inherit' }}>Delete</button>
               </td>
             </tr>
           ))}

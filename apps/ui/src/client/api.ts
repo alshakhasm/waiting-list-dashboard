@@ -1435,6 +1435,12 @@ export async function updateIntakeLink(id: string, patch: Partial<{
   if (error) throw error;
 }
 
+export async function deleteIntakeLink(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await (supabase as any).from('intake_links').delete().eq('id', id);
+  if (error) throw error;
+}
+
 export function getIntakeShareUrl(token: string): string {
   try {
     const base = window.location.origin;
