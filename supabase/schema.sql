@@ -1072,11 +1072,21 @@ begin
   v_p2 := nullif(regexp_replace(coalesce(p_phone2, ''), '\\D', '', 'g'), '');
   v_surgeon := coalesce(p_surgeon_id, 's:1');
   
-  -- Parse entry_date if provided (YYYY-MM-DD format)
-  v_entry_date := case 
-    when p_entry_date is not null and p_entry_date ~ '^\d{4}-\d{2}-\d{2}' then
-      (p_entry_date || ' 00:00:00')::timestamptz
-    else null
+  -- Parse entry_date if provided (can be YYYY-MM-DD or ISO timestamp)
+  v_entry_date := null;
+  if p_entry_date is not null then
+    begin
+      -- Try to parse as ISO timestamp first
+      v_entry_date := p_entry_date::timestamptz;
+    exception when others then
+      begin
+        -- Try to parse as date (YYYY-MM-DD) and convert to timestamp
+        v_entry_date := (p_entry_date::date || ' 00:00:00 UTC')::timestamptz;
+      exception when others then
+        -- If both fail, just set to null and use current time
+        v_entry_date := null;
+      end;
+    end;
   end;
 
   if coalesce(trim(p_patient_name), '') = '' then
