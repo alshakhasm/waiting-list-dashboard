@@ -1438,8 +1438,9 @@ export async function updateIntakeLink(id: string, patch: Partial<{
 export function getIntakeShareUrl(token: string): string {
   try {
     const base = window.location.origin;
-    return `${base}?intake=1&token=${encodeURIComponent(token)}`;
+    const pathname = window.location.pathname;
+    return `${base}${pathname}#/?intake=1&token=${encodeURIComponent(token)}`;
   } catch {
-    return `?intake=1&token=${encodeURIComponent(token)}`;
+    return `#/?intake=1&token=${encodeURIComponent(token)}`;
   }
 }
