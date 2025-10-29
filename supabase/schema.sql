@@ -1032,7 +1032,8 @@ create or replace function public.submit_backlog_user(
   p_category_key text default null,
   p_case_type_id text default null,
   p_est_duration_min integer default 60,
-  p_surgeon_id text default null
+  p_surgeon_id text default null,
+  p_entry_date text default null
 ) returns uuid
 language plpgsql
 security definer
@@ -1045,6 +1046,7 @@ declare
   v_p2 text;
   v_surgeon text;
   v_uid uuid;
+  v_entry_date timestamptz;
 begin
   -- Require authenticated call
   v_uid := auth.uid();
@@ -1069,6 +1071,13 @@ begin
   v_p1 := nullif(regexp_replace(coalesce(p_phone1, ''), '\\D', '', 'g'), '');
   v_p2 := nullif(regexp_replace(coalesce(p_phone2, ''), '\\D', '', 'g'), '');
   v_surgeon := coalesce(p_surgeon_id, 's:1');
+  
+  -- Parse entry_date if provided (YYYY-MM-DD format)
+  v_entry_date := case 
+    when p_entry_date is not null and p_entry_date ~ '^\d{4}-\d{2}-\d{2}' then
+      (p_entry_date || ' 00:00:00')::timestamptz
+    else null
+  end;
 
   if coalesce(trim(p_patient_name), '') = '' then
     raise exception 'patient_name is required';
@@ -1083,7 +1092,7 @@ begin
   insert into public.backlog (
     patient_name, mrn, masked_mrn, procedure,
     category_key, est_duration_min, surgeon_id, case_type_id,
-    phone1, phone2, notes, created_by
+    phone1, phone2, notes, entry_date, created_by
   ) values (
     trim(p_patient_name),
     v_mrn,
@@ -1096,6 +1105,7 @@ begin
     v_p1,
     v_p2,
     nullif(p_notes, ''),
+    coalesce(v_entry_date, now()),
     public.workspace_owner(v_uid)  -- Set owner as the creator, not the member
   ) returning id into v_id;
 
@@ -1103,7 +1113,7 @@ begin
 end;
 $$;
 
-grant execute on function public.submit_backlog_user(text, text, text, text, text, text, text, text, integer, text) to authenticated;
+grant execute on function public.submit_backlog_user(text, text, text, text, text, text, text, text, integer, text, text) to authenticated;
 
 -- Helper function to fix members without invited_by set (usually happens with old members created before this field existed)
 create or replace function public.fix_member_invited_by()
