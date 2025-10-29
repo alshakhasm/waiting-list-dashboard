@@ -185,7 +185,7 @@ function getDefaultSurgeonId(): string {
 
 export async function getBacklog(params?: { caseTypeId?: string; surgeonId?: string; search?: string }): Promise<BacklogItem[]> {
   if (supabase) {
-    // Prefer filtering out soft-removed rows if column exists; otherwise, retry without the filter
+    // First get all backlog items that aren't soft-removed
     let data: any[] | null = null;
     let error: any = null;
     if (HAS_BACKLOG_IS_REMOVED !== false) {
@@ -222,11 +222,33 @@ export async function getBacklog(params?: { caseTypeId?: string; surgeonId?: str
       error = res.error;
     }
     if (error) throw error;
+    
+    // Now get all schedule entries with confirmed or operated status
+    let scheduleData: any[] = [];
+    try {
+      const { data: sched, error: schedError } = await supabase
+        .from('schedule')
+        .select('waiting_list_item_id')
+        .in('status', ['confirmed', 'operated']);
+      if (schedError) {
+        console.error('[getBacklog] Error fetching schedule:', schedError);
+      } else {
+        scheduleData = sched || [];
+      }
+    } catch (e: any) {
+      console.error('[getBacklog] Exception fetching schedule:', e);
+    }
+    
+    // Build a set of backlog IDs that have confirmed/operated status
+    const confirmedOperatedIds = new Set(scheduleData.map((s: any) => s.waiting_list_item_id));
+    
     const sanitized = (data || []).filter((r: any) => {
       // Always hide rows that were soft-removed, whether flagged via column or legacy note marker
       const note = typeof r?.notes === 'string' ? r.notes : '';
       if (/^removed@/i.test(note.trim())) return false;
       if (r?.is_removed === true) return false;
+      // Hide rows that have a confirmed or operated schedule entry
+      if (confirmedOperatedIds.has(r.id)) return false;
       return true;
     });
     const mapped = sanitized.map((r: any) => ({
