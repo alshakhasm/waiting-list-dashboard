@@ -545,11 +545,6 @@ function dedupeSchedule(entries: ScheduleEntry[]): ScheduleEntry[] {
 }
 
 function mapScheduleRow(row: any, fallbackStatus: string = 'tentative'): ScheduleEntry {
-  let backlog = row?.backlog || row?.backlog_row || null;
-  // Handle case where backlog is returned as array (one-to-many join)
-  if (Array.isArray(backlog) && backlog.length > 0) {
-    backlog = backlog[0];
-  }
   const entry: ScheduleEntry = {
     id: row.id,
     waitingListItemId: row.waiting_list_item_id,
@@ -562,25 +557,17 @@ function mapScheduleRow(row: any, fallbackStatus: string = 'tentative'): Schedul
     version: (row.version as number | undefined) ?? 1,
     notes: row.notes || undefined,
     updatedAt: row.updated_at || row.created_at || undefined,
-    // Use stored patient name as base, override with backlog if available
+    // Use stored patient name and procedure from schedule table
     patientName: row.patient_name || undefined,
     procedure: row.procedure || undefined,
     maskedMrn: undefined,
   };
-  if (backlog && typeof backlog === 'object') {
-    // Backlog data overrides stored schedule data
-    entry.patientName = backlog.patient_name ?? entry.patientName;
-    entry.procedure = backlog.procedure ?? backlog.last_procedure ?? entry.procedure;
-    entry.maskedMrn = backlog.masked_mrn ?? backlog.maskedMrn ?? entry.maskedMrn;
-    if (!entry.surgeonId && backlog.surgeon_id) entry.surgeonId = backlog.surgeon_id;
-    if (!entry.notes && backlog.notes) entry.notes = backlog.notes;
-  }
   return entry;
 }
 
 export async function getSchedule(params?: { date?: string }): Promise<ScheduleEntry[]> {
   if (supabase) {
-    let q = supabase.from('schedule').select('*, backlog:backlog ( patient_name, procedure, masked_mrn, surgeon_id, notes )');
+    let q = supabase.from('schedule').select('*');
     if (params?.date) {
       const start = params.date;
       const endIso = (() => {
@@ -596,8 +583,6 @@ export async function getSchedule(params?: { date?: string }): Promise<ScheduleE
     }
     const { data, error } = await q;
     if (error) throw error;
-    // Debug log to check what's in schedule entries
-    console.log('[getSchedule] raw data:', data?.map((r: any) => ({ id: r.id, waitingListItemId: r.waiting_list_item_id, backlog: r.backlog })));
     const mapped = (data || []).map((row: any) => mapScheduleRow(row));
     return dedupeSchedule(mapped);
   }
@@ -611,7 +596,7 @@ export async function getScheduleRange(params: { start: string; end: string }): 
   if (supabase) {
     const { data, error } = await (supabase as any)
       .from('schedule')
-      .select('*, backlog:backlog ( patient_name, procedure, masked_mrn, surgeon_id, notes )')
+      .select('*')
       .gte('date', params.start)
       .lt('date', params.end);
     if (error) throw error;
