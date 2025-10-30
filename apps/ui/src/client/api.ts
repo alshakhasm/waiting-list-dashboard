@@ -545,7 +545,11 @@ function dedupeSchedule(entries: ScheduleEntry[]): ScheduleEntry[] {
 }
 
 function mapScheduleRow(row: any, fallbackStatus: string = 'tentative'): ScheduleEntry {
-  const backlog = row?.backlog || row?.backlog_row || null;
+  let backlog = row?.backlog || row?.backlog_row || null;
+  // Handle case where backlog is returned as array (one-to-many join)
+  if (Array.isArray(backlog) && backlog.length > 0) {
+    backlog = backlog[0];
+  }
   const entry: ScheduleEntry = {
     id: row.id,
     waitingListItemId: row.waiting_list_item_id,
