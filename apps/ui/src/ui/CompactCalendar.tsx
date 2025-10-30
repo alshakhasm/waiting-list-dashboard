@@ -341,7 +341,7 @@ export function CompactCalendar(props: {
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                           }}>
-                            {item?.patientName ?? 'Patient'}
+                            {en.patientName || item?.patientName || 'Patient'}
                           </div>
                         </div>
                       );
@@ -374,7 +374,7 @@ export function CompactCalendar(props: {
                           </div>
                         )}
                         <div style={{ marginTop: view === 'month' ? 4 : 2 }}>
-                          <div style={{ fontWeight: view === 'month' ? 700 : 600, fontSize: view === 'month' ? 13 : 12 }}>{item?.patientName ?? 'Patient'}</div>
+                          <div style={{ fontWeight: view === 'month' ? 700 : 600, fontSize: view === 'month' ? 13 : 12 }}>{en.patientName || item?.patientName || 'Patient'}</div>
                           <div style={{
                             opacity: view === 'month' ? 0.85 : 0.8,
                             whiteSpace: 'nowrap',
@@ -383,7 +383,7 @@ export function CompactCalendar(props: {
                             fontSize: view === 'month' ? 11 : 12,
                             marginBottom: view === 'month' ? 4 : 0,
                           }}>
-                            {item?.procedure ?? 'Scheduled case'}
+                            {en.procedure || item?.procedure || 'Scheduled case'}
                           </div>
                           {item?.entryDate && (
                             <div style={{ fontSize: 10, opacity: view === 'month' ? 0.65 : 0.6, marginBottom: 4 }}>
