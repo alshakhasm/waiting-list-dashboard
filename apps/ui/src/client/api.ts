@@ -623,6 +623,7 @@ export async function createSchedule(input: { waitingListItemId: string; roomId:
     // If backlog lookup fails, continue without patient data
     const patientName = backlogItem?.patient_name ?? null;
     const procedure = backlogItem?.procedure ?? null;
+    console.log('[createSchedule] fetched backlog:', { backlogItem, patientName, procedure });
     
     const { data: existingRows, error: existingError } = await (supabase as any)
       .from('schedule')
@@ -667,7 +668,7 @@ export async function createSchedule(input: { waitingListItemId: string; roomId:
       emitDashboardChange();
       return out;
     }
-    const { data, error } = await (supabase as any).from('schedule').insert({
+    const insertPayload = {
       waiting_list_item_id: input.waitingListItemId,
       room_id: input.roomId,
       surgeon_id: input.surgeonId,
@@ -678,8 +679,14 @@ export async function createSchedule(input: { waitingListItemId: string; roomId:
       notes: input.notes ?? null,
       patient_name: patientName,
       procedure: procedure,
-    }).select('*').single();
-    if (error) throw error;
+    };
+    console.log('[createSchedule] inserting:', insertPayload);
+    const { data, error } = await (supabase as any).from('schedule').insert(insertPayload).select('*').single();
+    if (error) {
+      console.error('[createSchedule] insert error:', error);
+      throw error;
+    }
+    console.log('[createSchedule] inserted data:', data);
     const out = mapRow(data);
     emitDashboardChange();
     return out;
