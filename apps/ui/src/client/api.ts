@@ -571,7 +571,7 @@ function mapScheduleRow(row: any, fallbackStatus: string = 'tentative'): Schedul
 
 export async function getSchedule(params?: { date?: string }): Promise<ScheduleEntry[]> {
   if (supabase) {
-    let q = supabase.from('schedule').select('*');
+    let q = supabase.from('schedule').select('*, backlog:backlog ( patient_name, procedure, masked_mrn, surgeon_id, notes )');
     if (params?.date) {
       const start = params.date;
       const endIso = (() => {
