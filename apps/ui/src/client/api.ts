@@ -1,4 +1,4 @@
-// Defer core adapter import to runtime to avoid blocking initial render if dev server fs.allow is strict
+in th// Defer core adapter import to runtime to avoid blocking initial render if dev server fs.allow is strict
 // @core is only available in production builds; dev mode uses a stub
 async function getHandleRequest(): Promise<(_req: any) => Promise<any>> {
   // Return a stub that works in dev; @core is not available until production build
@@ -181,6 +181,73 @@ function getDefaultSurgeonId(): string {
     if (v && v.trim()) return v.trim();
   } catch {}
   return 's:1';
+}
+
+/**
+ * Get ALL backlog items including confirmed/operated cases.
+ * Used for name lookups in schedule display.
+ * Does NOT filter by status.
+ */
+export async function getAllBacklogItems(): Promise<BacklogItem[]> {
+  if (supabase) {
+    let data: any[] | null = null;
+    let error: any = null;
+    try {
+      if (HAS_BACKLOG_IS_REMOVED !== false) {
+        const res = await supabase.from('backlog').select('*').eq('is_removed', false);
+        data = res.data;
+        error = res.error;
+      } else {
+        const res = await supabase.from('backlog').select('*').not('notes','ilike','removed@%');
+        data = res.data;
+        error = res.error;
+      }
+    } catch (e: any) {
+      error = e;
+      console.error('[getAllBacklogItems] Exception:', e);
+      if (error && /column\s+backlog\.is_removed\s+does not exist/i.test(String(error.message || ''))) {
+        HAS_BACKLOG_IS_REMOVED = false;
+        const res = await supabase.from('backlog').select('*').not('notes','ilike','removed@%');
+        data = res.data;
+        error = res.error;
+      }
+    }
+    
+    if (error) throw error;
+    
+    const sanitized = (data || []).filter((r: any) => {
+      const note = typeof r?.notes === 'string' ? r.notes : '';
+      if (/^removed@/i.test(note.trim())) return false;
+      if (r?.is_removed === true) return false;
+      return true;
+    });
+    
+    const mapped = sanitized.map((r: any) => ({
+      id: r.id,
+      patientName: r.patient_name,
+      mrn: r.mrn,
+      maskedMrn: r.masked_mrn,
+      procedure: r.procedure,
+      categoryKey: r.category_key || undefined,
+      estDurationMin: r.est_duration_min,
+      surgeonId: r.surgeon_id || undefined,
+      caseTypeId: r.case_type_id,
+      phone1: r.phone1 || undefined,
+      phone2: r.phone2 || undefined,
+      preferredDate: r.preferred_date || undefined,
+      entryDate: r.entry_date || undefined,
+      notes: r.notes || undefined,
+      isRemoved: Boolean(r.is_removed) || (typeof r.notes === 'string' && /^removed@/i.test(r.notes)),
+      createdAt: r.created_at || undefined,
+    }));
+    return filterLocallyRemoved(mapped);
+  }
+  
+  const url = '/backlog/all';
+  const handleRequest = await getHandleRequest();
+  const res = await handleRequest({ method: 'GET', path: url });
+  if (res.status !== 200) throw new Error('Failed to fetch all backlog items');
+  return filterLocallyRemoved(res.body as BacklogItem[]);
 }
 
 export async function getBacklog(params?: { caseTypeId?: string; surgeonId?: string; search?: string }): Promise<BacklogItem[]> {

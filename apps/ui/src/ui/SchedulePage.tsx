@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { getSchedule, createSchedule, BacklogItem, ScheduleEntry, confirmSchedule, deleteSchedule, getBacklog, updateSchedule, markScheduleOperated } from '../client/api';
+import { getSchedule, createSchedule, BacklogItem, ScheduleEntry, confirmSchedule, deleteSchedule, getBacklog, getAllBacklogItems, updateSchedule, markScheduleOperated } from '../client/api';
 import { SplitPane } from './SplitPane';
 import { CompactCalendar } from './CompactCalendar';
 import { BacklogPage } from './BacklogPage';
@@ -113,7 +113,9 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
 
   useEffect(() => {
     (async () => {
-      const data = await getBacklog();
+      // Use getAllBacklogItems for itemLookup to include confirmed/operated cases
+      // This ensures schedule entries can always find patient names
+      const data = await getAllBacklogItems();
       setItems(data);
     })();
   }, []);
@@ -121,7 +123,8 @@ export function SchedulePage({ isFull = false }: { isFull?: boolean }) {
   // Real-time sync for schedule and backlog
   const handleScheduleSync = async () => {
     await refreshSchedule();
-    const data = await getBacklog();
+    // Use getAllBacklogItems for itemLookup to include confirmed/operated cases
+    const data = await getAllBacklogItems();
     setItems(data);
   };
 
