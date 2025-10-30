@@ -1,4 +1,4 @@
-in th// Defer core adapter import to runtime to avoid blocking initial render if dev server fs.allow is strict
+// Defer core adapter import to runtime to avoid blocking initial render if dev server fs.allow is strict
 // @core is only available in production builds; dev mode uses a stub
 async function getHandleRequest(): Promise<(_req: any) => Promise<any>> {
   // Return a stub that works in dev; @core is not available until production build
