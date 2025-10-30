@@ -607,26 +607,28 @@ export async function getScheduleRange(params: { start: string; end: string }): 
 }
 
 export async function createSchedule(input: { waitingListItemId: string; roomId: string; surgeonId: string; date: string; startTime: string; endTime: string; notes?: string }): Promise<ScheduleEntry> {
-  const today = new Date().toISOString().slice(0, 10);
-  if (input.date <= today) {
-    throw new Error('Scheduled date must be in the future');
-  }
-  if (supabase) {
-    const mapRow = (row: any): ScheduleEntry => mapScheduleRow(row, 'scheduled');
-    
-    // Fetch backlog item to get patient name and procedure for storage
-    const { data: backlogItem, error: backlogError } = await (supabase as any)
-      .from('backlog')
-      .select('patient_name, procedure')
-      .eq('id', input.waitingListItemId)
-      .single();
-    if (backlogError) {
-      console.warn('[createSchedule] backlog fetch error (may be RLS):', backlogError);
+  try {
+    console.log('[createSchedule] called with:', { waitingListItemId: input.waitingListItemId, date: input.date });
+    const today = new Date().toISOString().slice(0, 10);
+    if (input.date <= today) {
+      throw new Error('Scheduled date must be in the future');
     }
-    // If backlog lookup fails, continue without patient data
-    const patientName = backlogItem?.patient_name ?? null;
-    const procedure = backlogItem?.procedure ?? null;
-    console.log('[createSchedule] fetched backlog:', { backlogItem, patientName, procedure, backlogError });
+    if (supabase) {
+      const mapRow = (row: any): ScheduleEntry => mapScheduleRow(row, 'scheduled');
+      
+      // Fetch backlog item to get patient name and procedure for storage
+      const { data: backlogItem, error: backlogError } = await (supabase as any)
+        .from('backlog')
+        .select('patient_name, procedure')
+        .eq('id', input.waitingListItemId)
+        .single();
+      if (backlogError) {
+        console.warn('[createSchedule] backlog fetch error (may be RLS):', backlogError);
+      }
+      // If backlog lookup fails, continue without patient data
+      const patientName = backlogItem?.patient_name ?? null;
+      const procedure = backlogItem?.procedure ?? null;
+      console.log('[createSchedule] fetched backlog:', { backlogItem, patientName, procedure, backlogError });
     
     const { data: existingRows, error: existingError } = await (supabase as any)
       .from('schedule')
@@ -693,12 +695,16 @@ export async function createSchedule(input: { waitingListItemId: string; roomId:
     const out = mapRow(data);
     emitDashboardChange();
     return out;
+    }
+    const handleRequest = await getHandleRequest();
+    const res = await handleRequest({ method: 'POST', path: '/schedule', body: input });
+    if (res.status !== 201) throw new Error((res.body as any)?.error || 'Failed to create schedule');
+    emitDashboardChange();
+    return res.body as ScheduleEntry;
+  } catch (err) {
+    console.error('[createSchedule] error:', err);
+    throw err;
   }
-  const handleRequest = await getHandleRequest();
-  const res = await handleRequest({ method: 'POST', path: '/schedule', body: input });
-  if (res.status !== 201) throw new Error((res.body as any)?.error || 'Failed to create schedule');
-  emitDashboardChange();
-  return res.body as ScheduleEntry;
 }
 
 export async function confirmSchedule(id: string): Promise<void> {
