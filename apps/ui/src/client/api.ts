@@ -620,10 +620,13 @@ export async function createSchedule(input: { waitingListItemId: string; roomId:
       .select('patient_name, procedure')
       .eq('id', input.waitingListItemId)
       .single();
+    if (backlogError) {
+      console.warn('[createSchedule] backlog fetch error (may be RLS):', backlogError);
+    }
     // If backlog lookup fails, continue without patient data
     const patientName = backlogItem?.patient_name ?? null;
     const procedure = backlogItem?.procedure ?? null;
-    console.log('[createSchedule] fetched backlog:', { backlogItem, patientName, procedure });
+    console.log('[createSchedule] fetched backlog:', { backlogItem, patientName, procedure, backlogError });
     
     const { data: existingRows, error: existingError } = await (supabase as any)
       .from('schedule')
