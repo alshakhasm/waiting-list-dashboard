@@ -545,6 +545,7 @@ function dedupeSchedule(entries: ScheduleEntry[]): ScheduleEntry[] {
 }
 
 function mapScheduleRow(row: any, fallbackStatus: string = 'tentative'): ScheduleEntry {
+  console.log('[mapScheduleRow] raw row:', { id: row.id, patient_name: row.patient_name, procedure: row.procedure, status: row.status });
   const entry: ScheduleEntry = {
     id: row.id,
     waitingListItemId: row.waiting_list_item_id,
@@ -562,6 +563,7 @@ function mapScheduleRow(row: any, fallbackStatus: string = 'tentative'): Schedul
     procedure: row.procedure || undefined,
     maskedMrn: undefined,
   };
+  console.log('[mapScheduleRow] mapped entry:', { id: entry.id, patientName: entry.patientName, procedure: entry.procedure });
   return entry;
 }
 
