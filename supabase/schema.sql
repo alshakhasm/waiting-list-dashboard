@@ -321,7 +321,7 @@ create table if not exists patients_archive (
 
 create table if not exists schedule (
   id uuid primary key default gen_random_uuid(),
-  waiting_list_item_id uuid not null references backlog(id) on delete cascade,
+  waiting_list_item_id uuid references backlog(id) on delete set null,
   room_id text not null,
   surgeon_id text not null,
   date date not null,
@@ -329,6 +329,8 @@ create table if not exists schedule (
   end_time time not null,
   status text not null default 'tentative',
   notes text,
+  patient_name text,
+  procedure text,
   created_at timestamptz default now()
 );
 

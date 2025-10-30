@@ -562,9 +562,14 @@ function mapScheduleRow(row: any, fallbackStatus: string = 'tentative'): Schedul
     version: (row.version as number | undefined) ?? 1,
     notes: row.notes || undefined,
     updatedAt: row.updated_at || row.created_at || undefined,
+    // Use stored patient name as base, override with backlog if available
+    patientName: row.patient_name || undefined,
+    procedure: row.procedure || undefined,
+    maskedMrn: undefined,
   };
   if (backlog && typeof backlog === 'object') {
-    entry.patientName = backlog.patient_name ?? backlog.patientName ?? entry.patientName;
+    // Backlog data overrides stored schedule data
+    entry.patientName = backlog.patient_name ?? entry.patientName;
     entry.procedure = backlog.procedure ?? backlog.last_procedure ?? entry.procedure;
     entry.maskedMrn = backlog.masked_mrn ?? backlog.maskedMrn ?? entry.maskedMrn;
     if (!entry.surgeonId && backlog.surgeon_id) entry.surgeonId = backlog.surgeon_id;
@@ -591,6 +596,8 @@ export async function getSchedule(params?: { date?: string }): Promise<ScheduleE
     }
     const { data, error } = await q;
     if (error) throw error;
+    // Debug log to check what's in schedule entries
+    console.log('[getSchedule] raw data:', data?.map((r: any) => ({ id: r.id, waitingListItemId: r.waiting_list_item_id, backlog: r.backlog })));
     const mapped = (data || []).map((row: any) => mapScheduleRow(row));
     return dedupeSchedule(mapped);
   }
@@ -621,6 +628,17 @@ export async function createSchedule(input: { waitingListItemId: string; roomId:
   }
   if (supabase) {
     const mapRow = (row: any): ScheduleEntry => mapScheduleRow(row, 'scheduled');
+    
+    // Fetch backlog item to get patient name and procedure for storage
+    const { data: backlogItem, error: backlogError } = await (supabase as any)
+      .from('backlog')
+      .select('patient_name, procedure')
+      .eq('id', input.waitingListItemId)
+      .single();
+    // If backlog lookup fails, continue without patient data
+    const patientName = backlogItem?.patient_name ?? null;
+    const procedure = backlogItem?.procedure ?? null;
+    
     const { data: existingRows, error: existingError } = await (supabase as any)
       .from('schedule')
       .select('*')
@@ -650,6 +668,8 @@ export async function createSchedule(input: { waitingListItemId: string; roomId:
         end_time: input.endTime,
         status: nextStatus,
         notes: input.notes ?? existing.notes ?? null,
+        patient_name: patientName ?? existing.patient_name ?? null,
+        procedure: procedure ?? existing.procedure ?? null,
       };
       const { data, error } = await (supabase as any)
         .from('schedule')
@@ -671,6 +691,8 @@ export async function createSchedule(input: { waitingListItemId: string; roomId:
       end_time: input.endTime,
       status: 'scheduled',
       notes: input.notes ?? null,
+      patient_name: patientName,
+      procedure: procedure,
     }).select('*').single();
     if (error) throw error;
     const out = mapRow(data);
