@@ -717,9 +717,13 @@ export async function markScheduleOperated(id: string, operated: boolean): Promi
       .from('schedule')
       .update({ status })
       .eq('id', id)
-      .select('waiting_list_item_id')
+      .select('*')
       .single();
-    if (error) throw error;
+    if (error) {
+      console.error('[markScheduleOperated] update error:', error);
+      throw error;
+    }
+    console.log('[markScheduleOperated] updated entry:', data);
     const waitingId = data?.waiting_list_item_id;
     if (waitingId) {
       try {
